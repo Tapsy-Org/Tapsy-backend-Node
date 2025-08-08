@@ -44,3 +44,4 @@ const businessRouter = Router();
 businessRouter.patch('/:userId', authenticate, controller.updateBusinessDetails);
 
 export default businessRouter;
+dfgggghufgjghgh
