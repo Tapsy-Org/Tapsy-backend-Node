@@ -78,11 +78,13 @@ export default [
     rules: {
       ...js.configs.recommended.rules,
       ...tseslint.configs.recommended.rules,
+      // Disable rules that are too strict for test files
       "no-unused-vars": "off",
-      "prettier/prettier": "error",
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/explicit-function-return-type": "off",
-      "@typescript-eslint/no-explicit-any": "warn",
+      // Keep formatting rules
+      "prettier/prettier": "error",
       "simple-import-sort/imports": "error",
       "simple-import-sort/exports": "error",
     },
