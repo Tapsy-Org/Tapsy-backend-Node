@@ -1,15 +1,16 @@
 import { jest } from '@jest/globals';
 import jwt from 'jsonwebtoken';
+
 import prisma from '../../../config/db';
 import {
   createUser,
-  updateUser,
-  login,
   getUserById,
+  login,
+  updateUser,
   verifyEmailOtp,
 } from '../../../services/user.service';
-import { createMockUser, createMockBusinessUser } from '../../utils/testHelpers';
 import AppError from '../../../utils/AppError';
+import { createMockBusinessUser, createMockUser } from '../../utils/testHelpers';
 
 // Mock Prisma client
 const mockedPrisma = prisma as jest.Mocked<typeof prisma>;

@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+
 import { UserType } from '../../../generated/prisma';
 
 export interface MockRequest extends Partial<Request> {

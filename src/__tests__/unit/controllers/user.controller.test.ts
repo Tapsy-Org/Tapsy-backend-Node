@@ -1,21 +1,22 @@
 import { jest } from '@jest/globals';
-import * as userService from '../../../services/user.service';
-import { verifyFirebaseToken } from '../../../utils/firebase';
+
 import {
+  getUser,
+  login,
   registerUser,
   updateUser,
-  getUser,
   verifyEmailOtp,
-  login,
 } from '../../../controllers/user.controller';
+import * as userService from '../../../services/user.service';
+import AppError from '../../../utils/AppError';
+import { verifyFirebaseToken } from '../../../utils/firebase';
 import {
+  createMockBusinessUser,
+  createMockNext,
   createMockRequest,
   createMockResponse,
-  createMockNext,
   createMockUser,
-  createMockBusinessUser,
 } from '../../utils/testHelpers';
-import AppError from '../../../utils/AppError';
 
 // Mock the user service
 jest.mock('../../../services/user.service');

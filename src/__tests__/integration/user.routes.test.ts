@@ -1,11 +1,12 @@
 import { jest } from '@jest/globals';
-import request from 'supertest';
 import express from 'express';
+import request from 'supertest';
+
+import globalErrorHandler from '../../middlewares/globalErrorHandler';
+import responseMiddleware from '../../middlewares/response.middleware';
 import userRoutes from '../../routes/user.routes';
 import * as userService from '../../services/user.service';
-import responseMiddleware from '../../middlewares/response.middleware';
-import globalErrorHandler from '../../middlewares/globalErrorHandler';
-import { createMockUser, createMockBusinessUser } from '../utils/testHelpers';
+import { createMockBusinessUser, createMockUser } from '../utils/testHelpers';
 
 // Mock the user service
 jest.mock('../../services/user.service');
