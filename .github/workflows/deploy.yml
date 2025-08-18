@@ -1,72 +1,31 @@
-name: Deploy
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
-      - develop
 
 jobs:
-  deploy-staging:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
-    environment: staging
-    
+  deploy:
+    runs-on: [self-hosted, tapsy-backend]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-
-      - name: Build application
-        run: npm run build
-
-      - name: Deploy to staging
+      - name: Build and start containers with commit hash
         run: |
-          echo "Deploying to staging environment..."
-          # Add your staging deployment commands here
-          # Example: npm run deploy:staging
-          # Example: docker build -t staging-app .
-          # Example: docker push your-registry/staging-app
+          COMMIT_HASH=${{ github.sha }}
 
-  deploy-production:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment: production
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+          # Stop old containers
+          docker compose down || true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'npm'
+          # Build backend with commit hash
+          docker build -t my-backend:$COMMIT_HASH -t my-backend:latest .
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-
-      - name: Build application
-        run: npm run build
-
-      - name: Deploy to production
-        run: |
-          echo "Deploying to production environment..."
-          # Add your production deployment commands here
-          # Example: npm run deploy:production
-          # Example: docker build -t production-app .
-          # Example: docker push your-registry/production-app
+          # Start new stack
+          DB_HOST=${{ secrets.DB_HOST }} \
+          DB_USER=${{ secrets.DB_USER }} \
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+          DB_NAME=${{ secrets.DB_NAME }} \
+          docker compose up -d --force-recreate --build
