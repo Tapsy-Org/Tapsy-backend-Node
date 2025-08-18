@@ -4,9 +4,19 @@
   "description": "Backend server for the Tapsy project, built with Node.js, Express.js, TypeScript, PostgreSQL, and Prisma ORM.",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon",
+    "dev": "cross-env NODE_ENV=development nodemon",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "npm run build && cross-env NODE_ENV=production node dist/server.js",
+    "db:generate": "prisma generate",
+    "db:dev:deploy": "cross-env NODE_ENV=development dotenv -e .env.development -- prisma db push",
+    "db:dev:migrate": "cross-env NODE_ENV=development dotenv -e .env.development -- prisma migrate dev",
+    "db:dev:reset": "cross-env NODE_ENV=development dotenv -e .env.development -- prisma migrate reset",
+    "db:dev:seed": "cross-env NODE_ENV=development dotenv -e .env.development -- ts-node prisma/seed.ts",
+    "db:dev:studio": "cross-env NODE_ENV=development dotenv -e .env.development -- prisma studio",
+    "db:prod:deploy": "cross-env NODE_ENV=production dotenv -e .env.production -- prisma migrate deploy",
+    "db:prod:status": "cross-env NODE_ENV=production dotenv -e .env.production -- prisma migrate status",
+    "db:prod:reset": "cross-env NODE_ENV=production dotenv -e .env.production -- prisma migrate reset --force",
+    "postinstall": "npm run db:generate",
     "lint": "eslint \"src/**/*.{ts,js}\"",
     "lint:fix": "eslint \"src/**/*.{ts,js}\" --fix",
     "format": "prettier --write \"src/**/*.{ts,js,json,md}\"",
@@ -20,12 +30,15 @@
     "@eslint/js": "^9.32.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
     "@types/node": "^24.2.0",
     "@types/nodemailer": "^6.4.17",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
+    "cross-env": "^10.0.0",
+    "dotenv-cli": "^7.4.4",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
@@ -38,7 +51,7 @@
     "lint-staged": "^16.1.5",
     "nodemon": "^3.1.10",
     "prettier": "^3.6.2",
-    "prisma": "^6.13.0",
+    "prisma": "^6.14.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "ts-node": "^10.9.2",
@@ -46,14 +59,16 @@
     "typescript-eslint": "^8.39.0"
   },
   "dependencies": {
-    "@prisma/client": "^6.13.0",
+    "@prisma/client": "^6.14.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "axios": "^1.11.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "firebase-admin": "^13.4.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
+    "multer": "^2.0.0",
     "nodemailer": "^7.0.5"
   },
   "lint-staged": {
@@ -62,5 +77,4 @@
       "prettier --write"
     ]
   }
-
 }

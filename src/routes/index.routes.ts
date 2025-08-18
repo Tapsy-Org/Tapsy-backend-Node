@@ -1,14 +1,17 @@
 import { Router } from 'express';
 
-import businessRouter from './business.routes';
-import userRouter from './user.routes';
-import userPersonalizationRouter from './userPersonalization.routes';
+import categoryRouter from './category.routes';
+import individualUserRouter from './individualUser.routes';
+import subCategoryRouter from './subCategory.routes';
+import userCategoryAssignmentRouter from './userCategoryAssignment.routes';
 import welcomeRouter from './welcome.routes';
+
 const mainRouter = Router();
 
 mainRouter.use('/', welcomeRouter);
-mainRouter.use('/auth', userRouter);
-mainRouter.use('/business', businessRouter);
-mainRouter.use('/user-personalization', userPersonalizationRouter);
+mainRouter.use('/categories', categoryRouter);
+mainRouter.use('/subcategories', subCategoryRouter);
+mainRouter.use('/user-category-assignments', userCategoryAssignmentRouter);
+mainRouter.use('/individual-user', individualUserRouter);
 
 export default mainRouter;

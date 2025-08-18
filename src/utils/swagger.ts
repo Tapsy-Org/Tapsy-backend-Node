@@ -16,6 +16,23 @@ const options = {
           bearerFormat: 'JWT',
         },
       },
+      schemas: {
+        UploadResponse: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' },
+            file: {
+              type: 'object',
+              properties: {
+                originalName: { type: 'string' },
+                mimeType: { type: 'string' },
+                size: { type: 'number' },
+                path: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
     },
     servers: [
       {
