@@ -1,0 +1,31 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, tapsy-backend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build and start containers with commit hash
+        run: |
+          COMMIT_HASH=${{ github.sha }}
+
+          # Stop old containers
+          docker compose down || true
+
+          # Build backend with commit hash
+          docker build -t my-backend:$COMMIT_HASH -t my-backend:latest .
+
+          # Start new stack
+          DB_HOST=${{ secrets.DB_HOST }} \
+          DB_USER=${{ secrets.DB_USER }} \
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+          DB_NAME=${{ secrets.DB_NAME }} \
+          docker compose up -d --force-recreate --build
