@@ -22,7 +22,9 @@ jest.mock('../../../services/user.service');
 jest.mock('../../../utils/firebase');
 
 const mockedUserService = userService as jest.Mocked<typeof userService>;
-const mockedVerifyFirebaseToken = verifyFirebaseToken as jest.MockedFunction<typeof verifyFirebaseToken>;
+const mockedVerifyFirebaseToken = verifyFirebaseToken as jest.MockedFunction<
+  typeof verifyFirebaseToken
+>;
 
 describe('User Controller', () => {
   let req: any;

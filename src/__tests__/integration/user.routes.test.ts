@@ -76,10 +76,7 @@ describe('User Routes Integration Tests', () => {
     });
 
     it('should return 400 when userType is missing', async () => {
-      const response = await request(app)
-        .post('/users/register')
-        .send({})
-        .expect(500);
+      const response = await request(app).post('/users/register').send({}).expect(500);
 
       expect(response.body.status).toBe('error');
       expect(response.body.statusCode).toBe(500);
@@ -117,10 +114,7 @@ describe('User Routes Integration Tests', () => {
       const updates = { email: 'newemail@example.com', name: 'John Doe' };
       mockedUserService.updateUser.mockResolvedValue(mockUser);
 
-      const response = await request(app)
-        .patch('/users/test-user-id')
-        .send(updates)
-        .expect(200);
+      const response = await request(app).patch('/users/test-user-id').send(updates).expect(200);
 
       expect(response.body.status).toBe('success');
       expect(response.body.message).toBe('OK');
@@ -133,10 +127,7 @@ describe('User Routes Integration Tests', () => {
       const updates = { idToken: 'firebase-token', email: 'newemail@example.com' };
       mockedUserService.updateUser.mockResolvedValue(mockUser);
 
-      const response = await request(app)
-        .patch('/users/test-user-id')
-        .send(updates)
-        .expect(500);
+      const response = await request(app).patch('/users/test-user-id').send(updates).expect(500);
 
       expect(response.body.status).toBe('error');
       expect(response.body.message).toBeDefined();
@@ -151,10 +142,7 @@ describe('User Routes Integration Tests', () => {
       };
       mockedUserService.updateUser.mockResolvedValue(mockUser);
 
-      await request(app)
-        .patch('/users/test-user-id')
-        .send(updates)
-        .expect(200);
+      await request(app).patch('/users/test-user-id').send(updates).expect(200);
 
       expect(mockedUserService.updateUser).toHaveBeenCalledWith('test-user-id', {
         email: 'newemail@example.com',
@@ -179,9 +167,7 @@ describe('User Routes Integration Tests', () => {
       const mockUser = createMockUser();
       mockedUserService.getUserById.mockResolvedValue(mockUser);
 
-      const response = await request(app)
-        .get('/users/test-user-id')
-        .expect(200);
+      const response = await request(app).get('/users/test-user-id').expect(200);
 
       expect(response.body.status).toBe('success');
       expect(response.body.message).toBe('OK');
@@ -193,9 +179,7 @@ describe('User Routes Integration Tests', () => {
       const error = new Error('User not found');
       mockedUserService.getUserById.mockRejectedValue(error);
 
-      const response = await request(app)
-        .get('/users/nonexistent-id')
-        .expect(500);
+      const response = await request(app).get('/users/nonexistent-id').expect(500);
 
       expect(response.body.status).toBe('error');
     });

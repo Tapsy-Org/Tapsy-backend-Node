@@ -46,7 +46,7 @@ describe('Response Middleware', () => {
   describe('success method', () => {
     it('should return success response with default values', () => {
       responseMiddleware(req as Request, res as Response, next);
-      
+
       res.success!();
 
       expect(res.status).toHaveBeenCalledWith(200);
@@ -60,7 +60,7 @@ describe('Response Middleware', () => {
     it('should return success response with custom data', () => {
       const testData = { id: 1, name: 'Test' };
       responseMiddleware(req as Request, res as Response, next);
-      
+
       res.success!(testData);
 
       expect(res.status).toHaveBeenCalledWith(200);
@@ -73,7 +73,7 @@ describe('Response Middleware', () => {
 
     it('should return success response with custom message', () => {
       responseMiddleware(req as Request, res as Response, next);
-      
+
       res.success!(undefined, 'Custom message');
 
       expect(res.status).toHaveBeenCalledWith(200);
@@ -86,7 +86,7 @@ describe('Response Middleware', () => {
 
     it('should return success response with custom status code', () => {
       responseMiddleware(req as Request, res as Response, next);
-      
+
       res.success!(undefined, 'OK', 201);
 
       expect(res.status).toHaveBeenCalledWith(201);
@@ -101,7 +101,7 @@ describe('Response Middleware', () => {
   describe('created method', () => {
     it('should return created response with default values', () => {
       responseMiddleware(req as Request, res as Response, next);
-      
+
       res.created!();
 
       expect(res.status).toHaveBeenCalledWith(201);
@@ -115,7 +115,7 @@ describe('Response Middleware', () => {
     it('should return created response with custom data', () => {
       const testData = { id: 1, name: 'Test' };
       responseMiddleware(req as Request, res as Response, next);
-      
+
       res.created!(testData);
 
       expect(res.status).toHaveBeenCalledWith(201);
@@ -128,7 +128,7 @@ describe('Response Middleware', () => {
 
     it('should return created response with custom message', () => {
       responseMiddleware(req as Request, res as Response, next);
-      
+
       res.created!(undefined, 'User created successfully');
 
       expect(res.status).toHaveBeenCalledWith(201);
@@ -143,7 +143,7 @@ describe('Response Middleware', () => {
   describe('fail method', () => {
     it('should return fail response with default values', () => {
       responseMiddleware(req as Request, res as Response, next);
-      
+
       res.fail!('Error message');
 
       expect(res.status).toHaveBeenCalledWith(400);
@@ -157,7 +157,7 @@ describe('Response Middleware', () => {
 
     it('should return fail response with custom status code', () => {
       responseMiddleware(req as Request, res as Response, next);
-      
+
       res.fail!('Not found', 404);
 
       expect(res.status).toHaveBeenCalledWith(404);
@@ -172,7 +172,7 @@ describe('Response Middleware', () => {
     it('should return fail response with custom details', () => {
       const errorDetails = { field: 'email', reason: 'Invalid format' };
       responseMiddleware(req as Request, res as Response, next);
-      
+
       res.fail!('Validation error', 400, errorDetails);
 
       expect(res.status).toHaveBeenCalledWith(400);

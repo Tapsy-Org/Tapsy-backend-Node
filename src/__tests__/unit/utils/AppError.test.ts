@@ -55,16 +55,13 @@ describe('AppError', () => {
     new AppError('Test error', 500);
 
     expect(mockCaptureStackTrace).toHaveBeenCalledTimes(1);
-    expect(mockCaptureStackTrace).toHaveBeenCalledWith(
-      expect.any(AppError),
-      AppError
-    );
+    expect(mockCaptureStackTrace).toHaveBeenCalledWith(expect.any(AppError), AppError);
   });
 
   it('should work with different status codes', () => {
     const statusCodes = [200, 201, 400, 401, 403, 404, 500, 502, 503];
-    
-    statusCodes.forEach(statusCode => {
+
+    statusCodes.forEach((statusCode) => {
       const error = new AppError(`Error ${statusCode}`, statusCode);
       expect(error.statusCode).toBe(statusCode);
       expect(error.message).toBe(`Error ${statusCode}`);
@@ -73,7 +70,7 @@ describe('AppError', () => {
 
   it('should handle empty message', () => {
     const error = new AppError('', 500);
-    
+
     expect(error.message).toBe('');
     expect(error.statusCode).toBe(500);
     expect(error.status).toBe('error');
@@ -81,7 +78,7 @@ describe('AppError', () => {
 
   it('should handle null details explicitly', () => {
     const error = new AppError('Test error', 400, null);
-    
+
     expect(error.details).toBeNull();
   });
 
@@ -89,14 +86,14 @@ describe('AppError', () => {
     const complexDetails = {
       validationErrors: [
         { field: 'email', message: 'Invalid email format' },
-        { field: 'password', message: 'Password too short' }
+        { field: 'password', message: 'Password too short' },
       ],
       timestamp: new Date().toISOString(),
-      requestId: 'req-123'
+      requestId: 'req-123',
     };
-    
+
     const error = new AppError('Validation failed', 422, complexDetails);
-    
+
     expect(error.details).toEqual(complexDetails);
   });
 });

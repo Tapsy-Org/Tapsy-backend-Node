@@ -77,7 +77,7 @@ describe('User Service', () => {
       mockedPrisma.user.update.mockRejectedValue(error);
 
       await expect(updateUser('test-user-id', { email: 'new@example.com' })).rejects.toThrow(
-        'Failed to update user'
+        'Failed to update user',
       );
     });
 
@@ -97,7 +97,7 @@ describe('User Service', () => {
       const mockUser = createMockUser();
       const mockAccessToken = 'access-token';
       const mockRefreshToken = 'refresh-token';
-      
+
       mockedPrisma.user.findFirst.mockResolvedValue(mockUser);
       mockedPrisma.user.update.mockResolvedValue(mockUser);
       (mockedJwt.sign as any)
@@ -111,16 +111,12 @@ describe('User Service', () => {
           OR: [{ email: 'test@example.com' }, { mobileNumber: 'test@example.com' }],
         },
       });
-      expect(mockedJwt.sign).toHaveBeenCalledWith(
-        { userId: mockUser.id },
-        'test-jwt-secret',
-        { expiresIn: '15m' }
-      );
-      expect(mockedJwt.sign).toHaveBeenCalledWith(
-        { userId: mockUser.id },
-        'test-refresh-secret',
-        { expiresIn: '7d' }
-      );
+      expect(mockedJwt.sign).toHaveBeenCalledWith({ userId: mockUser.id }, 'test-jwt-secret', {
+        expiresIn: '15m',
+      });
+      expect(mockedJwt.sign).toHaveBeenCalledWith({ userId: mockUser.id }, 'test-refresh-secret', {
+        expiresIn: '7d',
+      });
       expect(mockedPrisma.user.update).toHaveBeenCalledWith({
         where: { id: mockUser.id },
         data: {
@@ -140,7 +136,7 @@ describe('User Service', () => {
       const mockUser = createMockUser();
       const mockAccessToken = 'access-token';
       const mockRefreshToken = 'refresh-token';
-      
+
       mockedPrisma.user.findFirst.mockResolvedValue(mockUser);
       mockedPrisma.user.update.mockResolvedValue(mockUser);
       (mockedJwt.sign as any)
@@ -165,7 +161,7 @@ describe('User Service', () => {
       const mockUser = createMockUser({ deviceId: 'old-device' });
       const mockAccessToken = 'access-token';
       const mockRefreshToken = 'refresh-token';
-      
+
       mockedPrisma.user.findFirst.mockResolvedValue(mockUser);
       mockedPrisma.user.update.mockResolvedValue(mockUser);
       (mockedJwt.sign as any)
@@ -189,7 +185,7 @@ describe('User Service', () => {
       mockedPrisma.user.findFirst.mockResolvedValue(null);
 
       await expect(login('nonexistent@example.com', 'device-123')).rejects.toThrow(
-        'User not found'
+        'User not found',
       );
       expect(mockedPrisma.user.findFirst).toHaveBeenCalledWith({
         where: {
@@ -242,7 +238,7 @@ describe('User Service', () => {
         otp: null,
         otpExpires: null,
       });
-      
+
       mockedPrisma.user.findUnique.mockResolvedValue(mockUser);
       mockedPrisma.user.update.mockResolvedValue(updatedUser);
 
@@ -274,7 +270,7 @@ describe('User Service', () => {
         otp: '123456',
         otpExpires: new Date(Date.now() + 60000),
       });
-      
+
       mockedPrisma.user.findUnique.mockResolvedValue(mockUser);
 
       await expect(verifyEmailOtp('test-user-id', '654321')).rejects.toThrow('Invalid OTP');
@@ -285,7 +281,7 @@ describe('User Service', () => {
         otp: '123456',
         otpExpires: new Date(Date.now() - 60000), // 1 minute ago
       });
-      
+
       mockedPrisma.user.findUnique.mockResolvedValue(mockUser);
 
       await expect(verifyEmailOtp('test-user-id', '123456')).rejects.toThrow('OTP has expired');
@@ -296,7 +292,7 @@ describe('User Service', () => {
         otp: null,
         otpExpires: new Date(Date.now() + 60000),
       });
-      
+
       mockedPrisma.user.findUnique.mockResolvedValue(mockUser);
 
       await expect(verifyEmailOtp('test-user-id', '123456')).rejects.toThrow('Invalid OTP');
