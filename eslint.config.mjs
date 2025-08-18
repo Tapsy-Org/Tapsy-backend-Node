@@ -50,6 +50,48 @@ export default [
       },
     },
   },
+  // Jest configuration for test files
+  {
+    files: [
+      "**/*.test.{ts,js}", 
+      "**/*.spec.{ts,js}", 
+      "src/__tests__/**/*.{ts,js}",
+      "**/test/**/*.{ts,js}",
+      "**/tests/**/*.{ts,js}"
+    ],
+    languageOptions: {
+      parser: tseslint.parser,
+      ecmaVersion: 2020,
+      sourceType: "module",
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+        ...(js.configs.recommended.languageOptions?.globals ?? {}),
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+      prettier: prettierPlugin,
+      import: importPlugin,
+      "simple-import-sort": simpleImportSort,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      ...tseslint.configs.recommended.rules,
+      "no-unused-vars": "off",
+      "prettier/prettier": "error",
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "simple-import-sort/imports": "error",
+      "simple-import-sort/exports": "error",
+    },
+    settings: {
+      "import/resolver": {
+        typescript: {},
+      },
+    },
+  },
   // Relax rules for declaration files
   {
     files: ["**/*.d.ts"],
@@ -59,5 +101,3 @@ export default [
     },
   },
 ];
-
-
