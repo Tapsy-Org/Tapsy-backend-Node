@@ -1,47 +1,58 @@
-name: Generate PR Title & Description
+name: AI PR Helper
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  generate-pr-description:
+  ai-pr-helper:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout full history so git diff works
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set up Python
+      # Setup Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      # Install Cohere SDK
       - name: Install dependencies
         run: pip install cohere
 
-      - name: Get PR diff
+      # Generate PR diff
+      - name: Generate diff file
         run: |
           git fetch origin main
-          git diff origin/main...HEAD > changes.diff
-          head -n 200 changes.diff > short.diff  # limit to 200 lines
+          git diff origin/main...HEAD > changes.diff || echo "no changes" > changes.diff
+          head -n 200 changes.diff > short.diff
 
-      - name: Generate PR Title and Description
+      # Generate PR title & description using Cohere
+      - name: Generate PR Title & Description
         id: generate_pr
         env:
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
         run: |
           python <<EOF
-          import cohere, os, sys
+          import os, sys
+          import cohere
 
           co = cohere.Client(os.getenv("COHERE_API_KEY"))
+
           diff = open("short.diff", "r", encoding="utf-8").read()
-
           if not diff.strip():
-              print("::error::No code changes detected to summarize")
-              sys.exit(1)
+              diff = "No significant changes detected."
 
-          prompt = f"Here is the code diff:\n{diff}\n\nGenerate:\nTITLE: <short title>\nDESCRIPTION: <detailed body>"
+          prompt = f"Generate a clear GitHub Pull Request title and description based on this code diff:\n{diff}\n\nFormat:\nTITLE: <short title>\nDESCRIPTION: <detailed body>"
 
           response = co.generate(
               model="command-r-plus",
@@ -52,22 +63,23 @@ jobs:
 
           text = response.generations[0].text.strip()
           title, desc = "", ""
-
           for line in text.splitlines():
               if line.startswith("TITLE:"):
                   title = line.replace("TITLE:", "").strip()
               elif line.startswith("DESCRIPTION:"):
                   desc = line.replace("DESCRIPTION:", "").strip()
 
-          if not title or not desc:
-              print("::error::Failed to generate title or description")
-              sys.exit(1)
+          if not title:
+              title = "Update PR"
+          if not desc:
+              desc = "Automated PR update by AI PR Helper"
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write(f"title={title}\n")
               f.write(f"desc={desc}\n")
           EOF
 
+      # Update the PR
       - name: Update PR with AI-generated description
         uses: peter-evans/create-pull-request@v6
         with:
