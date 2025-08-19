@@ -13,88 +13,311 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-model User {
-  id                String   @id @default(uuid())
-  email             String?  @unique
-  mobileNumber      String?  @unique
-  userType          UserType?
-  UserName          String?
-  otpVerified       Boolean  @default(false)
-    otp               String?     // OTP value
-  otpExpires        DateTime?   // OTP expiry
-  tags              String[] @default([])
-  lastCompletedStep Int      @default(0)
-  status            UserStatus @default(ONBOARDING)
-
-  refreshToken      String?     
-  lastLogin         DateTime?   
-  deviceId          String?    
-
-  businessDetails   BusinessDetails? @relation("UserBusinessDetails")
-  businessDetailsId String?
-
-  locationType      LocationType?
-  locationLat       Float?
-  locationLng       Float?
-  locationAddress   String?
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  selectedPersonalizations UserPersonalization[] @relation("UserSelections")
+// ---------- ENUMS ----------
+enum Status {
+  ACTIVE
+  INACTIVE
 }
-
-model BusinessDetails {
-  id          String   @id @default(uuid())
-  user        User     @relation("UserBusinessDetails", fields: [userId], references: [id])
-  userId      String   @unique
-
-  companyName String
-  website     String?
-  about       String?
-  address     String?
-  city        String?
-  state       String?
-  country     String?
-  zipcode     String?
-  category    String?    
-  description String?    
-  email       String?    @unique
-  mobile      String?    @unique
-  logoUrl     String?
-  videoUrl    String?
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model UserPersonalization {
-  id         String   @id @default(uuid())
-  name       String
-  slug       String   @unique
-  screenType String   
-  sortOrder  Int
-  status     Boolean  @default(true)
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  selectedByUsers User[] @relation("UserSelections")
-}
-
 
 enum UserType {
   INDIVIDUAL
   BUSINESS
 }
 
-enum UserStatus {
-  ONBOARDING
-  VERIFIED
-  BLOCKED
-}
 enum LocationType {
   HOME
   OFFICE
   OTHER
+}
+
+enum ReviewRating {
+  BAD
+  EXCELLENT
+  OUTSTANDING
+}
+
+enum ReelShareType {
+  COPY_LINK
+  DIRECT_USER
+  WHATSAPP
+  INSTAGRAM
+  FACEBOOK
+  OTHER
+}
+
+// ---------- MODELS ----------
+model IndividualUser {
+  id             String    @id @default(uuid())
+  username       String
+  mobile_number  String    @unique
+  otp_verified   Boolean   @default(true) // True if Firebase verified
+  device_id      String?
+  user_type      UserType  @default(INDIVIDUAL)
+  status         Status    @default(ACTIVE)
+  last_login     DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  firebase_token String
+
+  // Relations
+  locations      IndividualUserLocation[]
+  reels          Reel[]           @relation("IndividualUserReels")
+  reviews        Review[]
+  follows        Follow[]         @relation("FollowerRelation")
+  followingUsers Follow[]         @relation("FollowingUserRelation")
+  recentSearches RecentSearch[]
+  reelViews      ReelView[]
+  reelComments   ReelComment[]
+  reelShares     ReelShare[]      @relation("SharerRelation")
+  targetedShares ReelShare[]      @relation("TargetUserRelation")
+
+  // Many-to-many relation to categories
+  categories            IndividualUserCategory[]
+  selectedSubcategories IndividualUserSubCategory[]
+
+}
+
+model BusinessUser {
+  id             String    @id @default(uuid())
+  business_name  String
+  tags           String[]  // text[] equivalent
+  mobile_number  String   @unique
+  email          String   @unique
+  address        String?
+  zip_code       String?
+  website        String?
+  about          String?
+  bio            String?
+  logo_url       String?
+  video_urls     String[]
+  otp            String?
+  otp_verified   Boolean   @default(false)
+  refresh_token  String?
+  device_id      String?
+  user_type      UserType  @default(BUSINESS)
+  status         Status    @default(ACTIVE)
+  last_login     DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  firebase_token String
+
+  // Relations
+  categoryId          String?       
+  category            Category?     @relation(fields: [categoryId], references: [id])
+  selectedSubcategories BusinessUserSubCategory[]
+  reels          Reel[]     @relation("BusinessUserReels")
+  reviews        Review[]
+  follows        Follow[]   @relation("FollowingBusinessRelation")
+}
+
+model Category {
+  id          String        @id @default(uuid())
+  name        String
+  slug        String        @unique
+  status      Boolean
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+
+  // Relations
+  individuals   IndividualUserCategory[]
+  businesses    BusinessUser[]
+  subcategories SubCategory[]
+}
+
+model SubCategory {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String?
+  generated_by_ai Boolean @default(true)  
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  // Parent Category
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id])
+
+  // Relations
+  selectedByUsers      IndividualUserSubCategory[]
+  selectedByBusinesses BusinessUserSubCategory[]
+}
+
+model IndividualUserCategory {
+  id         String        @id @default(uuid())
+  userId     String
+  categoryId String
+
+  user       IndividualUser @relation(fields: [userId], references: [id])
+  category   Category       @relation(fields: [categoryId], references: [id])
+
+  created_at DateTime @default(now())
+}
+
+model IndividualUserSubCategory {
+  id            String        @id @default(uuid())
+  userId        String
+  subCategoryId String
+
+  user          IndividualUser @relation(fields: [userId], references: [id])
+  subCategory   SubCategory    @relation(fields: [subCategoryId], references: [id])
+
+  created_at    DateTime       @default(now())
+}
+
+model BusinessUserSubCategory {
+  id            String        @id @default(uuid())
+  businessId    String
+  subCategoryId String
+
+  business      BusinessUser  @relation(fields: [businessId], references: [id])
+  subCategory   SubCategory   @relation(fields: [subCategoryId], references: [id])
+
+  created_at    DateTime      @default(now())
+}
+
+model Location {
+  id         String       @id @default(uuid())
+  name       LocationType
+  latitude   Float
+  longitude  Float
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
+
+  // Relations
+  userLocations IndividualUserLocation[]
+}
+
+model IndividualUserLocation {
+  id                String         @id @default(uuid())
+  individualUserId  String
+  locationId        String
+
+  // Relations
+  individualUser IndividualUser @relation(fields: [individualUserId], references: [id])
+  location       Location       @relation(fields: [locationId], references: [id])
+}
+
+model Reel {
+  id          String       @id @default(uuid())
+  title       String
+  caption     String
+  videoUrl    String?
+  businessId  String?
+  userId      String?
+  createdAt   DateTime     @default(now())
+
+  // Relations
+  business    BusinessUser? @relation("BusinessUserReels", fields: [businessId], references: [id])
+  user        IndividualUser? @relation("IndividualUserReels", fields: [userId], references: [id])
+  videos      ReelVideo[]
+  tags        ReelTag[]
+  reviews     Review[]
+  views       ReelView[]
+  comments    ReelComment[]
+  shares      ReelShare[]
+}
+
+model ReelVideo {
+  id     String @id @default(uuid())
+  reelId String
+
+  // Relations
+  reel   Reel @relation(fields: [reelId], references: [id])
+}
+
+model Tag {
+  id   String    @id @default(uuid())
+  name String
+
+  // Relations
+  reelTags ReelTag[]
+}
+
+model ReelTag {
+  reelId String
+  tagId  String
+
+  // Composite PK
+  @@id([reelId, tagId])
+
+  // Relations
+  reel Reel @relation(fields: [reelId], references: [id])
+  tag  Tag  @relation(fields: [tagId], references: [id])
+}
+
+model Review {
+  id         String        @id @default(uuid())
+  rating     ReviewRating
+  comment    String?
+  businessId String?
+  reelId     String?
+  userId     String
+  createdAt  DateTime      @default(now())
+
+  // Relations
+  business BusinessUser?  @relation(fields: [businessId], references: [id])
+  reel     Reel?          @relation(fields: [reelId], references: [id])
+  user     IndividualUser @relation(fields: [userId], references: [id])
+}
+
+model Follow {
+  id                  String         @id @default(uuid())
+  followerId          String
+  followingUserId     String?
+  followingBusinessId String?
+  status              String         @default("FOLLOWING")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Relations
+  follower           IndividualUser @relation("FollowerRelation", fields: [followerId], references: [id])
+  followingUser      IndividualUser? @relation("FollowingUserRelation", fields: [followingUserId], references: [id])
+  followingBusiness  BusinessUser?  @relation("FollowingBusinessRelation", fields: [followingBusinessId], references: [id])
+}
+
+model RecentSearch {
+  id                String         @id @default(uuid())
+  individualUserId  String
+  searchText        String
+  createdAt         DateTime       @default(now())
+
+  // Relations
+  individualUser IndividualUser @relation(fields: [individualUserId], references: [id])
+}
+
+model ReelView {
+  id        String         @id @default(uuid())
+  reelId    String
+  userId    String?
+  createdAt DateTime       @default(now())
+
+  // Relations
+  reel Reel @relation(fields: [reelId], references: [id])
+  user IndividualUser? @relation(fields: [userId], references: [id])
+}
+
+model ReelComment {
+  id        String         @id @default(uuid())
+  reelId    String
+  userId    String
+  comment   String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  // Relations
+  reel Reel @relation(fields: [reelId], references: [id])
+  user IndividualUser @relation(fields: [userId], references: [id])
+}
+
+model ReelShare {
+  id           String         @id @default(uuid())
+  reelId       String
+  userId       String
+  shareType    ReelShareType
+  targetUserId String?
+  createdAt    DateTime       @default(now())
+
+  // Relations
+  reel        Reel            @relation(fields: [reelId], references: [id])
+  sharer      IndividualUser  @relation("SharerRelation", fields: [userId], references: [id])
+  targetUser  IndividualUser? @relation("TargetUserRelation", fields: [targetUserId], references: [id])
 }

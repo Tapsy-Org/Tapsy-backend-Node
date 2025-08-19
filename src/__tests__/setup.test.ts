@@ -19,15 +19,30 @@ global.console = {
 jest.mock('../config/db', () => ({
   __esModule: true,
   default: {
-    user: {
+    individualUser: {
       create: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },
-    businessDetails: {
+    businessUser: {
       create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    category: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    subCategory: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -38,14 +53,19 @@ jest.mock('../config/db', () => ({
   },
 }));
 
-// Mock Firebase
-jest.mock('../utils/firebase', () => ({
-  verifyFirebaseToken: jest.fn(),
+// Mock Firebase admin
+jest.mock('../config/firebase', () => ({
+  __esModule: true,
+  default: {
+    auth: jest.fn(() => ({
+      verifyIdToken: jest.fn(),
+    })),
+  },
 }));
 
 // Mock nodemailer
 jest.mock('../utils/mailer', () => ({
-  sendEmail: jest.fn(),
+  sendOtpEmail: jest.fn(),
 }));
 
 // Global test timeout

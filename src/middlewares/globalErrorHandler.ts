@@ -1,8 +1,14 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 
 import AppError from '../utils/AppError';
 
 const handleAppError = (err: AppError, res: Response) => {
+  console.error('[AppError]', {
+    status: err.status,
+    statusCode: err.statusCode,
+    message: err.message,
+    details: err.details,
+  });
   res.status(err.statusCode).json({
     status: err.status,
     statusCode: err.statusCode,
@@ -12,6 +18,7 @@ const handleAppError = (err: AppError, res: Response) => {
 };
 
 const handleGenericError = (err: Error, res: Response) => {
+  console.error('[GenericError]', { message: err.message, stack: err.stack });
   res.status(500).json({
     status: 'error',
     statusCode: 500,
@@ -20,7 +27,7 @@ const handleGenericError = (err: Error, res: Response) => {
   });
 };
 
-const globalErrorHandler = (err: unknown, _req: Request, res: Response) => {
+const globalErrorHandler = (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof AppError) {
     return handleAppError(err, res);
   }

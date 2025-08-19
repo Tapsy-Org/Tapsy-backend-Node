@@ -21,11 +21,10 @@ export const sendOtpEmail = async (to: string, otp: string) => {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Message sent: %s', info.messageId);
-    // Preview only available when sending through an Ethereal account
-    console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+    await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully');
   } catch (error) {
     console.error('Error sending email:', error);
+    throw error;
   }
 };

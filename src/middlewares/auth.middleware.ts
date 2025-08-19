@@ -1,15 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
-import type { User } from '../../generated/prisma';
+import { IndividualUser } from '../../generated/prisma';
 import prisma from '../config/db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-interface AuthRequest extends Request {
-  user?: User;
+export interface AuthRequest extends Request {
+  individualUser?: IndividualUser;
 }
-
 export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const token = req.headers.authorization?.split(' ')[1];
 
@@ -19,13 +18,15 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+    const individualUser = await prisma.individualUser.findUnique({
+      where: { id: decoded.userId },
+    });
 
-    if (!user) {
+    if (!individualUser) {
       return res.status(401).json({ error: 'Invalid token: user not found' });
     }
 
-    req.user = user;
+    req.individualUser = individualUser;
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });
