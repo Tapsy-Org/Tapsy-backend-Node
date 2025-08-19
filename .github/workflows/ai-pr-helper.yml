@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0   #fetch full history so git diff works properly
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -52,18 +52,22 @@ jobs:
               \"model\": \"command-r\",
               \"max_tokens\": 300,
               \"temperature\": 0.7,
-              \"prompt\": \"You are a GitHub bot. Based on this code diff, suggest a concise PR title (first line) and a detailed description (rest of the text).\\n\\n$(cat short.diff)\" 
+              \"prompt\": \"You are a GitHub bot. Based on this code diff, suggest a concise PR title (first line) and a detailed description (rest of the text). If no diff is found, generate a generic PR title and description.\\n\\n$(cat short.diff)\"
             }" || echo "{}")
 
-          if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "{}" ]; then
-            echo "::error::Failed to get response from Cohere API"
-            exit 1
+          echo "Cohere raw response: $RESPONSE"
+
+          TEXT=$(echo "$RESPONSE" | jq -r '.generations[0].text // ""')
+
+          if [ -z "$TEXT" ] || [ "$TEXT" = "null" ]; then
+            echo "No text from Cohere, using fallback commit message."
+            TITLE=$(git log -1 --pretty=%s)
+            DESC=$(git log -1 --pretty=%b)
+          else
+            TITLE=$(echo "$TEXT" | head -n 1 | sed 's/^"\(.*\)"$/\1/')
+            DESC=$(echo "$TEXT" | tail -n +2 | sed 's/^"\(.*\)"$/\1/')
           fi
 
-          TITLE=$(echo "$RESPONSE" | jq -r '.generations[0].text' | head -n 1 | sed 's/^"\(.*\)"$/\1/')
-          DESC=$(echo "$RESPONSE" | jq -r '.generations[0].text' | tail -n +2 | sed 's/^"\(.*\)"$/\1/')
-
-          # Set outputs
           echo "TITLE=$TITLE" >> $GITHUB_ENV
           echo "DESC=$DESC" >> $GITHUB_ENV
           echo "title=$TITLE" >> $GITHUB_OUTPUT
@@ -72,19 +76,23 @@ jobs:
       - name: Update PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: ${{ env.TITLE }}
+          DESC: ${{ env.DESC }}
         run: |
-          if [ -z "${{ env.TITLE }}" ] || [ -z "${{ env.DESC }}" ]; then
-            echo "::error::Failed to generate title or description"
-            exit 1
+          if [ -z "$TITLE" ]; then
+            echo "::warning::Title empty, setting default"
+            TITLE="Update PR"
+          fi
+          if [ -z "$DESC" ]; then
+            DESC="Automated PR update by AI PR Helper"
           fi
 
-          # Update PR using GitHub CLI
           gh api \
             --method PATCH \
             -H "Accept: application/vnd.github.v3+json" \
             /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} \
-            -f title="${{ env.TITLE }}" \
-            -f body="${{ env.DESC }}"
+            -f title="${TITLE}" \
+            -f body="${DESC}"
 
       - name: Comment on PR
         if: failure()
