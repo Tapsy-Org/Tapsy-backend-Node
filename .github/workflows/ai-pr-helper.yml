@@ -1,36 +1,35 @@
-name: "AI PR Helper"
+name: Generate PR Title & Description
 
 on:
   pull_request:
-    types: [opened, edited, synchronize]
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
-  ai-pr-helper:
+  generate-pr-description:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch main branch
-        run: |
-          git fetch origin main
-
-      - name: Generate diff
-        run: |
-          git diff origin/main..HEAD > changes.diff || true
-          head -n 200 changes.diff > short.diff || true
-
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - name: Install Cohere
+      - name: Install dependencies
         run: pip install cohere
 
-      - name: Generate PR title and description with Cohere Chat
-        id: ai-pr
+      - name: Get PR diff
+        run: |
+          git fetch origin main
+          git diff origin/main...HEAD > changes.diff
+          head -n 200 changes.diff > short.diff  # limit to 200 lines
+
+      - name: Generate PR Title and Description
+        id: generate_pr
+        env:
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
         run: |
           python <<EOF
           import cohere, os, sys
@@ -42,17 +41,16 @@ jobs:
               print("::error::No code changes detected to summarize")
               sys.exit(1)
 
-          messages = [
-              {"role": "system", "content": "You are a GitHub bot that writes clear PR titles and descriptions."},
-              {"role": "user", "content": f"Here is the code diff:\n{diff}\n\nGenerate:\nTITLE: <short title>\nDESCRIPTION: <detailed body>"}
-          ]
+          prompt = f"Here is the code diff:\n{diff}\n\nGenerate:\nTITLE: <short title>\nDESCRIPTION: <detailed body>"
 
-          response = co.chat(
+          response = co.generate(
               model="command-r-plus",
-              messages=messages
+              prompt=prompt,
+              max_tokens=300,
+              temperature=0.3
           )
 
-          text = response.text.strip()
+          text = response.generations[0].text.strip()
           title, desc = "", ""
 
           for line in text.splitlines():
@@ -69,17 +67,11 @@ jobs:
               f.write(f"title={title}\n")
               f.write(f"desc={desc}\n")
           EOF
-        env:
-          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
 
-      - name: Update PR
-        if: steps.ai-pr.outputs.title != '' && steps.ai-pr.outputs.desc != ''
-        run: |
-          gh api \
-            --method PATCH \
-            -H "Accept: application/vnd.github.v3+json" \
-            /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} \
-            -f title="${{ steps.ai-pr.outputs.title }}" \
-            -f body="${{ steps.ai-pr.outputs.desc }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update PR with AI-generated description
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update PR description"
+          title: ${{ steps.generate_pr.outputs.title }}
+          body: ${{ steps.generate_pr.outputs.desc }}
