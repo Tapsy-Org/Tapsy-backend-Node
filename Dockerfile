@@ -11,6 +11,9 @@ RUN npm install
 # Copy rest of the app
 COPY . .
 
+# Build the TypeScript code
+RUN npm run build
+
 # Expose the app port (change if your backend runs on another port)
 EXPOSE 3000
 
