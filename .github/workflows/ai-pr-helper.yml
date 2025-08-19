@@ -4,6 +4,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# Required permissions for GitHub Token
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   ai-pr-helper:
     runs-on: ubuntu-latest
@@ -11,57 +16,80 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22.x'
+
+      - name: Install dependencies
+        run: npm install -g jq
+
       - name: Get PR diff
+        id: diff
         run: |
           git fetch origin ${{ github.event.pull_request.base.ref }}
           git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > changes.diff
-          head -n 200 changes.diff > short.diff  # limit for tokens
+          head -n 200 changes.diff > short.diff
 
-      # ------------------------
-      # 1. Generate Title + Description
-      # ------------------------
       - name: Generate PR Title and Description (Cohere)
         id: cohere_title
+        env:
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
         run: |
+          if [ -z "$COHERE_API_KEY" ]; then
+            echo "::error::COHERE_API_KEY is not set"
+            exit 1
+          fi
+
           RESPONSE=$(curl -s https://api.cohere.ai/v1/generate \
-            -H "Authorization: Bearer ${{ secrets.COHERE_API_KEY }}" \
+            -H "Authorization: Bearer $COHERE_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{
               \"model\": \"command-r\",
-              \"prompt\": \"You are a GitHub bot. Based on this code diff, suggest a concise PR title and a detailed description.\\n$(cat short.diff)\"
-            }")
+              \"max_tokens\": 300,
+              \"temperature\": 0.7,
+              \"prompt\": \"You are a GitHub bot. Based on this code diff, suggest a concise PR title (first line) and a detailed description (rest of the text).\\n\\n$(cat short.diff)\"
+            }" || echo "{}")
 
-          TITLE=$(echo $RESPONSE | jq -r '.generations[0].text' | head -n 1)
-          DESC=$(echo $RESPONSE | jq -r '.generations[0].text' | tail -n +2)
+          if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "{}" ]; then
+            echo "::error::Failed to get response from Cohere API"
+            exit 1
+          fi
 
+          TITLE=$(echo "$RESPONSE" | jq -r '.generations[0].text' | head -n 1 | sed 's/^"\(.*\)"$/\1/')
+          DESC=$(echo "$RESPONSE" | jq -r '.generations[0].text' | tail -n +2 | sed 's/^"\(.*\)"$/\1/')
+
+          # Set outputs
           echo "TITLE=$TITLE" >> $GITHUB_ENV
           echo "DESC=$DESC" >> $GITHUB_ENV
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+          echo "desc=$DESC" >> $GITHUB_OUTPUT
 
-      - name: Update PR Title & Description
-        run: |
-          gh pr edit ${{ github.event.pull_request.number }} \
-            --title "${{ env.TITLE }}" \
-            --body "${{ env.DESC }}"
+      - name: Update PR
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # ------------------------
-      # 2. AI Review of PR Diff
-      # ------------------------
-      - name: Run AI Review (Cohere)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          REVIEW=$(curl -s https://api.cohere.ai/v1/generate \
-            -H "Authorization: Bearer ${{ secrets.COHERE_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"model\": \"command-r\",
-              \"prompt\": \"You are a senior software engineer. Review this GitHub PR diff and provide constructive feedback (bugs, security, improvements, tests).\\n$(cat short.diff)\"
-            }" | jq -r '.generations[0].text')
+          if [ -z "${{ env.TITLE }}" ] || [ -z "${{ env.DESC }}" ]; then
+            echo "::error::Failed to generate title or description"
+            exit 1
+          fi
 
-          echo "$REVIEW" > review.md
+          # Update PR using GitHub CLI
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github.v3+json" \
+            /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} \
+            -f title="${{ env.TITLE }}" \
+            -f body="${{ env.DESC }}"
 
-      - name: Post Review as PR Comment
-        run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body-file review.md
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Comment on PR
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: comment } = await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: 'Failed to generate PR title/description. Please check the workflow logs.'
+            })
