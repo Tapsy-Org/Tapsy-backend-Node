@@ -13,79 +13,99 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout full history so git diff works
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Setup Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      # Install Cohere SDK
-      - name: Install dependencies
+      - name: Install Cohere SDK
         run: pip install cohere
-        
-      # Generate PR diff
+
       - name: Generate diff file
         run: |
           git fetch origin main
-          # Always compare with main
-          BASE=$(git merge-base HEAD origin/main || echo origin/main)
-          git diff $BASE...HEAD > changes.diff || echo "No changes" > changes.diff
-          head -n 200 changes.diff > short.diff
+          git checkout ${{ github.head_ref }}
+          git diff origin/main...HEAD > changes.diff || echo "No changes" > changes.diff
+          head -n 500 changes.diff > short.diff
+          echo "Diff captured:"
+          head -n 20 short.diff
 
-
-      # Generate PR title & description using Cohere
       - name: Generate PR Title & Description
         id: generate_pr
         env:
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
         run: |
           python <<EOF
-          import os, sys
+          import os
           import cohere
 
-          co = cohere.Client(os.getenv("COHERE_API_KEY"))
-          diff = open("short.diff", "r", encoding="utf-8").read()
-          print("Diff: ", diff)
-          if not diff.strip():
-              diff = "No significant changes detected."
+          SYSTEM_PROMPT = """\
+          # System Role
+          You are an expert technical writer and GitHub collaborator who specializes in crafting clear, concise, and professional pull request (PR) titles and descriptions based on code changes. You understand software development practices and can summarize diffs into meaningful explanations.
 
-          prompt = f"Generate a clear GitHub Pull Request title and description based on this code diff:\n{diff}\n\nFormat:\nTITLE: <short title>\nDESCRIPTION: <detailed body>"
+          # Task Specification
+          Given a code diff as input, generate:
+          1. A PR title (short, action-oriented, ~6–12 words).
+          2. A PR description (professional, concise, and GitHub-ready).
+
+          # Specifics and Context
+          A well-written PR description improves collaboration, code review efficiency, and project maintainability. Your summaries should:
+          - Explain why the change was made.
+          - Summarize what was changed at a high level.
+          - Highlight any key technical details reviewers should know.
+          - Be written clearly, without unnecessary jargon.
+
+          # Reminders
+          - Always output both a PR title and a PR description.
+          - Keep the title concise and action-focused.
+          - Format the PR description as a bulleted list.
+          """
+
+          co = cohere.Client(os.getenv("COHERE_API_KEY"))
+
+          diff_text = open("short.diff", "r", encoding="utf-8").read()
+          if not diff_text.strip():
+              diff_text = "No significant changes detected."
+
+          prompt = f"{SYSTEM_PROMPT}\n\nInput (diff):\n{diff_text}\n\nOutput format:\nPR Title: <title>\nPR Description:\n- <bullet1>\n- <bullet2>"
 
           try:
               response = co.generate(
                   model="command-r-plus",
                   prompt=prompt,
-                  max_tokens=300,
+                  max_tokens=400,
                   temperature=0.3
               )
-              text = response.generations[0].text.strip()
-          except Exception:
-              text = ""
+              output_text = response.generations[0].text.strip()
+          except Exception as e:
+              print("Error calling Cohere:", e)
+              output_text = ""
 
-          title, desc = "", ""
-          for line in text.splitlines():
-              if line.startswith("TITLE:"):
-                  title = line.replace("TITLE:", "").strip()
-              elif line.startswith("DESCRIPTION:"):
-                  desc = line.replace("DESCRIPTION:", "").strip()
-
-          if not title:
-              title = "Update PR"
-          if not desc:
-              desc = "Automated PR update by AI PR Helper"
+          title, desc = "Update PR", "Automated PR update by AI PR Helper"
+          lines = output_text.splitlines()
+          if lines:
+              for i, line in enumerate(lines):
+                  if line.lower().startswith("pr title:"):
+                      title = line.split(":",1)[1].strip()
+                      # Capture remaining lines as description
+                      desc_lines = []
+                      for desc_line in lines[i+1:]:
+                          if desc_line.strip().startswith("-"):
+                              desc_lines.append(desc_line.strip())
+                      if desc_lines:
+                          desc = "\n".join(desc_lines)
+                      break
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write(f"title={title}\n")
               f.write(f"desc={desc}\n")
           EOF
 
-      # Update the PR directly using GitHub CLI
       - name: Update PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
