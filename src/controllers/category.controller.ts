@@ -20,6 +20,15 @@ export const getCategories = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+export const getActiveCategories = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const categories = await categoryService.getActiveCategories();
+    res.success(categories, 'Active categories retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getCategoryById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;

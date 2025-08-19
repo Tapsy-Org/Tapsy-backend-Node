@@ -53,7 +53,6 @@ export const getCategories = async () => {
   try {
     return await prisma.category.findMany({
       include: {
-        subcategories: true,
         _count: {
           select: {
             individuals: true,
@@ -67,11 +66,32 @@ export const getCategories = async () => {
   }
 };
 
+export const getActiveCategories = async () => {
+  try {
+    return await prisma.category.findMany({
+      where: {
+        status: true, // Only get active categories
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        created_at: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+  } catch (error) {
+    throw new AppError('Failed to fetch active categories', 500, { originalError: error });
+  }
+};
+
 export const getCategoryById = async (id: string) => {
   const category = await prisma.category.findUnique({
     where: { id },
     include: {
-      subcategories: true,
       _count: {
         select: {
           individuals: true,

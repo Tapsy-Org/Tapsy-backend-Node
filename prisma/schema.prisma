@@ -71,18 +71,17 @@ model IndividualUser {
   reelShares     ReelShare[]      @relation("SharerRelation")
   targetedShares ReelShare[]      @relation("TargetUserRelation")
 
-  // Many-to-many relation to categories
+  // Categories & Subcategories
   categories            IndividualUserCategory[]
   selectedSubcategories IndividualUserSubCategory[]
-
 }
 
 model BusinessUser {
   id             String    @id @default(uuid())
   business_name  String
   tags           String[]  // text[] equivalent
-  mobile_number  String   @unique
-  email          String   @unique
+  mobile_number  String    @unique
+  email          String    @unique
   address        String?
   zip_code       String?
   website        String?
@@ -102,8 +101,8 @@ model BusinessUser {
   firebase_token String
 
   // Relations
-  categoryId          String?       
-  category            Category?     @relation(fields: [categoryId], references: [id])
+  categoryId           String?
+  category             Category?     @relation(fields: [categoryId], references: [id])
   selectedSubcategories BusinessUserSubCategory[]
   reels          Reel[]     @relation("BusinessUserReels")
   reviews        Review[]
@@ -121,24 +120,6 @@ model Category {
   // Relations
   individuals   IndividualUserCategory[]
   businesses    BusinessUser[]
-  subcategories SubCategory[]
-}
-
-model SubCategory {
-  id          String    @id @default(uuid())
-  name        String
-  slug        String?
-  generated_by_ai Boolean @default(true)  
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-
-  // Parent Category
-  categoryId  String
-  category    Category  @relation(fields: [categoryId], references: [id])
-
-  // Relations
-  selectedByUsers      IndividualUserSubCategory[]
-  selectedByBusinesses BusinessUserSubCategory[]
 }
 
 model IndividualUserCategory {
@@ -153,26 +134,23 @@ model IndividualUserCategory {
 }
 
 model IndividualUserSubCategory {
-  id            String        @id @default(uuid())
-  userId        String
-  subCategoryId String
+  id         String         @id @default(uuid())
+  userId     String
+  name       String         // subcategory text directly from frontend
+  created_at DateTime       @default(now())
 
-  user          IndividualUser @relation(fields: [userId], references: [id])
-  subCategory   SubCategory    @relation(fields: [subCategoryId], references: [id])
-
-  created_at    DateTime       @default(now())
+  user       IndividualUser @relation(fields: [userId], references: [id])
 }
 
 model BusinessUserSubCategory {
-  id            String        @id @default(uuid())
-  businessId    String
-  subCategoryId String
+  id         String       @id @default(uuid())
+  userId     String
+  name       String       // subcategory text directly from frontend
+  created_at DateTime     @default(now())
 
-  business      BusinessUser  @relation(fields: [businessId], references: [id])
-  subCategory   SubCategory   @relation(fields: [subCategoryId], references: [id])
-
-  created_at    DateTime      @default(now())
+  user       BusinessUser @relation(fields: [userId], references: [id])
 }
+
 
 model Location {
   id         String       @id @default(uuid())
