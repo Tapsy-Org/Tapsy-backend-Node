@@ -18,14 +18,18 @@ jobs:
 
       - name: Generate diff
         run: |
-          # Use double-dot to avoid merge base error
           git diff origin/main..HEAD > changes.diff || true
           head -n 200 changes.diff > short.diff || true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Install Cohere
         run: pip install cohere
 
-      - name: Generate PR title and description with Cohere
+      - name: Generate PR title and description with Cohere Chat
         id: ai-pr
         run: |
           python <<EOF
@@ -38,16 +42,17 @@ jobs:
               print("::error::No code changes detected to summarize")
               sys.exit(1)
 
-          prompt = f"Generate a clear GitHub Pull Request title and description based on this code diff:\n{diff}\n\nFormat:\nTITLE: <short title>\nDESCRIPTION: <detailed body>"
+          messages = [
+              {"role": "system", "content": "You are a GitHub bot that writes clear PR titles and descriptions."},
+              {"role": "user", "content": f"Here is the code diff:\n{diff}\n\nGenerate:\nTITLE: <short title>\nDESCRIPTION: <detailed body>"}
+          ]
 
-          response = co.generate(
-              model="command-xlarge-nightly",
-              prompt=prompt,
-              max_tokens=300,
-              temperature=0.3
+          response = co.chat(
+              model="command-r-plus",
+              messages=messages
           )
 
-          text = response.generations[0].text.strip()
+          text = response.text.strip()
           title, desc = "", ""
 
           for line in text.splitlines():
@@ -60,8 +65,9 @@ jobs:
               print("::error::Failed to generate title or description")
               sys.exit(1)
 
-          print(f"::set-output name=title::{title}")
-          print(f"::set-output name=desc::{desc}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"title={title}\n")
+              f.write(f"desc={desc}\n")
           EOF
         env:
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
