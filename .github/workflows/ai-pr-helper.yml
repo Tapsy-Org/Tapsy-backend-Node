@@ -4,7 +4,6 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-# Required permissions for GitHub Token
 permissions:
   contents: read
   pull-requests: write
@@ -17,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   #fetch full history so git diff works properly
+          fetch-depth: 0   # fetch full history so git diff works properly
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -25,14 +24,20 @@ jobs:
           node-version: '22.x'
 
       - name: Install dependencies
-        run: npm install -g jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
 
       - name: Get PR diff
         id: diff
         run: |
           git fetch origin ${{ github.event.pull_request.base.ref }}
-          BASE=$(git merge-base HEAD origin/${{ github.event.pull_request.base.ref }})
-          git diff $BASE...HEAD > changes.diff
+          BASE=$(git merge-base HEAD origin/${{ github.event.pull_request.base.ref }} || echo "")
+          if [ -n "$BASE" ]; then
+            git diff $BASE...HEAD > changes.diff
+          else
+            git diff HEAD > changes.diff
+          fi
           head -n 200 changes.diff > short.diff
 
       - name: Generate PR Title and Description (Cohere)
@@ -45,6 +50,9 @@ jobs:
             exit 1
           fi
 
+          # Escape diff for JSON safety
+          DIFF=$(jq -Rs . < short.diff)
+
           RESPONSE=$(curl -s https://api.cohere.ai/v1/generate \
             -H "Authorization: Bearer $COHERE_API_KEY" \
             -H "Content-Type: application/json" \
@@ -52,7 +60,7 @@ jobs:
               \"model\": \"command-r\",
               \"max_tokens\": 300,
               \"temperature\": 0.7,
-              \"prompt\": \"You are a GitHub bot. Based on this code diff, suggest a concise PR title (first line) and a detailed description (rest of the text). If no diff is found, generate a generic PR title and description.\\n\\n$(cat short.diff)\"
+              \"prompt\": \"You are a GitHub bot. Based on this code diff, suggest a concise PR title (first line) and a detailed description (rest of the text). If no diff is found, generate a generic PR title and description.\\n\\n${DIFF}\"
             }" || echo "{}")
 
           echo "Cohere raw response: $RESPONSE"
@@ -68,6 +76,13 @@ jobs:
             DESC=$(echo "$TEXT" | tail -n +2 | sed 's/^"\(.*\)"$/\1/')
           fi
 
+          if [ -z "$TITLE" ]; then
+            TITLE="Update PR"
+          fi
+          if [ -z "$DESC" ]; then
+            DESC="Automated PR update by AI PR Helper"
+          fi
+
           echo "TITLE=$TITLE" >> $GITHUB_ENV
           echo "DESC=$DESC" >> $GITHUB_ENV
           echo "title=$TITLE" >> $GITHUB_OUTPUT
@@ -79,14 +94,6 @@ jobs:
           TITLE: ${{ env.TITLE }}
           DESC: ${{ env.DESC }}
         run: |
-          if [ -z "$TITLE" ]; then
-            echo "::warning::Title empty, setting default"
-            TITLE="Update PR"
-          fi
-          if [ -z "$DESC" ]; then
-            DESC="Automated PR update by AI PR Helper"
-          fi
-
           gh api \
             --method PATCH \
             -H "Accept: application/vnd.github.v3+json" \
@@ -99,7 +106,7 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const { data: comment } = await github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
