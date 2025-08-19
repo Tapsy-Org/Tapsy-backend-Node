@@ -49,7 +49,7 @@ jobs:
 
           co = cohere.Client(os.getenv("COHERE_API_KEY"))
           diff = open("short.diff", "r", encoding="utf-8").read()
-          echo "Diff: $diff"
+          print("Diff: ", diff)
           if not diff.strip():
               diff = "No significant changes detected."
 
