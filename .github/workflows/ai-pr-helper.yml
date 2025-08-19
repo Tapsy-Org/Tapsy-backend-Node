@@ -33,7 +33,8 @@ jobs:
       - name: Generate diff file
         run: |
           git fetch origin main
-          git diff origin/main...HEAD > changes.diff || echo "no changes" > changes.diff
+          BASE=$(git merge-base HEAD origin/main || echo HEAD)
+          git diff $BASE...HEAD > changes.diff || echo "No changes" > changes.diff
           head -n 200 changes.diff > short.diff
 
       # Generate PR title & description using Cohere
@@ -47,21 +48,23 @@ jobs:
           import cohere
 
           co = cohere.Client(os.getenv("COHERE_API_KEY"))
-
           diff = open("short.diff", "r", encoding="utf-8").read()
           if not diff.strip():
               diff = "No significant changes detected."
 
           prompt = f"Generate a clear GitHub Pull Request title and description based on this code diff:\n{diff}\n\nFormat:\nTITLE: <short title>\nDESCRIPTION: <detailed body>"
 
-          response = co.generate(
-              model="command-r-plus",
-              prompt=prompt,
-              max_tokens=300,
-              temperature=0.3
-          )
+          try:
+              response = co.generate(
+                  model="command-r-plus",
+                  prompt=prompt,
+                  max_tokens=300,
+                  temperature=0.3
+              )
+              text = response.generations[0].text.strip()
+          except Exception:
+              text = ""
 
-          text = response.generations[0].text.strip()
           title, desc = "", ""
           for line in text.splitlines():
               if line.startswith("TITLE:"):
@@ -79,11 +82,20 @@ jobs:
               f.write(f"desc={desc}\n")
           EOF
 
-      # Update the PR
-      - name: Update PR with AI-generated description
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update PR description"
-          title: ${{ steps.generate_pr.outputs.title }}
-          body: ${{ steps.generate_pr.outputs.desc }}
+      # Update the PR directly using GitHub CLI
+      - name: Update PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: ${{ steps.generate_pr.outputs.title }}
+          DESC: ${{ steps.generate_pr.outputs.desc }}
+        run: |
+          if [ -z "$TITLE" ]; then TITLE="Update PR"; fi
+          if [ -z "$DESC" ]; then DESC="Automated PR update by AI PR Helper"; fi
+
+          gh auth setup-git
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github.v3+json" \
+            /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} \
+            -f title="$TITLE" \
+            -f body="$DESC"
