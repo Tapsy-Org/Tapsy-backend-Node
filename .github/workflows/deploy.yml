@@ -8,26 +8,48 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
+    env:
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+      FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build and start containers with commit hash
         shell: pwsh
         run: |
           $COMMIT_HASH = "${{ github.sha }}"
 
-          # Stop old containers
-          docker compose down; if ($LASTEXITCODE -ne 0) { Write-Host "No containers running" }
+          # Stop old containers (ignore errors if none)
+          try { docker compose down } catch { Write-Host "No containers running" }
 
           # Build backend with commit hash
           docker build -t my-backend:$COMMIT_HASH -t my-backend:latest .
 
-          # Start new stack
-          $env:DB_HOST="${{ secrets.DB_HOST }}"
-          $env:DB_USER="${{ secrets.DB_USER }}"
-          $env:DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
-          $env:DB_NAME="${{ secrets.DB_NAME }}"
+          # Pass environment variables to Docker Compose
+          $env:FIREBASE_PROJECT_ID = "${{ secrets.FIREBASE_PROJECT_ID }}"
+          $env:FIREBASE_CLIENT_EMAIL = "${{ secrets.FIREBASE_CLIENT_EMAIL }}"
+          $env:FIREBASE_SERVICE_ACCOUNT = "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          $env:JWT_SECRET = "${{ secrets.JWT_SECRET }}"
+          $env:DB_HOST = "${{ secrets.DB_HOST }}"
+          $env:DB_USER = "${{ secrets.DB_USER }}"
+          $env:DB_PASSWORD = "${{ secrets.DB_PASSWORD }}"
+          $env:DB_NAME = "${{ secrets.DB_NAME }}"
 
+          # Start new stack
           docker compose up -d --force-recreate --build
