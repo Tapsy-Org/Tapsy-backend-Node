@@ -1,75 +1,79 @@
-name: AI PR Title and Description
+name: "AI PR Helper"
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, edited, synchronize]
 
 jobs:
-  pr-ai-helper:
+  ai-pr-helper:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Git
+      - name: Fetch main branch
         run: |
           git fetch origin main
-          git diff origin/main...HEAD > changes.diff
-          head -n 200 changes.diff > short.diff
 
-      - name: Generate PR Title and Description using Cohere
-        id: cohere
+      - name: Generate diff
         run: |
-          if [ -z "$COHERE_API_KEY" ]; then
-            echo "::error::COHERE_API_KEY is not set"
-            exit 1
-          fi
+          # Use double-dot to avoid merge base error
+          git diff origin/main..HEAD > changes.diff || true
+          head -n 200 changes.diff > short.diff || true
 
-          # Escape diff for JSON safety
-          DIFF=$(jq -Rs . < short.diff)
+      - name: Install Cohere
+        run: pip install cohere
 
-          # Call Cohere API
-          RESPONSE=$(curl -s https://api.cohere.ai/v1/generate \
-            -H "Authorization: Bearer $COHERE_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"model\": \"command-r\",
-              \"max_tokens\": 300,
-              \"temperature\": 0.7,
-              \"prompt\": \"You are a GitHub bot. Based on this code diff, suggest a concise PR title (first line) and a detailed description (rest of the text). If no diff is found, generate a generic PR title and description.\\n\\n${DIFF}\"
-            }" || echo "{}")
+      - name: Generate PR title and description with Cohere
+        id: ai-pr
+        run: |
+          python <<EOF
+          import cohere, os, sys
 
-          echo "Cohere raw response: $RESPONSE"
+          co = cohere.Client(os.getenv("COHERE_API_KEY"))
+          diff = open("short.diff", "r", encoding="utf-8").read()
 
-          TEXT=$(echo "$RESPONSE" | jq -r '.generations[0].text // ""')
+          if not diff.strip():
+              print("::error::No code changes detected to summarize")
+              sys.exit(1)
 
-          if [ -z "$TEXT" ] || [ "$TEXT" = "null" ]; then
-            echo "No text from Cohere, using fallback commit message."
-            TITLE=$(git log -1 --pretty=%s)
-            DESC=$(git log -1 --pretty=%b)
-          else
-            TITLE=$(echo "$TEXT" | head -n 1 | sed 's/^"//; s/"$//')
-            DESC=$(echo "$TEXT" | tail -n +2 | sed 's/^"//; s/"$//')
-          fi
+          prompt = f"Generate a clear GitHub Pull Request title and description based on this code diff:\n{diff}\n\nFormat:\nTITLE: <short title>\nDESCRIPTION: <detailed body>"
 
-          if [ -z "$TITLE" ]; then
-            TITLE="Update PR"
-          fi
-          if [ -z "$DESC" ]; then
-            DESC="Automated PR update by AI PR Helper"
-          fi
+          response = co.generate(
+              model="command-xlarge-nightly",
+              prompt=prompt,
+              max_tokens=300,
+              temperature=0.3
+          )
 
-          echo "TITLE=$TITLE" >> $GITHUB_ENV
-          echo "DESC=$DESC" >> $GITHUB_ENV
-          echo "title=$TITLE" >> $GITHUB_OUTPUT
-          echo "desc=$DESC" >> $GITHUB_OUTPUT
+          text = response.generations[0].text.strip()
+          title, desc = "", ""
+
+          for line in text.splitlines():
+              if line.startswith("TITLE:"):
+                  title = line.replace("TITLE:", "").strip()
+              elif line.startswith("DESCRIPTION:"):
+                  desc = line.replace("DESCRIPTION:", "").strip()
+
+          if not title or not desc:
+              print("::error::Failed to generate title or description")
+              sys.exit(1)
+
+          print(f"::set-output name=title::{title}")
+          print(f"::set-output name=desc::{desc}")
+          EOF
         env:
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
 
-      - name: Update PR with AI-generated title and description
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: ${{ env.TITLE }}
-          title: ${{ env.TITLE }}
-          body: ${{ env.DESC }}
+      - name: Update PR
+        if: steps.ai-pr.outputs.title != '' && steps.ai-pr.outputs.desc != ''
+        run: |
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github.v3+json" \
+            /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} \
+            -f title="${{ steps.ai-pr.outputs.title }}" \
+            -f body="${{ steps.ai-pr.outputs.desc }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
