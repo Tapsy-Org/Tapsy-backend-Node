@@ -2,11 +2,10 @@ name: AI PR Helper
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
 
-# Required permissions for GitHub Token
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -14,82 +13,111 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          node-version: '22.x'
+          fetch-depth: 0
 
-      - name: Install dependencies
-        run: npm install -g jq
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Get PR diff
-        id: diff
+      - name: Install Cohere SDK
+        run: pip install cohere
+
+      - name: Generate diff file
         run: |
-          git fetch origin ${{ github.event.pull_request.base.ref }}
-          git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > changes.diff
-          head -n 200 changes.diff > short.diff
+          git fetch origin main
+          git checkout ${{ github.head_ref }}
+          git diff origin/main...HEAD > changes.diff || echo "No changes" > changes.diff
+          head -n 500 changes.diff > short.diff
+          echo "Diff captured:"
+          head -n 20 short.diff
 
-      - name: Generate PR Title and Description (Cohere)
-        id: cohere_title
+      - name: Generate PR Title & Description
+        id: generate_pr
         env:
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
         run: |
-          if [ -z "$COHERE_API_KEY" ]; then
-            echo "::error::COHERE_API_KEY is not set"
-            exit 1
-          fi
+          python <<EOF
+          import os
+          import cohere
 
-          RESPONSE=$(curl -s https://api.cohere.ai/v1/generate \
-            -H "Authorization: Bearer $COHERE_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"model\": \"command-r\",
-              \"max_tokens\": 300,
-              \"temperature\": 0.7,
-              \"prompt\": \"You are a GitHub bot. Based on this code diff, suggest a concise PR title (first line) and a detailed description (rest of the text).\\n\\n$(cat short.diff)\"
-            }" || echo "{}")
+          SYSTEM_PROMPT = """\
+          # System Role
+          You are an expert technical writer and GitHub collaborator who specializes in crafting clear, concise, and professional pull request (PR) titles and descriptions based on code changes. You understand software development practices and can summarize diffs into meaningful explanations.
 
-          if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "{}" ]; then
-            echo "::error::Failed to get response from Cohere API"
-            exit 1
-          fi
+          # Task Specification
+          Given a code diff as input, generate:
+          1. A PR title (short, action-oriented, ~6–12 words).
+          2. A PR description (professional, concise, and GitHub-ready).
 
-          TITLE=$(echo "$RESPONSE" | jq -r '.generations[0].text' | head -n 1 | sed 's/^"\(.*\)"$/\1/')
-          DESC=$(echo "$RESPONSE" | jq -r '.generations[0].text' | tail -n +2 | sed 's/^"\(.*\)"$/\1/')
+          # Specifics and Context
+          A well-written PR description improves collaboration, code review efficiency, and project maintainability. Your summaries should:
+          - Explain why the change was made.
+          - Summarize what was changed at a high level.
+          - Highlight any key technical details reviewers should know.
+          - Be written clearly, without unnecessary jargon.
 
-          # Set outputs
-          echo "TITLE=$TITLE" >> $GITHUB_ENV
-          echo "DESC=$DESC" >> $GITHUB_ENV
-          echo "title=$TITLE" >> $GITHUB_OUTPUT
-          echo "desc=$DESC" >> $GITHUB_OUTPUT
+          # Reminders
+          - Always output both a PR title and a PR description.
+          - Keep the title concise and action-focused.
+          - Format the PR description as a bulleted list.
+          """
+
+          co = cohere.Client(os.getenv("COHERE_API_KEY"))
+
+          diff_text = open("short.diff", "r", encoding="utf-8").read()
+          if not diff_text.strip():
+              diff_text = "No significant changes detected."
+
+          prompt = f"{SYSTEM_PROMPT}\n\nInput (diff):\n{diff_text}\n\nOutput format:\nPR Title: <title>\nPR Description:\n- <bullet1>\n- <bullet2>"
+
+          try:
+              response = co.generate(
+                  model="command-r-plus",
+                  prompt=prompt,
+                  max_tokens=400,
+                  temperature=0.3
+              )
+              output_text = response.generations[0].text.strip()
+          except Exception as e:
+              print("Error calling Cohere:", e)
+              output_text = ""
+
+          title, desc = "Update PR", "Automated PR update by AI PR Helper"
+          lines = output_text.splitlines()
+          if lines:
+              for i, line in enumerate(lines):
+                  if line.lower().startswith("pr title:"):
+                      title = line.split(":",1)[1].strip()
+                      # Capture remaining lines as description
+                      desc_lines = []
+                      for desc_line in lines[i+1:]:
+                          if desc_line.strip().startswith("-"):
+                              desc_lines.append(desc_line.strip())
+                      if desc_lines:
+                          desc = "\n".join(desc_lines)
+                      break
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"title={title}\n")
+            f.write(f"desc<<EOF\n{desc}\nEOF\n")
 
       - name: Update PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: ${{ steps.generate_pr.outputs.title }}
+          DESC: ${{ steps.generate_pr.outputs.desc }}
         run: |
-          if [ -z "${{ env.TITLE }}" ] || [ -z "${{ env.DESC }}" ]; then
-            echo "::error::Failed to generate title or description"
-            exit 1
-          fi
+          if [ -z "$TITLE" ]; then TITLE="Update PR"; fi
+          if [ -z "$DESC" ]; then DESC="Automated PR update by AI PR Helper"; fi
 
-          # Update PR using GitHub CLI
+          gh auth setup-git
           gh api \
             --method PATCH \
             -H "Accept: application/vnd.github.v3+json" \
             /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} \
-            -f title="${{ env.TITLE }}" \
-            -f body="${{ env.DESC }}"
-
-      - name: Comment on PR
-        if: failure()
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const { data: comment } = await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: 'Failed to generate PR title/description. Please check the workflow logs.'
-            })
+            -f title="$TITLE" \
+            -f body="$DESC"
