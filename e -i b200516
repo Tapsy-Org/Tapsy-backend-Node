@@ -1,0 +1,5 @@
+[33m746cd66[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/individualuserbussiness[m[33m)[m Fix firebase
+[33m9dac7e5[m Security: Remove sensitive serviceAccountKey.json and migrate to environment variables
+[33mae328cb[m firbase fixed
+[33mb200516[m[33m ([m[1;31morigin/feature/individualuserbussiness[m[33m, [m[1;31morigin/feature/individualUserCategory[m[33m, [m[1;31morigin/11-08-2025[m[33m, [m[1;32mfeature/individualUserCategory[m[33m, [m[1;32mfeature/individualUser[m[33m)[m Fix category assignment system and resolve linting issues
+[33m98e2397[m Fix category assignment system and resolve linting issues
