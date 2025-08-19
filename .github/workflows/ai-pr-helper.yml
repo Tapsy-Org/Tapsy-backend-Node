@@ -1,49 +1,24 @@
-name: AI PR Helper
+name: AI PR Title and Description
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
-
-permissions:
-  contents: read
-  pull-requests: write
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
-  ai-pr-helper:
+  pr-ai-helper:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # fetch full history so git diff works properly
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '22.x'
-
-      - name: Install dependencies
+      - name: Set up Git
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-
-      - name: Get PR diff
-        id: diff
-        run: |
-          git fetch origin ${{ github.event.pull_request.base.ref }}
-          BASE=$(git merge-base HEAD origin/${{ github.event.pull_request.base.ref }} || echo "")
-          if [ -n "$BASE" ]; then
-            git diff $BASE...HEAD > changes.diff
-          else
-            git diff HEAD > changes.diff
-          fi
+          git fetch origin main
+          git diff origin/main...HEAD > changes.diff
           head -n 200 changes.diff > short.diff
 
-      - name: Generate PR Title and Description (Cohere)
-        id: cohere_title
-        env:
-          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+      - name: Generate PR Title and Description using Cohere
+        id: cohere
         run: |
           if [ -z "$COHERE_API_KEY" ]; then
             echo "::error::COHERE_API_KEY is not set"
@@ -53,6 +28,7 @@ jobs:
           # Escape diff for JSON safety
           DIFF=$(jq -Rs . < short.diff)
 
+          # Call Cohere API
           RESPONSE=$(curl -s https://api.cohere.ai/v1/generate \
             -H "Authorization: Bearer $COHERE_API_KEY" \
             -H "Content-Type: application/json" \
@@ -72,8 +48,8 @@ jobs:
             TITLE=$(git log -1 --pretty=%s)
             DESC=$(git log -1 --pretty=%b)
           else
-            TITLE=$(echo "$TEXT" | head -n 1 | sed 's/^"\(.*\)"$/\1/')
-            DESC=$(echo "$TEXT" | tail -n +2 | sed 's/^"\(.*\)"$/\1/')
+            TITLE=$(echo "$TEXT" | head -n 1 | sed 's/^"//; s/"$//')
+            DESC=$(echo "$TEXT" | tail -n +2 | sed 's/^"//; s/"$//')
           fi
 
           if [ -z "$TITLE" ]; then
@@ -87,28 +63,13 @@ jobs:
           echo "DESC=$DESC" >> $GITHUB_ENV
           echo "title=$TITLE" >> $GITHUB_OUTPUT
           echo "desc=$DESC" >> $GITHUB_OUTPUT
-
-      - name: Update PR
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TITLE: ${{ env.TITLE }}
-          DESC: ${{ env.DESC }}
-        run: |
-          gh api \
-            --method PATCH \
-            -H "Accept: application/vnd.github.v3+json" \
-            /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} \
-            -f title="${TITLE}" \
-            -f body="${DESC}"
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
 
-      - name: Comment on PR
-        if: failure()
-        uses: actions/github-script@v6
+      - name: Update PR with AI-generated title and description
+        uses: peter-evans/create-pull-request@v6
         with:
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: 'Failed to generate PR title/description. Please check the workflow logs.'
-            })
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: ${{ env.TITLE }}
+          title: ${{ env.TITLE }}
+          body: ${{ env.DESC }}
