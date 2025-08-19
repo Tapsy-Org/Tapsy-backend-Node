@@ -1,0 +1,67 @@
+name: AI PR Helper
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-pr-helper:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get PR diff
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > changes.diff
+          head -n 200 changes.diff > short.diff  # limit for tokens
+
+      # ------------------------
+      # 1. Generate Title + Description
+      # ------------------------
+      - name: Generate PR Title and Description (Cohere)
+        id: cohere_title
+        run: |
+          RESPONSE=$(curl -s https://api.cohere.ai/v1/generate \
+            -H "Authorization: Bearer ${{ secrets.COHERE_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"model\": \"command-r\",
+              \"prompt\": \"You are a GitHub bot. Based on this code diff, suggest a concise PR title and a detailed description.\\n$(cat short.diff)\"
+            }")
+
+          TITLE=$(echo $RESPONSE | jq -r '.generations[0].text' | head -n 1)
+          DESC=$(echo $RESPONSE | jq -r '.generations[0].text' | tail -n +2)
+
+          echo "TITLE=$TITLE" >> $GITHUB_ENV
+          echo "DESC=$DESC" >> $GITHUB_ENV
+
+      - name: Update PR Title & Description
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} \
+            --title "${{ env.TITLE }}" \
+            --body "${{ env.DESC }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ------------------------
+      # 2. AI Review of PR Diff
+      # ------------------------
+      - name: Run AI Review (Cohere)
+        run: |
+          REVIEW=$(curl -s https://api.cohere.ai/v1/generate \
+            -H "Authorization: Bearer ${{ secrets.COHERE_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"model\": \"command-r\",
+              \"prompt\": \"You are a senior software engineer. Review this GitHub PR diff and provide constructive feedback (bugs, security, improvements, tests).\\n$(cat short.diff)\"
+            }" | jq -r '.generations[0].text')
+
+          echo "$REVIEW" > review.md
+
+      - name: Post Review as PR Comment
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body-file review.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
