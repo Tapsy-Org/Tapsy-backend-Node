@@ -28,14 +28,16 @@ jobs:
       # Install Cohere SDK
       - name: Install dependencies
         run: pip install cohere
-
+        
       # Generate PR diff
       - name: Generate diff file
         run: |
           git fetch origin main
-          BASE=$(git merge-base HEAD origin/main || echo HEAD)
+          # Always compare with main
+          BASE=$(git merge-base HEAD origin/main || echo origin/main)
           git diff $BASE...HEAD > changes.diff || echo "No changes" > changes.diff
           head -n 200 changes.diff > short.diff
+
 
       # Generate PR title & description using Cohere
       - name: Generate PR Title & Description
