@@ -102,9 +102,8 @@ jobs:
                       break
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"title={title}\n")
-              f.write(f"desc={desc}\n")
-          EOF
+            f.write(f"title={title}\n")
+            f.write(f"desc<<EOF\n{desc}\nEOF\n")
 
       - name: Update PR
         env:
