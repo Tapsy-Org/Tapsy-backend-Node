@@ -1,20 +1,17 @@
 import nodemailer from 'nodemailer';
 
-// TODO: Use environment variables for these settings in production
 const transporter = nodemailer.createTransport({
-  host: 'smtp.ethereal.email',
-  port: 587,
-  secure: false, // true for 465, false for other ports
+  service: 'gmail',
   auth: {
-    user: 'testuser@example.com', // generated ethereal user
-    pass: 'password', // generated ethereal password
+    user: process.env.EMAIL_USER, // Use environment variable
+    pass: process.env.EMAIL_PASS, // Gmail App Password, not your normal password
   },
 });
 
 export const sendOtpEmail = async (to: string, otp: string) => {
   const mailOptions = {
-    from: '"Tapsy" <noreply@tapsy.com>',
-    to,
+    from: '"Tapsy" <yashv9409@gmail.com>', // Sender
+    to, // Recipient
     subject: 'Your OTP Code',
     text: `Your OTP code is ${otp}`,
     html: `<b>Your OTP code is ${otp}</b>`,
@@ -22,7 +19,7 @@ export const sendOtpEmail = async (to: string, otp: string) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully');
+    console.log('Email sent successfully to', to);
   } catch (error) {
     console.error('Error sending email:', error);
     throw error;

@@ -1,0 +1,414 @@
+import { Router } from 'express';
+
+import UserController from '../controllers/user.controller';
+
+const router = Router();
+
+/**
+ * @swagger
+ * tags:
+ *   - name: Users
+ *     description: Unified user management for both individual and business users
+ */
+
+/**
+ * @swagger
+ * /users/register:
+ *   post:
+ *     summary: Register a new user (individual or business)
+ *     description: For INDIVIDUAL users, mobile number is extracted from Firebase ID token. For BUSINESS users, all business details including categories and subcategories are provided in the same request.
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [idToken, firebase_token]
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 description: Firebase ID token
+ *               firebase_token:
+ *                 type: string
+ *                 description: Firebase messaging token
+ *               user_type:
+ *                 type: string
+ *                 enum: [INDIVIDUAL, BUSINESS]
+ *                 default: INDIVIDUAL
+ *               mobile_number:
+ *                 type: string
+ *                 description: Mobile number (for business users only - individual users get it from Firebase token)
+ *               email:
+ *                 type: string
+ *                 description: Email (required if mobile_number not provided)
+ *               username:
+ *                 type: string
+ *               device_id:
+ *                 type: string
+ *               business_name:
+ *                 type: string
+ *                 description: Required for business users
+ *               tags:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Business tags (for business users only)
+ *               address:
+ *                 type: string
+ *                 description: Business address (for business users only)
+ *               zip_code:
+ *                 type: string
+ *                 description: Business zip code (for business users only)
+ *               website:
+ *                 type: string
+ *                 description: Business website URL (for business users only)
+ *               about:
+ *                 type: string
+ *                 description: About the business (for business users only)
+ *               bio:
+ *                 type: string
+ *                 description: Business bio (for business users only)
+ *               logo_url:
+ *                 type: string
+ *                 description: Business logo URL (for business users only)
+ *               video_urls:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Business video URLs (for business users only)
+ *               categories:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Category IDs (for business users only)
+ *               subcategories:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Subcategory names (for business users only)
+ *           examples:
+ *             individual:
+ *               summary: Individual user registration (mobile number extracted from Firebase ID token)
+ *               value:
+ *                 idToken: "firebase-id-token"
+ *                 firebase_token: "firebase-messaging-token"
+ *                 user_type: "INDIVIDUAL"
+ *                 username: "john_doe"
+ *                 device_id: "device-123"
+ *             business:
+ *               summary: Business user registration with all business details
+ *               value:
+ *                 idToken: "firebase-id-token"
+ *                 firebase_token: "firebase-messaging-token"
+ *                 user_type: "BUSINESS"
+ *                 mobile_number: "+1234567890"
+ *                 username: "business_user"
+ *                 business_name: "My Business"
+ *                 tags: ["technology", "software", "consulting"]
+ *                 address: "123 Business Street, City, State"
+ *                 zip_code: "12345"
+ *                 website: "https://mybusiness.com"
+ *                 about: "We are a technology consulting company"
+ *                 bio: "Helping businesses grow with technology"
+ *                 logo_url: "https://mybusiness.com/logo.png"
+ *                 video_urls: ["https://youtube.com/watch?v=123", "https://vimeo.com/456"]
+ *                 categories: ["category-id-1", "category-id-2"]
+ *                 subcategories: ["Web Development", "Mobile Apps"]
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *       400:
+ *         description: Missing required fields or validation errors
+ *       409:
+ *         description: User already exists
+ */
+router.post('/register', UserController.register);
+
+/**
+ * @swagger
+ * /users/login:
+ *   post:
+ *     summary: Login user
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [idToken, firebase_token]
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *               firebase_token:
+ *                 type: string
+ *               mobile_number:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               device_id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       404:
+ *         description: User not found
+ */
+router.post('/login', UserController.login);
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   get:
+ *     summary: Get user by ID
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User found
+ *       404:
+ *         description: User not found
+ */
+router.get('/:id', UserController.getById);
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   put:
+ *     summary: Update user
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               mobile_number:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               business_name:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *               website:
+ *                 type: string
+ *               bio:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *       404:
+ *         description: User not found
+ */
+router.put('/:id', UserController.update);
+
+/**
+ * @swagger
+ * /users/{id}/verify:
+ *   post:
+ *     summary: Verify user (after OTP verification)
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [verification_method]
+ *             properties:
+ *               verification_method:
+ *                 type: string
+ *                 enum: [MOBILE, EMAIL]
+ *     responses:
+ *       200:
+ *         description: User verified successfully
+ *       400:
+ *         description: Invalid verification method
+ *       404:
+ *         description: User not found
+ */
+router.post('/:id/verify', UserController.verifyUser);
+
+/**
+ * @swagger
+ * /users/{id}/deactivate:
+ *   post:
+ *     summary: Deactivate user (soft delete)
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User deactivated successfully
+ *       404:
+ *         description: User not found
+ */
+router.post('/:id/deactivate', UserController.softDelete);
+
+/**
+ * @swagger
+ * /users/{id}/restore:
+ *   post:
+ *     summary: Restore deactivated user
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User restored successfully
+ *       404:
+ *         description: User not found
+ */
+router.post('/:id/restore', UserController.restore);
+
+/**
+ * @swagger
+ * /users/type/{user_type}:
+ *   get:
+ *     summary: Get users by type
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: user_type
+ *         schema:
+ *           type: string
+ *           enum: [INDIVIDUAL, BUSINESS]
+ *         required: true
+ *         description: User type
+ *     responses:
+ *       200:
+ *         description: Users retrieved successfully
+ *       400:
+ *         description: Invalid user type
+ */
+router.get('/type/:user_type', UserController.getUsersByType);
+
+/**
+ * @swagger
+ * /users/{userId}/categories:
+ *   post:
+ *     summary: Add categories with subcategories to an individual user
+ *     description: This endpoint is only for INDIVIDUAL users. Business users should include categories during registration. Subcategories are stored within each category assignment.
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [categories]
+ *             properties:
+ *               categories:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of category IDs
+ *               subcategories:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of subcategory names to be applied to all categories
+ *           example:
+ *             categories: ["category-id-1", "category-id-2"]
+ *             subcategories: ["React Development", "Node.js Development"]
+ *     responses:
+ *       200:
+ *         description: Categories added successfully
+ *       400:
+ *         description: Invalid request or user is not individual
+ *       404:
+ *         description: User not found
+ */
+router.post('/:userId/categories', UserController.addUserCategories);
+
+/**
+ * @swagger
+ * /users/{userId}/categories/{categoryId}/subcategories:
+ *   put:
+ *     summary: Update subcategories for a specific category of an individual user
+ *     description: This endpoint is only for INDIVIDUAL users. Updates the subcategories for a specific category assignment.
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *       - in: path
+ *         name: categoryId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Category ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [subcategories]
+ *             properties:
+ *               subcategories:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of subcategory names for this category
+ *           example:
+ *             subcategories: ["React Development", "Node.js Development", "Mobile Apps"]
+ *     responses:
+ *       200:
+ *         description: Category subcategories updated successfully
+ *       400:
+ *         description: Invalid request, user is not individual, or category not assigned
+ *       404:
+ *         description: User not found
+ */
+router.put(
+  '/:userId/categories/:categoryId/subcategories',
+  UserController.updateUserCategorySubcategories,
+);
+
+export default router;

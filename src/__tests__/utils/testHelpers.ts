@@ -1,6 +1,5 @@
+import { UserType } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
-
-import { UserType } from '../../../generated/prisma';
 
 export interface MockRequest extends Partial<Request> {
   body?: any;
@@ -47,7 +46,7 @@ export const createMockNext = (): MockNextFunction => {
 
 export const createMockUser = (overrides: any = {}) => ({
   id: 'test-user-id',
-  userType: 'INDIVIDUAL' as UserType,
+  userType: ' ' as UserType,
   email: 'test@example.com',
   mobileNumber: '+1234567890',
   status: 'PENDING',
