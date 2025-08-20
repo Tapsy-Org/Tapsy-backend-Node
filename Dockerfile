@@ -32,7 +32,7 @@
     
     # Copy only package files and install prod dependencies
     COPY package*.json ./
-    RUN npm install
+    RUN npm install --ignore-scripts
     
     # Copy compiled app from builder stage
     COPY --from=builder /usr/src/app/dist ./dist
