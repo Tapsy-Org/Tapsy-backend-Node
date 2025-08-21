@@ -85,6 +85,11 @@ export default class UserController {
     try {
       const { idToken, firebase_token, device_id, mobile_number, email, otp } = req.body;
 
+      // Validate required fields
+      if (!idToken && !mobile_number && !email) {
+        throw new AppError('Either idToken, mobile_number, or email is required for login', 400);
+      }
+
       const user = await userService.login({
         idToken,
         firebase_token,

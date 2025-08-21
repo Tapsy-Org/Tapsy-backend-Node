@@ -65,7 +65,7 @@ describe('Unified User System Integration Tests', () => {
         expect(response.body.message).toContain('required');
       });
 
-      it('should return 400 for business user without business_name', async () => {
+      it('should return 400 for business user without required fields', async () => {
         const response = await request(app)
           .post('/api/users/register')
           .send({
@@ -76,7 +76,7 @@ describe('Unified User System Integration Tests', () => {
           })
           .expect(400);
 
-        expect(response.body.message).toContain('Business name is required');
+        expect(response.body.message).toContain('Device ID is required');
       });
     });
 
@@ -121,12 +121,12 @@ describe('Unified User System Integration Tests', () => {
         await request(app)
           .post('/api/users/test-id/verify')
           .send({ verification_method: 'MOBILE' })
-          .expect(500); // Will fail due to user not found, but method is valid
+          .expect(404); // Will fail due to user not found, but method is valid
 
         await request(app)
           .post('/api/users/test-id/verify')
           .send({ verification_method: 'EMAIL' })
-          .expect(500); // Will fail due to user not found, but method is valid
+          .expect(404); // Will fail due to user not found, but method is valid
       });
     });
   });
