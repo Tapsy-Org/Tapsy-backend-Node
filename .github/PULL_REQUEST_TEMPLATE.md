@@ -3,7 +3,7 @@
 
 ## Changes Made
 - List the key changes here in bullet points.
-- Keep each point concise and clear.
+- Keep each point concise and clear. 
 
 ## Impact
 - Mention any impact this change may have (e.g., code dependencies, user flows, performance).
