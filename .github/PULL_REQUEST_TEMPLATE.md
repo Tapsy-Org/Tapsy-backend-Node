@@ -1,5 +1,5 @@
 ## Summary
-- Briefly describe the purpose of this change (1–2 sentences).
+- Briefly describe the purpose of this change (1–2 sentences). 
 
 ## Changes Made
 - List the key changes here in bullet points.
