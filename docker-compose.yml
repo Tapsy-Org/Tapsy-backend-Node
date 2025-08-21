@@ -1,12 +1,20 @@
 version: '3.9'
 
+# A new day, a new deployment. Let's make it happen! 
+# We're defining our services, all working together in perfect harmony.
 services:
+  # The brain of our operation, the backend, is ready for action!
   backend:
+    # Building from our local Dockerfile—a custom image made just for this app.
     build: .
+    # A unique name, because every star deserves one!
     container_name: my-backend
+    # Let's be resilient! This service will always restart, ensuring maximum uptime. 🛡️
     restart: always
+    # Opening the doors for our application to the world!
     ports:
       - "3000:3000"
+    # Setting our environment variables for a smooth, production-ready experience.
     environment:
       - NODE_ENV=production
       - DB_HOST=${DB_HOST}
@@ -14,21 +22,30 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - DB_PORT=${DB_PORT}
+    # Acknowledging our friend, the database! We'll wait for it to be ready. 🤝
     depends_on:
       - db
 
+  # Our rock-solid database, ready to store and serve data with unparalleled reliability.
   db:
+    # Using the latest and greatest PostgreSQL image—because we aim for excellence.
     image: postgres:16
+    # Giving our database a strong, clear name.
     container_name: my-postgres
+    # Just like our backend, it's resilient and always ready to serve. 🌟
     restart: always
+    # Setting up the credentials to get this database running like a champ!
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
+    # Exposing the port to allow other services to connect.
     ports:
       - "5432:5432"
+    # Persisting our data! This volume ensures our data is safe and sound, no matter what.
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+# Our special place for data persistence. This is where our database's hard work will be saved forever.
 volumes:
   pgdata:
