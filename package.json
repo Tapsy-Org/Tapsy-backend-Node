@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon",
     "build": "tsc",
+    "db:generate": "prisma generate",
     "start": "npm run build && cross-env NODE_ENV=production node dist/server.js",
     "db:dev:deploy": "cross-env NODE_ENV=development dotenv -e .env.development -- prisma db push",
     "db:dev:migrate": "cross-env NODE_ENV=development dotenv -e .env.development -- prisma migrate dev",
