@@ -8,25 +8,22 @@ import { sendOtpEmail } from '../utils/mailer';
 
 export class UserService {
   // Helper method to clean user response based on user type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private cleanUserResponse(user: any) {
+  private cleanUserResponse(user: Record<string, unknown>) {
     if (user.user_type === 'INDIVIDUAL') {
       // For individual users, exclude business-specific fields that are null
-      /* eslint-disable @typescript-eslint/no-unused-vars */
       const {
-        email,
-        otp,
-        otp_expiry,
-        address,
-        zip_code,
-        website,
-        about,
-        logo_url,
-        video_urls,
-        categories, // Fixed: changed from category
+        email: _email,
+        otp: _otp,
+        otp_expiry: _otpExpiry,
+        address: _address,
+        zip_code: _zipCode,
+        website: _website,
+        about: _about,
+        logo_url: _logoUrl,
+        video_urls: _videoUrls,
+        categories: _categories, // Fixed: changed from category
         ...cleanUser
       } = user;
-      /* eslint-enable @typescript-eslint/no-unused-vars */
       return cleanUser;
     }
     return user;
@@ -201,7 +198,7 @@ export class UserService {
         );
 
         await prisma.user.update({
-          where: { id: user.id },
+          where: { id: user.id as string },
           data: { access_token: accessToken },
         });
       }
@@ -433,6 +430,167 @@ export class UserService {
       throw new AppError('Failed to create business user with categories', 500, {
         originalError: error,
       });
+    }
+  }
+
+  // Alias methods for backwards compatibility with controller
+  async register(data: {
+    idToken?: string;
+    firebase_token?: string;
+    device_id: string;
+    username: string;
+    user_type?: UserType;
+    mobile_number?: string;
+    email?: string;
+    address?: string;
+    zip_code?: string;
+    website?: string;
+    about?: string;
+    logo_url?: string;
+    video_urls?: string[];
+    categories?: string[];
+    subcategories?: string[];
+  }) {
+    return this.registerWithFirebase(data);
+  }
+
+  async login(data: {
+    idToken?: string;
+    firebase_token?: string;
+    device_id?: string;
+    mobile_number?: string;
+    email?: string;
+    otp?: string;
+  }) {
+    return this.loginWithFirebase(data);
+  }
+
+  async findAll() {
+    try {
+      return await prisma.user.findMany({
+        include: {
+          categories: { include: { category: true } },
+        },
+      });
+    } catch (error) {
+      throw new AppError('Failed to fetch all users', 500, { originalError: error });
+    }
+  }
+
+  async sendOtp(data: { email?: string; mobile_number?: string }) {
+    try {
+      if (!data.email && !data.mobile_number) {
+        throw new AppError('Either email or mobile number is required', 400);
+      }
+
+      if (data.email) {
+        // Generate OTP and send email
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+        // Find user by email
+        const user = await prisma.user.findUnique({
+          where: { email: data.email },
+        });
+
+        if (!user) {
+          throw new AppError('User not found', 404);
+        }
+
+        // Update user with OTP
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { otp, otp_expiry: otpExpiry },
+        });
+
+        await sendOtpEmail(data.email, otp);
+        return { message: 'OTP sent successfully', otp_expiry: otpExpiry };
+      }
+
+      // For mobile_number, we would need Firebase SMS integration
+      throw new AppError('SMS OTP not implemented yet', 501);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to send OTP', 500, { originalError: error });
+    }
+  }
+
+  async verifyOtp(data: { email?: string; mobile_number?: string; otp: string }) {
+    try {
+      if (!data.email && !data.mobile_number) {
+        throw new AppError('Either email or mobile number is required', 400);
+      }
+
+      let user = null;
+
+      if (data.email) {
+        user = await prisma.user.findUnique({
+          where: { email: data.email },
+          include: {
+            categories: { include: { category: true } },
+          },
+        });
+      }
+
+      if (!user && data.mobile_number) {
+        user = await prisma.user.findUnique({
+          where: { mobile_number: data.mobile_number },
+          include: {
+            categories: { include: { category: true } },
+          },
+        });
+      }
+
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      if (!user.otp || !user.otp_expiry) {
+        throw new AppError('No OTP found for this user', 400);
+      }
+
+      if (user.otp !== data.otp) {
+        throw new AppError('Invalid OTP', 400);
+      }
+
+      if (new Date() > user.otp_expiry) {
+        throw new AppError('OTP has expired', 400);
+      }
+
+      // Mark user as verified and clear OTP
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otp_verified: true,
+          otp: null,
+          otp_expiry: null,
+        },
+        include: {
+          categories: { include: { category: true } },
+        },
+      });
+
+      // Generate access token
+      const accessToken = jwt.sign(
+        {
+          userId: updatedUser.id,
+          mobile_number: updatedUser.mobile_number,
+          email: updatedUser.email,
+          user_type: updatedUser.user_type,
+        },
+        process.env.JWT_SECRET as string,
+        { expiresIn: '7d' },
+      );
+
+      await prisma.user.update({
+        where: { id: updatedUser.id },
+        data: { access_token: accessToken },
+      });
+
+      return this.cleanUserResponse({ ...updatedUser, access_token: accessToken });
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to verify OTP', 500, { originalError: error });
     }
   }
 }

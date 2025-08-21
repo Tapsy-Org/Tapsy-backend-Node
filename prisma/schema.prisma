@@ -14,11 +14,14 @@ datasource db {
 enum UserType {
   INDIVIDUAL
   BUSINESS
+  ADMIN
 }
 
 enum Status {
   ACTIVE
   INACTIVE
+  PENDING
+  DELETED
 }
 
 enum VerificationMethod {
@@ -344,4 +347,12 @@ model Subscription {
 
   business User @relation(fields: [businessId], references: [id])
   plan     Plan @relation(fields: [planId], references: [id])
+}
+
+model QRCode {
+  id         String   @id @default(uuid())
+  name       String
+  image_url  String
+  status     Status
+  createdAt  DateTime @default(now())
 }

@@ -410,5 +410,88 @@ router.put(
   '/:userId/categories/:categoryId/subcategories',
   UserController.updateUserCategorySubcategories,
 );
+// ... existing code ...
 
+/**
+ * @swagger
+ * /users/send-otp:
+ *   post:
+ *     summary: Send OTP to user
+ *     description: Send OTP to user's email or mobile number for verification
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: User's email address
+ *               mobile_number:
+ *                 type: string
+ *                 description: User's mobile number
+ *           example:
+ *             email: "user@example.com"
+ *     responses:
+ *       200:
+ *         description: OTP sent successfully
+ *       400:
+ *         description: Email or mobile number is required
+ *       404:
+ *         description: User not found
+ */
+router.post('/send-otp', UserController.sendOtp);
+
+/**
+ * @swagger
+ * /users/verify-otp:
+ *   post:
+ *     summary: Verify OTP
+ *     description: Verify the OTP sent to user's email or mobile number
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [otp]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: User's email address
+ *               mobile_number:
+ *                 type: string
+ *                 description: User's mobile number
+ *               otp:
+ *                 type: string
+ *                 description: The OTP code to verify
+ *           example:
+ *             email: "user@example.com"
+ *             otp: "123456"
+ *     responses:
+ *       200:
+ *         description: OTP verified successfully
+ *       400:
+ *         description: Invalid or expired OTP
+ *       404:
+ *         description: User not found
+ */
+router.post('/verify-otp', UserController.verifyOtp);
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Users fetched successfully
+ *       404:
+ *         description: No users found
+ */
+router.get('/', UserController.getAllUsers);
+// ... existing code ...
 export default router;

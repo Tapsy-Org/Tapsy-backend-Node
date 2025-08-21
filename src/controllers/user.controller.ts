@@ -57,7 +57,7 @@ export default class UserController {
       }
 
       // Call service to register
-      const user = await userService.registerWithFirebase({
+      const user = await userService.register({
         idToken,
         firebase_token,
         device_id,
@@ -83,23 +83,18 @@ export default class UserController {
 
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const { idToken, firebase_token, device_id, mobile_number, email } = req.body;
+      const { idToken, firebase_token, device_id, mobile_number, email, otp } = req.body;
 
-      if (!idToken || !firebase_token) {
-        throw new AppError('idToken and firebase_token are required', 400);
-      }
-
-      // Mobile number and email will be extracted from Firebase ID token
-      // Optional mobile_number and email can still be provided as fallback
-
-      const user = await userService.loginWithFirebase({
+      const user = await userService.login({
         idToken,
         firebase_token,
         device_id,
         mobile_number,
         email,
+        otp, // ✅ pass OTP for business users
       });
 
+      // Generate JWT token
       const accessToken = jwt.sign(
         {
           userId: user.id,
@@ -111,7 +106,45 @@ export default class UserController {
         { expiresIn: '7d' },
       );
 
-      return res.success({ user, accessToken }, 'Login successful');
+      let message = 'Login successful';
+      if (user.user_type === 'BUSINESS') {
+        message = 'Business login successful';
+      } else if (user.user_type === 'INDIVIDUAL') {
+        message = 'Individual login successful';
+      }
+
+      return res.success({ user, accessToken }, message);
+    } catch (error) {
+      next(error);
+    }
+  }
+  static async sendOtp(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email, mobile_number } = req.body;
+
+      if (!email && !mobile_number) {
+        throw new AppError('Email or mobile number is required to send OTP', 400);
+      }
+
+      const otp = await userService.sendOtp({ email, mobile_number });
+
+      return res.success({ otp }, 'OTP sent successfully');
+      // ⚠️ in prod don’t return OTP in response
+    } catch (error) {
+      next(error);
+    }
+  }
+  static async verifyOtp(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email, mobile_number, otp } = req.body;
+
+      const user = await userService.verifyOtp({ email, mobile_number, otp });
+
+      if (!user) {
+        throw new AppError('Invalid or expired OTP', 400);
+      }
+
+      return res.success(user, 'OTP verified successfully');
     } catch (error) {
       next(error);
     }
@@ -236,7 +269,14 @@ export default class UserController {
       next(error);
     }
   }
-
+  static async getAllUsers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const users = await userService.findAll();
+      return res.success({ users }, 'All users fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
   static async addUserCategories(req: Request, res: Response, next: NextFunction) {
     try {
       const { userId } = req.params;

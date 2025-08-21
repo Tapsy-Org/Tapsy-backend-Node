@@ -19,6 +19,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
     });
@@ -27,7 +28,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(401).json({ error: 'Invalid token: user not found' });
     }
 
-    req.user = user;
+    req.user = user; // 👈 ab type-safe
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });
