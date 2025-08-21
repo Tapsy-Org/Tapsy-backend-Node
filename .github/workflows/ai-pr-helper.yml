@@ -1,15 +1,15 @@
-name: AI PR Helper
+name: AI PR Reviewer
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
-  ai-pr-helper:
+  ai-pr-reviewer:
     runs-on: ubuntu-latest
 
     steps:
@@ -35,89 +35,72 @@ jobs:
           echo "Diff captured:"
           head -n 20 short.diff
 
-      - name: Generate PR Title & Description
-        id: generate_pr
+      - name: AI Code Review
+        id: review_pr
         env:
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           python <<EOF
           import os
           import cohere
+          import requests
+          import json
 
           SYSTEM_PROMPT = """\
           # System Role
-          You are an expert technical writer and GitHub collaborator who specializes in crafting clear, concise, and professional pull request (PR) titles and descriptions based on code changes. You understand software development practices and can summarize diffs into meaningful explanations.
+          You are an expert software developer and code reviewer. Your task is to provide a constructive, professional, and concise code review for a given diff. Your feedback should focus on potential issues, best practices, and suggestions for improvement.
 
           # Task Specification
-          Given a code diff as input, generate:
-          1. A PR title (short, action-oriented, ~6–12 words).
-          2. A PR description (professional, concise, and GitHub-ready).
+          Given a code diff as input, generate a code review comment.
 
           # Specifics and Context
-          A well-written PR description improves collaboration, code review efficiency, and project maintainability. Your summaries should:
-          - Explain why the change was made.
-          - Summarize what was changed at a high level.
-          - Highlight any key technical details reviewers should know.
-          - Be written clearly, without unnecessary jargon.
-
-          # Reminders
-          - Always output both a PR title and a PR description.
-          - Keep the title concise and action-focused.
-          - Format the PR description as a bulleted list.
+          Your review should:
+          - Summarize the main changes and their purpose.
+          - Identify any potential bugs, performance issues, or security vulnerabilities.
+          - Suggest improvements for code readability, maintainability, or design patterns.
+          - Keep the tone professional and helpful.
           """
 
           co = cohere.Client(os.getenv("COHERE_API_KEY"))
 
           diff_text = open("short.diff", "r", encoding="utf-8").read()
           if not diff_text.strip():
-              diff_text = "No significant changes detected."
+              review_text = "No significant changes detected for review."
+          else:
+              prompt = f"{SYSTEM_PROMPT}\n\nInput (diff):\n{diff_text}\n\nOutput format: A concise, bulleted list of review points."
+              try:
+                  response = co.generate(
+                      model="command-r-plus",
+                      prompt=prompt,
+                      max_tokens=500,
+                      temperature=0.3
+                  )
+                  review_text = response.generations[0].text.strip()
+              except Exception as e:
+                  print("Error calling Cohere:", e)
+                  review_text = "An error occurred while generating the review."
 
-          prompt = f"{SYSTEM_PROMPT}\n\nInput (diff):\n{diff_text}\n\nOutput format:\nPR Title: <title>\nPR Description:\n- <bullet1>\n- <bullet2>"
-
-          try:
-              response = co.generate(
-                  model="command-r-plus",
-                  prompt=prompt,
-                  max_tokens=400,
-                  temperature=0.3
-              )
-              output_text = response.generations[0].text.strip()
-          except Exception as e:
-              print("Error calling Cohere:", e)
-              output_text = ""
-
-          title, desc = "Update PR", "Automated PR update by AI PR Helper"
-          lines = output_text.splitlines()
-          if lines:
-              for i, line in enumerate(lines):
-                  if line.lower().startswith("pr title:"):
-                      title = line.split(":",1)[1].strip()
-                      # Capture remaining lines as description
-                      desc_lines = []
-                      for desc_line in lines[i+1:]:
-                          if desc_line.strip().startswith("-"):
-                              desc_lines.append(desc_line.strip())
-                      if desc_lines:
-                          desc = "\n".join(desc_lines)
-                      break
-
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-            f.write(f"title={title}\n")
-            f.write(f"desc<<EOF\n{desc}\nEOF\n")
-
-      - name: Update PR
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TITLE: ${{ steps.generate_pr.outputs.title }}
-          DESC: ${{ steps.generate_pr.outputs.desc }}
-        run: |
-          if [ -z "$TITLE" ]; then TITLE="Update PR"; fi
-          if [ -z "$DESC" ]; then DESC="Automated PR update by AI PR Helper"; fi
-
-          gh auth setup-git
-          gh api \
-            --method PATCH \
-            -H "Accept: application/vnd.github.v3+json" \
-            /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} \
-            -f title="$TITLE" \
-            -f body="$DESC"
+          # Post the review as a comment on the PR
+          pr_number = os.getenv("PULL_REQUEST_NUMBER")
+          if pr_number:
+              owner_repo = os.getenv("GITHUB_REPOSITORY")
+              github_token = os.getenv("GITHUB_TOKEN")
+              url = f"https://api.github.com/repos/{owner_repo}/issues/{pr_number}/comments"
+              headers = {
+                  "Authorization": f"token {github_token}",
+                  "Accept": "application/vnd.github.v3+json"
+              }
+              data = {
+                  "body": f"### AI Code Review\n\n{review_text}"
+              }
+              response = requests.post(url, headers=headers, data=json.dumps(data))
+              if response.status_code == 201:
+                  print("Successfully posted AI review comment.")
+              else:
+                  print(f"Failed to post comment: {response.status_code} - {response.text}")
+          else:
+              print("PULL_REQUEST_NUMBER not found. Skipping comment post.")
+          
+          EOF
