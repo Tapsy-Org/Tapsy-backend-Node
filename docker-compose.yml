@@ -2,7 +2,10 @@ version: '3.9'
 
 services:
   backend:
-    build: .
+    build:
+      context: .
+      args:
+        - DATABASE_URL=${DATABASE_URL}
     container_name: my-backend
     restart: always
     ports:
@@ -14,8 +17,12 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - DB_PORT=${DB_PORT}
+      - DATABASE_URL=${DATABASE_URL}
     depends_on:
-      - db
+      db:
+        condition: service_healthy # Wait for the DB health check to pass
+    # Run the database push and then start the application
+    command: sh -c "npx prisma db push && npm start"
 
   db:
     image: postgres:16
@@ -29,6 +36,11 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck: # Add a health check to the database container
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:
