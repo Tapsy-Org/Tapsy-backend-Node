@@ -11,13 +11,6 @@ export const createCategory = async (data: {
   sort_order: number;
 }) => {
   try {
-    console.log('[Category] Create payload:', {
-      name: data?.name,
-      slug: data?.slug,
-      status: data?.status,
-      audience: data?.audience,
-      sort_order: data?.sort_order,
-    });
     return await prisma.category.create({
       data: {
         name: data.name,

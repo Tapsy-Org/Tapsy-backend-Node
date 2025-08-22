@@ -11,7 +11,7 @@ mainRouter.use('/', welcomeRouter);
 mainRouter.use('/categories', categoryRouter);
 mainRouter.use('/users', userRouter);
 mainRouter.use('/user-categories', userCategoryRouter);
-// Add user-subcategories as an alias to user-categories for backwards compatibility
-mainRouter.use('/user-subcategories', userCategoryRouter);
+// // Add user-subcategories as an alias to user-categories for backwards compatibility
+// mainRouter.use('/user-subcategories', userCategoryRouter);
 
 export default mainRouter;

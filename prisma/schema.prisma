@@ -153,13 +153,14 @@ model Category {
 }
 
 model UserCategory {
-  id            String   @id @default(uuid()) @db.Uuid
-  userId        String   @db.Uuid
-  categoryId    String   @db.Uuid
-  subcategories String[]
-  user_type     UserType
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  categoryId     String   @db.Uuid
+  categoriesName String[]
+  subcategories  String[]
+  user_type      UserType
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user     User     @relation(fields: [userId], references: [id])
   category Category @relation(fields: [categoryId], references: [id])

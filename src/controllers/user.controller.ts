@@ -1,12 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
 
 import { UserService } from '../services/user.service';
-import { UserCategoryService } from '../services/userCategory.service';
 import AppError from '../utils/AppError';
 
 const userService = new UserService();
-const userCategoryService = new UserCategoryService();
 
 export default class UserController {
   static async register(req: Request, res: Response, next: NextFunction) {
@@ -83,7 +80,7 @@ export default class UserController {
 
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const { idToken, firebase_token, device_id, mobile_number, email, otp } = req.body;
+      const { idToken, firebase_token, device_id, mobile_number, email } = req.body;
 
       // Validate required fields
       if (!idToken && !mobile_number && !email) {
@@ -94,22 +91,8 @@ export default class UserController {
         idToken,
         firebase_token,
         device_id,
-        mobile_number,
         email,
-        otp, // ✅ pass OTP for business users
       });
-
-      // Generate JWT token
-      const accessToken = jwt.sign(
-        {
-          userId: user.id,
-          mobile_number: user.mobile_number,
-          email: user.email,
-          user_type: user.user_type,
-        },
-        process.env.JWT_SECRET as string,
-        { expiresIn: '7d' },
-      );
 
       let message = 'Login successful';
       if (user.user_type === 'BUSINESS') {
@@ -118,7 +101,7 @@ export default class UserController {
         message = 'Individual login successful';
       }
 
-      return res.success({ user, accessToken }, message);
+      return res.success(user, message);
     } catch (error) {
       next(error);
     }
@@ -214,26 +197,6 @@ export default class UserController {
     }
   }
 
-  static async verifyUser(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const { verification_method } = req.body;
-
-      if (!id) {
-        return res.fail('User id is required', 400);
-      }
-
-      if (!verification_method || !['MOBILE', 'EMAIL'].includes(verification_method)) {
-        return res.fail('Valid verification_method (MOBILE or EMAIL) is required', 400);
-      }
-
-      const user = await userService.verifyUser(id, verification_method);
-      return res.success({ user }, 'User verified successfully');
-    } catch (error) {
-      next(error);
-    }
-  }
-
   static async softDelete(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
@@ -278,57 +241,6 @@ export default class UserController {
     try {
       const users = await userService.findAll();
       return res.success({ users }, 'All users fetched successfully');
-    } catch (error) {
-      next(error);
-    }
-  }
-  static async addUserCategories(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { userId } = req.params;
-      const { categories, subcategories } = req.body;
-
-      if (!userId) {
-        return res.fail('User ID is required', 400);
-      }
-
-      if (!categories || !Array.isArray(categories) || categories.length === 0) {
-        return res.fail('Categories array is required and cannot be empty', 400);
-      }
-
-      if (subcategories && !Array.isArray(subcategories)) {
-        return res.fail('Subcategories must be an array', 400);
-      }
-
-      const user = await userCategoryService.addUserCategories(userId, categories, subcategories);
-      return res.success({ user }, 'Categories added successfully');
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async updateUserCategorySubcategories(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { userId, categoryId } = req.params;
-      const { subcategories } = req.body;
-
-      if (!userId) {
-        return res.fail('User ID is required', 400);
-      }
-
-      if (!categoryId) {
-        return res.fail('Category ID is required', 400);
-      }
-
-      if (!subcategories || !Array.isArray(subcategories) || subcategories.length === 0) {
-        return res.fail('Subcategories array is required and cannot be empty', 400);
-      }
-
-      const user = await userCategoryService.updateUserCategorySubcategories(
-        userId,
-        categoryId,
-        subcategories,
-      );
-      return res.success({ user }, 'Category subcategories updated successfully');
     } catch (error) {
       next(error);
     }
