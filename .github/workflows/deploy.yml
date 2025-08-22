@@ -17,6 +17,7 @@ jobs:
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       DB_NAME: ${{ secrets.DB_NAME }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
       - name: Checkout code
@@ -50,6 +51,7 @@ jobs:
           $env:DB_USER = "${{ secrets.DB_USER }}"
           $env:DB_PASSWORD = "${{ secrets.DB_PASSWORD }}"
           $env:DB_NAME = "${{ secrets.DB_NAME }}"
+          $env:DATABASE_URL = "${{ secrets.DATABASE_URL }}"
 
           # Start new stack
           docker compose up -d --force-recreate --build
