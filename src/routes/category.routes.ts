@@ -53,6 +53,36 @@ router.get('/', categoryController.getCategories);
 
 /**
  * @swagger
+ * /categories/active:
+ *   get:
+ *     summary: Get active categories for user selection
+ *     tags: [Categories]
+ *     description: Returns only active categories that users can select from
+ *     responses:
+ *       200:
+ *         description: A list of active categories
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   slug:
+ *                     type: string
+ *                   status:
+ *                     type: boolean
+ *                   created_at:
+ *                     type: string
+ */
+router.get('/active', categoryController.getActiveCategories);
+
+/**
+ * @swagger
  * /categories/{id}:
  *   get:
  *     summary: Get category by ID

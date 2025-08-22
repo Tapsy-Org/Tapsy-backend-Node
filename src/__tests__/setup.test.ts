@@ -19,7 +19,7 @@ global.console = {
 jest.mock('../config/db', () => ({
   __esModule: true,
   default: {
-    individualUser: {
+    User: {
       create: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),

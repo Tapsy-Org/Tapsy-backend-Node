@@ -1,18 +1,30 @@
+import { CategoryAudience } from '@prisma/client';
+
 import prisma from '../config/db';
 import AppError from '../utils/AppError';
 
-export const createCategory = async (data: { name: string; slug: string; status: boolean }) => {
+export const createCategory = async (data: {
+  name: string;
+  slug: string;
+  status: boolean;
+  audience: CategoryAudience;
+  sort_order: number;
+}) => {
   try {
     console.log('[Category] Create payload:', {
       name: data?.name,
       slug: data?.slug,
       status: data?.status,
+      audience: data?.audience,
+      sort_order: data?.sort_order,
     });
     return await prisma.category.create({
       data: {
         name: data.name,
         slug: data.slug,
         status: data.status,
+        audience: data.audience,
+        sort_order: data.sort_order,
       },
     });
   } catch (error: unknown) {
@@ -53,11 +65,9 @@ export const getCategories = async () => {
   try {
     return await prisma.category.findMany({
       include: {
-        subcategories: true,
         _count: {
           select: {
-            individuals: true,
-            businesses: true,
+            users: true,
           },
         },
       },
@@ -67,15 +77,35 @@ export const getCategories = async () => {
   }
 };
 
+export const getActiveCategories = async () => {
+  try {
+    return await prisma.category.findMany({
+      where: {
+        status: true, // Only get active categories
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+  } catch (error) {
+    throw new AppError('Failed to fetch active categories', 500, { originalError: error });
+  }
+};
+
 export const getCategoryById = async (id: string) => {
   const category = await prisma.category.findUnique({
     where: { id },
     include: {
-      subcategories: true,
       _count: {
         select: {
-          individuals: true,
-          businesses: true,
+          users: true,
         },
       },
     },

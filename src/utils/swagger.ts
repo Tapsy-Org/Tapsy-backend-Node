@@ -40,11 +40,7 @@ const options = {
         description: 'Development server',
       },
     ],
-    tags: [
-      { name: 'Users', description: 'User management' },
-      { name: 'Business', description: 'Business details management' },
-      { name: 'UserPersonalization', description: 'User personalization management' },
-    ],
+    tags: [],
   },
   apis: ['./src/routes/*.ts'],
 };
