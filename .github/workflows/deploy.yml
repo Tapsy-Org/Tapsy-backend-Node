@@ -11,7 +11,7 @@ jobs:
     env:
       FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
       FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
-      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
       FIREBASE_PRIVATE_KEY_ID: ${{ secrets.FIREBASE_PRIVATE_KEY_ID }}
       FIREBASE_TYPE: ${{ secrets.FIREBASE_TYPE }}
       FIREBASE_CLIENT_ID: ${{ secrets.FIREBASE_CLIENT_ID }}
@@ -27,6 +27,7 @@ jobs:
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       DB_NAME: ${{ secrets.DB_NAME }}
+      DB_PORT: ${{ secrets.DB_PORT }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
@@ -55,8 +56,18 @@ jobs:
           # Pass environment variables to Docker Compose
           $env:FIREBASE_PROJECT_ID = "${{ secrets.FIREBASE_PROJECT_ID }}"
           $env:FIREBASE_CLIENT_EMAIL = "${{ secrets.FIREBASE_CLIENT_EMAIL }}"
-          $env:FIREBASE_SERVICE_ACCOUNT = "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
-          $env:JWT_SECRET = "${{ secrets.JWT_SECRET }}"
+          $env:FIREBASE_PRIVATE_KEY = "${{ secrets.FIREBASE_PRIVATE_KEY }}"
+          $env:JWT_ACCESS_SECRET = "${{ secrets.JWT_ACCESS_SECRET }}"
+          $env:JWT_REFRESH_SECRET = "${{ secrets.JWT_REFRESH_SECRET }}"
+          $env:GOOGLE_API_KEY = "${{ secrets.GOOGLE_API_KEY }}"
+          $env:JWT_ACCESS_EXPIRES = "${{ secrets.JWT_ACCESS_EXPIRES }}"
+          $env:JWT_REFRESH_EXPIRES = "${{ secrets.JWT_REFRESH_EXPIRES }}"
+          $env:EMAIL_USER = "${{ secrets.EMAIL_USER }}"
+          $env:EMAIL_PASS = "${{ secrets.EMAIL_PASS }}"
+          $env:FIREBASE_TYPE = "${{ secrets.FIREBASE_TYPE }}"
+          $env:FIREBASE_PRIVATE_KEY_ID = "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}"
+          $env:FIREBASE_CLIENT_ID = "${{ secrets.FIREBASE_CLIENT_ID }}"
+          $env:FIREBASE_CLIENT_X509_CERT_URL = "${{ secrets.FIREBASE_CLIENT_X509_CERT_URL }}"
           $env:DB_HOST = "${{ secrets.DB_HOST }}"
           $env:DB_USER = "${{ secrets.DB_USER }}"
           $env:DB_PASSWORD = "${{ secrets.DB_PASSWORD }}"
