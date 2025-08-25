@@ -16,6 +16,7 @@ jobs:
       FIREBASE_TYPE: ${{ secrets.FIREBASE_TYPE }}
       FIREBASE_CLIENT_ID: ${{ secrets.FIREBASE_CLIENT_ID }}
       FIREBASE_CLIENT_X509_CERT_URL: ${{ secrets.FIREBASE_CLIENT_X509_CERT_URL }}
+      PORT: ${{ secrets.PORT }}
       EMAIL_USER: ${{ secrets.EMAIL_USER }}
       EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
       JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
