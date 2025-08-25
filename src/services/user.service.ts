@@ -1,11 +1,11 @@
 import type { Prisma, UserType } from '@prisma/client';
 import bcryptjs from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 
 import prisma from '../config/db';
 import admin from '../config/firebase';
 import AppError from '../utils/AppError';
 import { sendOtpEmail } from '../utils/mailer';
+import AuthTokens from '../utils/token';
 
 export class UserService {
   // Helper method to clean user response based on user type
@@ -107,10 +107,9 @@ export class UserService {
         device_id: data.device_id,
         username: data.username,
         status: 'ACTIVE',
-        verification_method: 'MOBILE', // default
+        verification_method: 'MOBILE',
       };
 
-      // INDIVIDUAL USERS: must use mobile
       if (data.user_type === 'INDIVIDUAL') {
         if (!data.idToken || !data.firebase_token) {
           throw new AppError('idToken and firebase_token are required for individual users', 400);
@@ -187,27 +186,23 @@ export class UserService {
         user = await this.create(userData);
       }
 
-      // GENERATE ACCESS TOKEN ONLY IF VERIFIED
-      let accessToken: string | null = null;
+      // GENERATE TOKENS ONLY IF VERIFIED
+      let tokens = null;
       if (userData.otp_verified) {
-        accessToken = jwt.sign(
-          {
-            userId: user.id,
-            mobile_number: user.mobile_number,
-            email: user.email,
-            user_type: user.user_type,
-          },
-          process.env.JWT_SECRET as string,
-          { expiresIn: '7d' },
-        );
-
-        await prisma.user.update({
-          where: { id: user.id as string },
-          data: { access_token: accessToken },
+        // Cast user to proper type for token generation
+        const userWithId = user as { id: string; user_type: UserType };
+        tokens = await AuthTokens.generateAccessAndRefreshToken({
+          id: userWithId.id,
+          role: userWithId.user_type,
         });
+        // Note: Only refresh token is stored in DB, access token is not stored
       }
 
-      return this.cleanUserResponse({ ...user, access_token: accessToken });
+      return this.cleanUserResponse({
+        ...user,
+        access_token: tokens?.accessToken || null,
+        refresh_token: tokens?.refreshToken || null,
+      });
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to register user', 500, { originalError: error });
@@ -228,7 +223,6 @@ export class UserService {
       if (data.email) {
         user = await prisma.user.findUnique({
           where: { email: data.email },
-          include: { categories: { include: { category: true } } },
         });
       }
 
@@ -243,35 +237,33 @@ export class UserService {
 
         user = await prisma.user.findUnique({
           where: { mobile_number: mobileFromToken },
-          include: { categories: { include: { category: true } } },
         });
       }
 
       if (!user) {
         throw new AppError('User not found', 404);
       }
+
       if (user.status !== 'ACTIVE') {
         throw new AppError(
-          'User account is not active first register and verify your account then login',
+          'User account is not active. Please register and verify your account first',
           403,
         );
       }
-      // 3. Handle based on verification method
+
+      // 3. Handle EMAIL verification flow
       if (user.verification_method === 'EMAIL') {
-        // 👉 Generate OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const hashedOtp = await bcryptjs.hash(otp, 10);
         const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-        // Save OTP + expiry in DB
-        const updatedUser = await prisma.user.update({
+        await prisma.user.update({
           where: { id: user.id },
           data: {
             otp: hashedOtp,
             otp_expiry: otpExpiry,
             otp_verified: false,
           },
-          include: { categories: { include: { category: true } } },
         });
 
         // Send OTP to email
@@ -279,15 +271,17 @@ export class UserService {
           await sendOtpEmail(data.email, otp);
         }
 
-        // 👉 Return full user info (without access token)
+        // 👉 Return minimal response
         return {
-          ...updatedUser,
-          otp: hashedOtp, // return hashed OTP
-          otp_verified: false, // always false
-          access_token: null, // no access token here
+          status: 'OTP_SENT',
+          message: 'OTP has been sent to your email',
+          data: {
+            user_type: user.user_type,
+          },
         };
       }
 
+      // 4. Handle MOBILE (Firebase verified login)
       if (user.verification_method === 'MOBILE') {
         if (!data.idToken) {
           throw new AppError('idToken is required for mobile login', 400);
@@ -296,18 +290,31 @@ export class UserService {
           throw new AppError('Invalid Firebase token: mobile mismatch', 401);
         }
 
-        // 👉 Normal login for mobile
-        const updatedUser = await prisma.user.update({
+        // Generate tokens
+        const payload = { id: user.id, role: user.user_type };
+        const { accessToken, refreshToken } =
+          await AuthTokens.generateAccessAndRefreshToken(payload);
+
+        await prisma.user.update({
           where: { id: user.id },
           data: {
             firebase_token: data.firebase_token,
             device_id: data.device_id,
             last_login: new Date(),
+            refresh_token: refreshToken,
           },
-          include: { categories: { include: { category: true } } },
         });
 
-        return this.cleanUserResponse(updatedUser);
+        return {
+          status: 'SUCCESS',
+          message: 'Login successful',
+          data: {
+            userId: user.id,
+            mobile_number: user.mobile_number,
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          },
+        };
       }
 
       throw new AppError('Invalid verification method', 400);
@@ -423,29 +430,82 @@ export class UserService {
         data: updateData,
         include: { categories: { include: { category: true } } },
       });
-      // Generate access token
-      const accessToken = jwt.sign(
-        {
-          userId: updatedUser.id,
-          mobile_number: updatedUser.mobile_number,
-          email: updatedUser.email,
-          user_type: updatedUser.user_type,
-        },
-        process.env.JWT_SECRET as string,
-        { expiresIn: '7d' },
-      );
-
-      await prisma.user.update({
-        where: { id: updatedUser.id },
-        data: { access_token: accessToken },
+      // Generate both access and refresh tokens
+      const tokens = await AuthTokens.generateAccessAndRefreshToken({
+        id: updatedUser.id,
+        role: updatedUser.user_type,
       });
+      // Note: Only refresh token is stored in DB, access token is not stored
 
-      return this.cleanUserResponse({ ...updatedUser, access_token: accessToken });
+      return this.cleanUserResponse({
+        ...updatedUser,
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken,
+      });
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to verify OTP', 500, { originalError: error });
     }
   }
+
+  //* Refresh Token Method
+  async refreshToken(refreshToken: string) {
+    try {
+      // 1. Verify the refresh token
+      const decoded = AuthTokens.verifyRefreshToken(refreshToken);
+
+      if (typeof decoded === 'string') {
+        throw new AppError('Invalid refresh token format', 401);
+      }
+
+      // 2. Find user with this refresh token
+      const user = await prisma.user.findFirst({
+        where: {
+          id: decoded.id,
+          refresh_token: refreshToken,
+          status: 'ACTIVE',
+        },
+      });
+
+      if (!user) {
+        throw new AppError('Invalid refresh token or user not found', 401);
+      }
+
+      // 3. Generate new tokens
+      const { accessToken, refreshToken: newRefreshToken } =
+        await AuthTokens.generateAccessAndRefreshToken({
+          id: user.id,
+          role: user.user_type,
+        });
+
+      // 4. Save new refresh token in DB (invalidate old one)
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refresh_token: newRefreshToken },
+      });
+
+      // 5. Return updated tokens
+      return {
+        access_token: accessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to refresh token', 401, { originalError: error });
+    }
+  }
+
+  //* Logout Method
+  async logout(userId: string) {
+    try {
+      await AuthTokens.revokeRefreshToken(userId);
+      return { message: 'Logged out successfully' };
+    } catch (error) {
+      throw new AppError('Failed to logout', 500, { originalError: error });
+    }
+  }
+
+  //* Admin methods
   async findById(id: string) {
     try {
       const user = await prisma.user.findUnique({

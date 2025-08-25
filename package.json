@@ -12,6 +12,7 @@
     "db:dev:migrate": "cross-env NODE_ENV=development dotenv -e .env.development -- prisma migrate dev",
     "db:dev:reset": "cross-env NODE_ENV=development dotenv -e .env.development -- prisma migrate reset",
     "db:dev:seed": "cross-env NODE_ENV=development dotenv -e .env.development -- ts-node prisma/seed.ts",
+    "db:admin:seed": "cross-env NODE_ENV=development dotenv -e .env.development -- ts-node prisma/admin-seed.ts",
     "db:dev:studio": "cross-env NODE_ENV=development dotenv -e .env.development -- prisma studio",
     "db:prod:deploy": "prisma migrate deploy",
     "db:prod:status": "prisma migrate status",

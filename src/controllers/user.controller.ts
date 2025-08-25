@@ -87,7 +87,7 @@ export default class UserController {
         throw new AppError('Either idToken, mobile_number, or email is required for login', 400);
       }
 
-      const user = await userService.login({
+      const result = await userService.login({
         idToken,
         firebase_token,
         device_id,
@@ -95,17 +95,24 @@ export default class UserController {
       });
 
       let message = 'Login successful';
-      if (user.user_type === 'BUSINESS') {
+
+      // If OTP was sent (email flow)
+      if (result?.status === 'OTP_SENT') {
+        message = 'OTP sent to your email';
+      }
+      // If normal login (mobile or already verified)
+      else if (result?.data?.user_type === 'BUSINESS') {
         message = 'Business login successful';
-      } else if (user.user_type === 'INDIVIDUAL') {
+      } else if (result?.data?.user_type === 'INDIVIDUAL') {
         message = 'Individual login successful';
       }
 
-      return res.success(user, message);
+      return res.success(result, message);
     } catch (error) {
       next(error);
     }
   }
+
   static async sendOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, mobile_number } = req.body;
@@ -138,6 +145,7 @@ export default class UserController {
     }
   }
 
+  //* Admin related apis
   static async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
@@ -241,6 +249,40 @@ export default class UserController {
     try {
       const users = await userService.findAll();
       return res.success({ users }, 'All users fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  //* Refresh Token
+  static async refreshToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { refresh_token } = req.body;
+
+      if (!refresh_token) {
+        throw new AppError('Refresh token is required', 400);
+      }
+
+      const result = await userService.refreshToken(refresh_token);
+
+      return res.success(result, 'Token refreshed successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  //* Logout
+  static async logout(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        throw new AppError('User ID not found in request', 400);
+      }
+
+      const result = await userService.logout(userId);
+
+      return res.success(result, 'User logged out successfully');
     } catch (error) {
       next(error);
     }

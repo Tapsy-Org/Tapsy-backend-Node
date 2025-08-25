@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import * as categoryController from '../controllers/category.controller';
+import { requireAuth } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -37,7 +38,7 @@ const router = Router();
  *       400:
  *         description: Bad request
  */
-router.post('/', categoryController.createCategory);
+router.post('/', requireAuth('ADMIN'), categoryController.createCategory);
 
 /**
  * @swagger
@@ -49,7 +50,7 @@ router.post('/', categoryController.createCategory);
  *       200:
  *         description: A list of categories with subcategories
  */
-router.get('/', categoryController.getCategories);
+router.get('/', requireAuth('ADMIN'), categoryController.getCategories);
 
 /**
  * @swagger
@@ -79,7 +80,7 @@ router.get('/', categoryController.getCategories);
  *                   created_at:
  *                     type: string
  */
-router.get('/active', categoryController.getActiveCategories);
+router.get('/active', requireAuth('ADMIN'), categoryController.getActiveCategories);
 
 /**
  * @swagger
@@ -100,7 +101,7 @@ router.get('/active', categoryController.getActiveCategories);
  *       404:
  *         description: Category not found
  */
-router.get('/:id', categoryController.getCategoryById);
+router.get('/:id', requireAuth('ADMIN'), categoryController.getCategoryById);
 
 /**
  * @swagger
@@ -127,7 +128,7 @@ router.get('/:id', categoryController.getCategoryById);
  *       400:
  *         description: Bad request
  */
-router.put('/:id', categoryController.updateCategory);
+router.put('/:id', requireAuth('ADMIN'), categoryController.updateCategory);
 
 /**
  * @swagger
@@ -146,6 +147,6 @@ router.put('/:id', categoryController.updateCategory);
  *       204:
  *         description: Category deleted successfully
  */
-router.delete('/:id', categoryController.deleteCategory);
+router.delete('/:id', requireAuth('ADMIN'), categoryController.deleteCategory);
 
 export default router;

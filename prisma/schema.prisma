@@ -103,7 +103,7 @@ model User {
   mobile_number       String?            @unique
   email               String?            @unique 
   username            String
-  device_id           String
+  device_id           String?
   status              Status
   last_login          DateTime?
   createdAt           DateTime           @default(now())
@@ -112,8 +112,9 @@ model User {
   otp_verified        Boolean            @default(false)
   verification_method VerificationMethod
   otp                 String?
-  access_token        String?
+  refresh_token       String?
   otp_expiry          DateTime?
+  password            String?            // For admin users
   address             String?
   zip_code            String?
   website             String?

@@ -365,5 +365,11 @@ router.post('/verify-otp', UserController.verifyOtp);
  *         description: No users found
  */
 router.get('/', UserController.getAllUsers);
-// ... existing code ...
+
+// Note: Refresh token and logout are now handled by unified /auth endpoints
+// Use /auth/refresh-token and /auth/logout for all user types
+router.post('/refresh-token', UserController.refreshToken);
+
+router.post('/logout', UserController.logout);
+
 export default router;

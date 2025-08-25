@@ -1,44 +1,44 @@
-import { User } from '@prisma/client';
-import { NextFunction, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
+import { NextFunction, Response } from 'express';
 
 import prisma from '../config/db';
+import { AuthRequest } from '../types/express';
+import AppError from '../utils/AppError';
+import AuthTokens from '../utils/token';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+export const requireAuth = (role?: 'ADMIN' | 'BUSINESS' | 'INDIVIDUAL') => {
+  return async (req: AuthRequest, _res: Response, next: NextFunction) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+        throw new AppError('Authorization token required', 401);
+      }
 
-export interface AuthRequest extends Request {
-  user?: User;
-}
+      const token = authHeader.split(' ')[1];
+      const decoded = AuthTokens.verifyAccessToken(token);
 
-export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
+      if (typeof decoded === 'string') {
+        throw new AppError('Invalid access token', 401);
+      }
 
-  if (!token) {
-    return res.status(401).json({ error: 'Authorization token not found' });
-  }
+      // Check user in DB
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id, status: 'ACTIVE' },
+        select: { id: true, user_type: true, status: true },
+      });
 
-  try {
-    // 1️⃣ Verify token signature
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+      if (!user) {
+        throw new AppError('User not found or inactive', 401);
+      }
 
-    // 2️⃣ Find user in DB
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    });
+      // If role is specified, enforce it
+      if (role && user.user_type !== role) {
+        throw new AppError('Access denied: insufficient permissions', 403);
+      }
 
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid token: user not found' });
+      req.user = { userId: user.id, user_type: user.user_type, status: user.status };
+      next();
+    } catch (error) {
+      next(error);
     }
-
-    // 3️⃣ Check if token matches stored token in user table
-    if (user.access_token !== token) {
-      return res.status(401).json({ error: 'Invalid or revoked token' });
-    }
-
-    // 4️⃣ Attach user to request
-    req.user = user;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
+  };
 };

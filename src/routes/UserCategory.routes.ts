@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import * as UserCategoryController from '../controllers/UserCategory.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+import { requireAuth } from '../middlewares/auth.middleware';
 const router = Router();
 
 /**
@@ -379,7 +379,7 @@ const router = Router();
  */
 router.post(
   '/categories-and-subcategories',
-  authenticate,
+  requireAuth(),
   UserCategoryController.addCategoriesAndSubcategories,
 );
 export default router;
