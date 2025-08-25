@@ -13,6 +13,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - PORT=${PORT}
       - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
       - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
       - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
