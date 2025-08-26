@@ -13,7 +13,7 @@ const router = Router();
 
 /**
  * @swagger
- * /users/register:
+ * /api/users/register:
  *   post:
  *     summary: Register a new user (individual or business)
  *     description: For INDIVIDUAL users, mobile number is extracted from Firebase ID token. For BUSINESS users, all business details including categories and subcategories are provided in the same request.
@@ -127,7 +127,7 @@ router.post('/register', UserController.register);
 
 /**
  * @swagger
- * /users/login:
+ * /api/users/login:
  *   post:
  *     summary: Login user
  *     tags: [Users]
@@ -159,7 +159,7 @@ router.post('/login', UserController.login);
 
 /**
  * @swagger
- * /users/{id}:
+ * /api/users/{id}:
  *   get:
  *     summary: Get user by ID
  *     tags: [Users]
@@ -180,7 +180,7 @@ router.get('/:id', UserController.getById);
 
 /**
  * @swagger
- * /users/{id}:
+ * /api/users/{id}:
  *   put:
  *     summary: Update user
  *     tags: [Users]
@@ -222,7 +222,7 @@ router.put('/:id', UserController.update);
 
 /**
  * @swagger
- * /users/{id}/deactivate:
+ * /api/users/{id}/deactivate:
  *   post:
  *     summary: Deactivate user (soft delete)
  *     tags: [Users]
@@ -243,7 +243,7 @@ router.post('/:id/deactivate', UserController.softDelete);
 
 /**
  * @swagger
- * /users/{id}/restore:
+ * /api/users/{id}/restore:
  *   post:
  *     summary: Restore deactivated user
  *     tags: [Users]
@@ -264,7 +264,7 @@ router.post('/:id/restore', UserController.restore);
 
 /**
  * @swagger
- * /users/type/{user_type}:
+ * /api/users/type/{user_type}:
  *   get:
  *     summary: Get users by type
  *     tags: [Users]
@@ -286,7 +286,7 @@ router.get('/type/:user_type', UserController.getUsersByType);
 
 /**
  * @swagger
- * /users/send-otp:
+ * /api/users/send-otp:
  *   post:
  *     summary: Send OTP to user
  *     description: Send OTP to user's email or mobile number for verification
@@ -318,7 +318,7 @@ router.post('/send-otp', UserController.sendOtp);
 
 /**
  * @swagger
- * /users/verify-otp:
+ * /api/users/verify-otp:
  *   post:
  *     summary: Verify OTP
  *     description: Verify the OTP sent to user's email or mobile number
@@ -354,7 +354,7 @@ router.post('/send-otp', UserController.sendOtp);
 router.post('/verify-otp', UserController.verifyOtp);
 /**
  * @swagger
- * /users:
+ * /api/users:
  *   get:
  *     summary: Get all users
  *     tags: [Users]
@@ -368,8 +368,71 @@ router.get('/', UserController.getAllUsers);
 
 // Note: Refresh token and logout are now handled by unified /auth endpoints
 // Use /auth/refresh-token and /auth/logout for all user types
-router.post('/refresh-token', UserController.refreshToken);
+/**
+ * @swagger
+ * /api/users/refresh-token:
+ *   post:
+ *     summary: Refresh user's JWT token
+ *     description: Generate a new access token using the provided refresh token. This allows users to stay logged in without re-authentication.
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refresh_token]
+ *             properties:
+ *               refresh_token:
+ *                 type: string
+ *                 description: Refresh token previously issued to the user
+ *           example:
+ *             refresh_token: "user-refresh-token"
+ *     responses:
+ *       200:
+ *         description: New access token issued successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 access_token:
+ *                   type: string
+ *                   description: New access token
+ *                 refresh_token:
+ *                   type: string
+ *                   description: Rotated refresh token
+ *       401:
+ *         description: Invalid or expired refresh token
+ */
 
+router.post('/refresh-token', UserController.refreshToken);
+/**
+ * @swagger
+ * /api/users/logout:
+ *   post:
+ *     summary: Logout user
+ *     description: Invalidate the current refresh token and log the user out from the system.
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refresh_token]
+ *             properties:
+ *               refresh_token:
+ *                 type: string
+ *                 description: The refresh token to invalidate
+ *           example:
+ *             refresh_token: "user-refresh-token"
+ *     responses:
+ *       200:
+ *         description: User logged out successfully
+ *       400:
+ *         description: Refresh token missing or invalid
+ */
 router.post('/logout', UserController.logout);
 
 export default router;

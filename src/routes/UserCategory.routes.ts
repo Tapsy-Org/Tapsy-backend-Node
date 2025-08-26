@@ -171,49 +171,49 @@ const router = Router();
 //  */
 // router.delete('/remove', UserCategoryController.removeCategoryFromUser);
 
-/**
- * @swagger
- * /user-categories/{userId}/categories/{categoryId}/subcategories:
- *   put:
- *     summary: Update subcategories for a specific category of an individual user
- *     description: This endpoint allows updating subcategories for a specific category assignment of an individual user.
- *     tags: [User Categories]
- *     parameters:
- *       - in: path
- *         name: userId
- *         schema:
- *           type: string
- *         required: true
- *         description: User ID (must be INDIVIDUAL user type)
- *       - in: path
- *         name: categoryId
- *         schema:
- *           type: string
- *         required: true
- *         description: Category ID to update subcategories for
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [subcategories]
- *             properties:
- *               subcategories:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Array of subcategory names for this category
- *           example:
- *             subcategories: ["React Development", "Node.js Development", "Mobile Apps"]
- *     responses:
- *       200:
- *         description: Category subcategories updated successfully
- *       400:
- *         description: Invalid request, user is not individual, or category not assigned
- *       404:
- *         description: User not found
- */
+// /**
+//  * @swagger
+//  * /user-categories/{userId}/categories/{categoryId}/subcategories:
+//  *   put:
+//  *     summary: Update subcategories for a specific category of an individual user
+//  *     description: This endpoint allows updating subcategories for a specific category assignment of an individual user.
+//  *     tags: [User Categories]
+//  *     parameters:
+//  *       - in: path
+//  *         name: userId
+//  *         schema:
+//  *           type: string
+//  *         required: true
+//  *         description: User ID (must be INDIVIDUAL user type)
+//  *       - in: path
+//  *         name: categoryId
+//  *         schema:
+//  *           type: string
+//  *         required: true
+//  *         description: Category ID to update subcategories for
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required: [subcategories]
+//  *             properties:
+//  *               subcategories:
+//  *                 type: array
+//  *                 items:
+//  *                   type: string
+//  *                 description: Array of subcategory names for this category
+//  *           example:
+//  *             subcategories: ["React Development", "Node.js Development", "Mobile Apps"]
+//  *     responses:
+//  *       200:
+//  *         description: Category subcategories updated successfully
+//  *       400:
+//  *         description: Invalid request, user is not individual, or category not assigned
+//  *       404:
+//  *         description: User not found
+//  */
 // router.put(
 //   '/:userId/categories/:categoryId/subcategories',
 //   UserCategoryController.updateCategorySubcategories,
@@ -312,7 +312,7 @@ const router = Router();
 // );
 /**
  * @swagger
- * /user-categories/{userId}/categories-and-subcategories:
+ * /api/user-categories/{userId}/categories-and-subcategories:
  *   post:
  *     summary: Add categories and subcategories to an individual user (single API)
  *     description: This endpoint allows individual users to add multiple categories with their respective subcategories in one API call. Each category can have different subcategories.
