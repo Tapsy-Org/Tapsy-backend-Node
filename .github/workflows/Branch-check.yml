@@ -17,7 +17,7 @@ jobs:
       - name: Validate branch name
         run: |
           BRANCH_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          if [[ ! "$BRANCH_NAME" =~ ^(feature|bugfix|hotfix|main|develop)\/[a-z0-9._-]+$ ]] && [[ "$BRANCH_NAME" != "main" ]] && [[ "$BRANCH_NAME" != "develop" ]]; then
+          if [[ ! "$BRANCH_NAME" =~ ^(feature|bugfix|hotfix|main|develop|fix)\/[a-z0-9._-]+$ ]] && [[ "$BRANCH_NAME" != "main" ]] && [[ "$BRANCH_NAME" != "develop" ]]; then
             echo "Invalid branch name: $BRANCH_NAME"
             echo "Branch names must follow: feature/<name>, bugfix/<name>, or hotfix/<name>"
             exit 1

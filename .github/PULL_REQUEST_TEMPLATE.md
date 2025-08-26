@@ -1,22 +1,34 @@
 ## Summary
-- Briefly describe the purpose of this change (1–2 sentences). 
+- [TODO: Write 1–2 sentences describing the purpose of this change]
+
+---
 
 ## Changes Made
-- List the key changes here in bullet points.
-- Keep each point concise and clear.
+- [TODO: List each key change as a bullet point]
+- [Example: Added new API endpoint for user profile]
+- [Example: Refactored login validation logic]
+
+---
 
 ## Impact
-- Mention any impact this change may have (e.g., code dependencies, user flows, performance).
-- State if there are **no impacts**.
+- [TODO: Mention any impact on code dependencies, user flows, or performance]
+- [Write "No impacts" if none]
+
+---
 
 ## Testing
-- Outline how the changes were tested (manual, automated tests, staging, etc.).
-- Add any specific test cases or scenarios verified.
+- [TODO: Describe how this was tested (manual, automated tests, staging, etc.)]
+- [Example: Ran unit tests for login service]
+- [Example: Verified signup flow manually in staging]
+
+---
 
 ## Deployment Notes
-- Mention if any special steps are needed for deployment.
-- State if **no extra steps** are required.
+- [TODO: Mention special steps needed for deployment]
+- [Write "No extra steps required" if none]
+
+---
 
 ## Additional Information
-- Add references, links, or notes that help others understand the context.
-- Leave blank if nothing extra is needed.
+- [TODO: Add references, design docs, or related links if helpful]
+- [Leave blank if not applicable]
