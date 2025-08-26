@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-      - develop
+      - production
   pull_request:
     branches:
       - main
-      - develop
+      - production
   schedule:
     # Run security audit weekly on Sundays at 2 AM UTC
     - cron: '0 2 * * 0'
