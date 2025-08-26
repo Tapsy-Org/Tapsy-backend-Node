@@ -21,7 +21,7 @@ export class UserService {
         website: _website,
         about: _about,
         logo_url: _logoUrl,
-        video_urls: _videoUrls,
+        video_url: _videoUrl,
         categories: _categories, // Fixed: changed from category
         ...cleanUser
       } = user;
@@ -62,7 +62,7 @@ export class UserService {
       const user = await prisma.user.create({
         data: {
           ...data,
-          video_urls: data.video_urls || [],
+          video_url: data.video_url,
         },
         include: {
           categories: {
@@ -94,7 +94,7 @@ export class UserService {
     website?: string;
     about?: string;
     logo_url?: string;
-    video_urls?: string[];
+    video_url?: string;
     categories?: string[];
     subcategories?: string[];
   }) {
@@ -170,7 +170,7 @@ export class UserService {
         userData.website = data.website;
         userData.about = data.about;
         userData.logo_url = data.logo_url;
-        userData.video_urls = data.video_urls || [];
+        userData.video_url = data.video_url;
       }
 
       // CREATE USER
@@ -646,7 +646,7 @@ export class UserService {
       const user = await prisma.user.create({
         data: {
           ...userData,
-          video_urls: userData.video_urls || [],
+          video_url: userData.video_url,
         },
         include: {
           categories: { include: { category: true } },

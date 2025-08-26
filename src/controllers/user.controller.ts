@@ -21,7 +21,7 @@ export default class UserController {
         website,
         about,
         logo_url,
-        video_urls,
+        video_url,
         categories,
         subcategories,
       } = req.body;
@@ -49,9 +49,6 @@ export default class UserController {
       if (subcategories && !Array.isArray(subcategories)) {
         throw new AppError('Subcategories must be an array', 400);
       }
-      if (video_urls && !Array.isArray(video_urls)) {
-        throw new AppError('Video URLs must be an array', 400);
-      }
 
       // Call service to register
       const user = await userService.register({
@@ -67,7 +64,7 @@ export default class UserController {
         website,
         about,
         logo_url,
-        video_urls,
+        video_url,
         categories,
         subcategories,
       });

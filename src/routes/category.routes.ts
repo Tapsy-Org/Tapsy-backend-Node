@@ -50,7 +50,7 @@ router.post('/', requireAuth('ADMIN'), categoryController.createCategory);
  *       200:
  *         description: A list of categories with subcategories
  */
-router.get('/', requireAuth('ADMIN'), categoryController.getCategories);
+router.get('/', categoryController.getCategories);
 
 /**
  * @swagger
@@ -80,7 +80,7 @@ router.get('/', requireAuth('ADMIN'), categoryController.getCategories);
  *                   created_at:
  *                     type: string
  */
-router.get('/active', requireAuth('ADMIN'), categoryController.getActiveCategories);
+router.get('/active', categoryController.getActiveCategories);
 
 /**
  * @swagger
@@ -101,7 +101,7 @@ router.get('/active', requireAuth('ADMIN'), categoryController.getActiveCategori
  *       404:
  *         description: Category not found
  */
-router.get('/:id', requireAuth('ADMIN'), categoryController.getCategoryById);
+router.get('/:id', categoryController.getCategoryById);
 
 /**
  * @swagger

@@ -120,7 +120,7 @@ model User {
   website             String?
   about               String?
   logo_url            String?
-  video_urls          String[]
+  video_url          String?
 
   // Relations
   categories       UserCategory[]
