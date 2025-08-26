@@ -4,10 +4,12 @@ type ResponseWithHelpers = ExpressResponse & {
   success: (data?: unknown, message?: string, statusCode?: number) => ExpressResponse;
   created: (data?: unknown, message?: string) => ExpressResponse;
   fail: (message: string, statusCode?: number, details?: unknown) => ExpressResponse;
+  unauthorized: (message?: string, details?: unknown) => ExpressResponse; // ✅ add 401
 };
 
 const responseMiddleware = (_req: Request, res: ExpressResponse, next: NextFunction) => {
   const r = res as ResponseWithHelpers;
+
   r.success = (data?: unknown, message = 'OK', statusCode = 200) => {
     return res.status(statusCode).json({ status: 'success', message, data });
   };
@@ -20,6 +22,12 @@ const responseMiddleware = (_req: Request, res: ExpressResponse, next: NextFunct
     return res
       .status(statusCode)
       .json({ status: 'fail', statusCode, message, details: details ?? null });
+  };
+
+  r.unauthorized = (message = 'Unauthorized', details?: unknown) => {
+    return res
+      .status(401)
+      .json({ status: 'fail', statusCode: 401, message, details: details ?? null });
   };
 
   next();

@@ -222,40 +222,6 @@ router.put('/:id', UserController.update);
 
 /**
  * @swagger
- * /users/{id}/verify:
- *   post:
- *     summary: Verify user (after OTP verification)
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: string
- *         required: true
- *         description: User ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [verification_method]
- *             properties:
- *               verification_method:
- *                 type: string
- *                 enum: [MOBILE, EMAIL]
- *     responses:
- *       200:
- *         description: User verified successfully
- *       400:
- *         description: Invalid verification method
- *       404:
- *         description: User not found
- */
-router.post('/:id/verify', UserController.verifyUser);
-
-/**
- * @swagger
  * /users/{id}/deactivate:
  *   post:
  *     summary: Deactivate user (soft delete)
@@ -317,100 +283,6 @@ router.post('/:id/restore', UserController.restore);
  *         description: Invalid user type
  */
 router.get('/type/:user_type', UserController.getUsersByType);
-
-/**
- * @swagger
- * /users/{userId}/categories:
- *   post:
- *     summary: Add categories with subcategories to an individual user
- *     description: This endpoint is only for INDIVIDUAL users. Business users should include categories during registration. Subcategories are stored within each category assignment.
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: userId
- *         schema:
- *           type: string
- *         required: true
- *         description: User ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [categories]
- *             properties:
- *               categories:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Array of category IDs
- *               subcategories:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Array of subcategory names to be applied to all categories
- *           example:
- *             categories: ["category-id-1", "category-id-2"]
- *             subcategories: ["React Development", "Node.js Development"]
- *     responses:
- *       200:
- *         description: Categories added successfully
- *       400:
- *         description: Invalid request or user is not individual
- *       404:
- *         description: User not found
- */
-router.post('/:userId/categories', UserController.addUserCategories);
-
-/**
- * @swagger
- * /users/{userId}/categories/{categoryId}/subcategories:
- *   put:
- *     summary: Update subcategories for a specific category of an individual user
- *     description: This endpoint is only for INDIVIDUAL users. Updates the subcategories for a specific category assignment.
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: userId
- *         schema:
- *           type: string
- *         required: true
- *         description: User ID
- *       - in: path
- *         name: categoryId
- *         schema:
- *           type: string
- *         required: true
- *         description: Category ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [subcategories]
- *             properties:
- *               subcategories:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Array of subcategory names for this category
- *           example:
- *             subcategories: ["React Development", "Node.js Development", "Mobile Apps"]
- *     responses:
- *       200:
- *         description: Category subcategories updated successfully
- *       400:
- *         description: Invalid request, user is not individual, or category not assigned
- *       404:
- *         description: User not found
- */
-router.put(
-  '/:userId/categories/:categoryId/subcategories',
-  UserController.updateUserCategorySubcategories,
-);
-// ... existing code ...
 
 /**
  * @swagger
@@ -493,5 +365,11 @@ router.post('/verify-otp', UserController.verifyOtp);
  *         description: No users found
  */
 router.get('/', UserController.getAllUsers);
-// ... existing code ...
+
+// Note: Refresh token and logout are now handled by unified /auth endpoints
+// Use /auth/refresh-token and /auth/logout for all user types
+router.post('/refresh-token', UserController.refreshToken);
+
+router.post('/logout', UserController.logout);
+
 export default router;

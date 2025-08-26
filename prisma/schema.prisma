@@ -103,7 +103,7 @@ model User {
   mobile_number       String?            @unique
   email               String?            @unique 
   username            String
-  device_id           String
+  device_id           String?
   status              Status
   last_login          DateTime?
   createdAt           DateTime           @default(now())
@@ -112,14 +112,15 @@ model User {
   otp_verified        Boolean            @default(false)
   verification_method VerificationMethod
   otp                 String?
-  access_token        String?
+  refresh_token       String?
   otp_expiry          DateTime?
+  password            String?            // For admin users
   address             String?
   zip_code            String?
   website             String?
   about               String?
   logo_url            String?
-  video_urls          String[]
+  video_url          String?
 
   // Relations
   categories       UserCategory[]
@@ -153,13 +154,14 @@ model Category {
 }
 
 model UserCategory {
-  id            String   @id @default(uuid()) @db.Uuid
-  userId        String   @db.Uuid
-  categoryId    String   @db.Uuid
-  subcategories String[]
-  user_type     UserType
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  categoryId     String   @db.Uuid
+  categoriesName String[]
+  subcategories  String[]
+  user_type      UserType
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user     User     @relation(fields: [userId], references: [id])
   category Category @relation(fields: [categoryId], references: [id])

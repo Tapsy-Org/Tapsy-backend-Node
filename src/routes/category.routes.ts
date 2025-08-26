@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import * as categoryController from '../controllers/category.controller';
+import { requireAuth } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -37,7 +38,7 @@ const router = Router();
  *       400:
  *         description: Bad request
  */
-router.post('/', categoryController.createCategory);
+router.post('/', requireAuth('ADMIN'), categoryController.createCategory);
 
 /**
  * @swagger
@@ -127,7 +128,7 @@ router.get('/:id', categoryController.getCategoryById);
  *       400:
  *         description: Bad request
  */
-router.put('/:id', categoryController.updateCategory);
+router.put('/:id', requireAuth('ADMIN'), categoryController.updateCategory);
 
 /**
  * @swagger
@@ -146,6 +147,6 @@ router.put('/:id', categoryController.updateCategory);
  *       204:
  *         description: Category deleted successfully
  */
-router.delete('/:id', categoryController.deleteCategory);
+router.delete('/:id', requireAuth('ADMIN'), categoryController.deleteCategory);
 
 export default router;
