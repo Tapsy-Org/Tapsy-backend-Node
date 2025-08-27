@@ -11,21 +11,21 @@ const responseMiddleware = (_req: Request, res: ExpressResponse, next: NextFunct
   const r = res as ResponseWithHelpers;
 
   r.success = (data?: unknown, message = 'OK', statusCode = 200) => {
-    return res.status(statusCode).json({ status: 'success', message, data });
+    return r.status(statusCode).json({ status: 'success', message, data });
   };
 
   r.created = (data?: unknown, message = 'Created') => {
-    return res.status(201).json({ status: 'success', message, data });
+    return r.status(201).json({ status: 'success', message, data });
   };
 
   r.fail = (message: string, statusCode = 400, details?: unknown) => {
-    return res
+    return r
       .status(statusCode)
       .json({ status: 'fail', statusCode, message, details: details ?? null });
   };
 
   r.unauthorized = (message = 'Unauthorized', details?: unknown) => {
-    return res
+    return r
       .status(401)
       .json({ status: 'fail', statusCode: 401, message, details: details ?? null });
   };

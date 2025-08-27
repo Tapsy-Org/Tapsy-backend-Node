@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import UserController from '../controllers/user.controller';
-
+import { upload } from '../middlewares/upload.middleware';
 const router = Router();
 
 /**
@@ -123,7 +123,11 @@ const router = Router();
  *       409:
  *         description: User already exists
  */
-router.post('/register', UserController.register);
+router.post(
+  '/register',
+  upload.fields([{ name: 'logo' }, { name: 'video' }]),
+  UserController.register,
+);
 
 /**
  * @swagger
