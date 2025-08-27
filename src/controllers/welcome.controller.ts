@@ -1,16 +1,27 @@
 import { NextFunction, Request, Response } from 'express';
 
-export const getWelcomeData = (_req: Request, res: Response, next: NextFunction) => {
+import { generateSignedUrl } from '../utils/s3';
+
+export const getWelcomeData = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const googleKey = process.env.GOOGLE_API_KEY;
     const geminiKey = process.env.GEMINI_API_KEY;
-    const videoUrl = process.env.ONBOARDING_VIDEO_URL;
 
-    if (!googleKey || !geminiKey || !videoUrl) {
-      return res.fail('Internal server error: Missing API keys or video URL', 500);
+    if (!googleKey || !geminiKey) {
+      return res.fail('Internal server error: Missing API keys', 500);
     }
 
-    return res.success({ googleKey, geminiKey, videoUrl });
+    // Use reusable signed URL generator
+    const videoUrl = await generateSignedUrl('14192082_1920_1080_25fps.mp4');
+
+    return res.success(
+      {
+        googleKey,
+        geminiKey,
+        videoUrl,
+      },
+      'Welcome to Tapsy API!',
+    );
   } catch (error) {
     next(error as Error);
   }

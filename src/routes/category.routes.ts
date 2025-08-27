@@ -14,7 +14,7 @@ const router = Router();
 
 /**
  * @swagger
- * /categories:
+ * /api/categories:
  *   post:
  *     summary: Create category
  *     tags: [Categories]
@@ -42,7 +42,7 @@ router.post('/', requireAuth('ADMIN'), categoryController.createCategory);
 
 /**
  * @swagger
- * /categories:
+ * /api/categories:
  *   get:
  *     summary: Get all categories
  *     tags: [Categories]
@@ -54,7 +54,7 @@ router.get('/', categoryController.getCategories);
 
 /**
  * @swagger
- * /categories/active:
+ * /api/categories/active:
  *   get:
  *     summary: Get active categories for user selection
  *     tags: [Categories]
@@ -84,7 +84,7 @@ router.get('/active', categoryController.getActiveCategories);
 
 /**
  * @swagger
- * /categories/{id}:
+ * /api/categories/{id}:
  *   get:
  *     summary: Get category by ID
  *     tags: [Categories]
@@ -105,7 +105,7 @@ router.get('/:id', categoryController.getCategoryById);
 
 /**
  * @swagger
- * /categories/{id}:
+ * /api/categories/{id}:
  *   put:
  *     summary: Update category
  *     tags: [Categories]
@@ -132,7 +132,7 @@ router.put('/:id', requireAuth('ADMIN'), categoryController.updateCategory);
 
 /**
  * @swagger
- * /categories/{id}:
+ * /api/categories/{id}:
  *   delete:
  *     summary: Delete category
  *     tags: [Categories]

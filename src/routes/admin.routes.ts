@@ -11,7 +11,7 @@ const router = Router();
 
 /**
  * @swagger
- * /admin/login:
+ * /api/admin/login:
  *   post:
  *     summary: Admin login
  *     description: Logs in an admin using email and password, returns access and refresh tokens.

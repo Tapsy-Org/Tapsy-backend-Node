@@ -22,7 +22,7 @@ export class UserService {
         about: _about,
         logo_url: _logoUrl,
         video_url: _videoUrl,
-        categories: _categories, // Fixed: changed from category
+        categories: _categories,
         ...cleanUser
       } = user;
       return cleanUser;
