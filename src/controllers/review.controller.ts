@@ -159,7 +159,13 @@ export default class ReviewController {
       // Create the review
       const review = await reviewService.createReview(reviewData);
 
-      return res.created({ review }, 'Review created successfully');
+      // Return only id and video_url
+      const responseData = {
+        id: review.id,
+        video_url: review.video_url,
+      };
+
+      return res.created(responseData, 'Review created successfully');
     } catch (error) {
       next(error);
     }
@@ -243,27 +249,6 @@ export default class ReviewController {
       const result = await reviewService.getReviews(filters);
 
       return res.success(result, 'Your reviews fetched successfully');
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getBusinessReviews(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { businessId } = req.params;
-      const { page = '1', limit = '10' } = req.query;
-
-      if (!businessId) {
-        throw new AppError('Business ID is required', 400);
-      }
-
-      const result = await reviewService.getReviews({
-        businessId,
-        page: parseInt(page as string, 10),
-        limit: parseInt(limit as string, 10),
-      });
-
-      return res.success(result, 'Business reviews fetched successfully');
     } catch (error) {
       next(error);
     }

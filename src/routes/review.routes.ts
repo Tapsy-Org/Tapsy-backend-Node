@@ -200,6 +200,17 @@ const router = express.Router();
  *           type: string
  *           format: uuid
  *           description: ID of the business being reviewed
+ *     CreateReviewResponse:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *           description: Unique review identifier
+ *         video_url:
+ *           type: string
+ *           nullable: true
+ *           description: S3 URL of the uploaded video (null if no video was uploaded)
  *     ErrorResponse:
  *       type: object
  *       properties:
@@ -298,10 +309,24 @@ const upload = multer({
  *                   type: string
  *                   example: Review created successfully
  *                 data:
- *                   type: object
- *                   properties:
- *                     review:
- *                       $ref: '#/components/schemas/Review'
+ *                   $ref: '#/components/schemas/CreateReviewResponse'
+ *             examples:
+ *               with_video:
+ *                 summary: Review created with video upload
+ *                 value:
+ *                   status: "success"
+ *                   message: "Review created successfully"
+ *                   data:
+ *                     id: "60cc2365-74ae-4b50-b7f7-a356c4a417ea"
+ *                     video_url: "https://tapsy-storage.s3.us-west-1.amazonaws.com/review/user-id/review-timestamp.mp4"
+ *               text_only:
+ *                 summary: Text-only review created
+ *                 value:
+ *                   status: "success"
+ *                   message: "Review created successfully"
+ *                   data:
+ *                     id: "60cc2365-74ae-4b50-b7f7-a356c4a417ea"
+ *                     video_url: null
  *       400:
  *         description: Bad request - validation error
  *         content:
@@ -504,61 +529,6 @@ router.get('/:reviewId', ReviewController.getReviewById);
  *         description: Internal server error
  */
 router.get('/my/reviews', requireAuth(), ReviewController.getMyReviews);
-
-/**
- * @swagger
- * /api/reviews/business/{businessId}:
- *   get:
- *     summary: Get reviews for a specific business
- *     description: |
- *       Retrieves all reviews for a specific business with pagination support.
- *       Useful for displaying business ratings and reviews on business profiles.
- *     tags: [Reviews]
- *     parameters:
- *       - in: path
- *         name: businessId
- *         schema:
- *           type: string
- *           format: uuid
- *         required: true
- *         description: The business ID to get reviews for
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *         description: Page number for pagination
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 10
- *         description: Number of items per page
- *     responses:
- *       200:
- *         description: Business reviews retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 message:
- *                   type: string
- *                   example: Business reviews fetched successfully
- *                 data:
- *                   $ref: '#/components/schemas/ReviewsResponse'
- *       400:
- *         description: Bad request - missing business ID
- *       500:
- *         description: Internal server error
- */
-router.get('/business/:businessId', ReviewController.getBusinessReviews);
 
 /**
  * @swagger
