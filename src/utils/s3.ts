@@ -91,7 +91,6 @@ export async function uploadFileToS3(
       Key: key,
       Body: fileBuffer,
       ContentType: fileType,
-      ACL: 'public-read', // Make the file publicly accessible
       Metadata: {
         uploadType,
         userId,

@@ -1,11 +1,10 @@
 import dotenv from 'dotenv';
 
+const envFile = process.env.NODE_ENV === 'production' ? '' : '.env.development';
+dotenv.config({ path: envFile });
+
 import app from './app';
 import prisma from './config/db';
-
-// Load correct .env file based on NODE_ENV
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
-dotenv.config({ path: envFile });
 
 const PORT = process.env.PORT;
 
