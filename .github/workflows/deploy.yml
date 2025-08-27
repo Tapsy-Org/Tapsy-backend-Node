@@ -8,16 +8,22 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted # Change to self-hosted if you have a self-hosted runner
+    runs-on: self-hosted # Change to self-hosted
     env:
       FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
       FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      ONBOARDING_VIDEO_URL: ${{ secrets.ONBOARDING_VIDEO_URL }}
       FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
       FIREBASE_PRIVATE_KEY_ID: ${{ secrets.FIREBASE_PRIVATE_KEY_ID }}
       FIREBASE_TYPE: ${{ secrets.FIREBASE_TYPE }}
       FIREBASE_CLIENT_ID: ${{ secrets.FIREBASE_CLIENT_ID }}
       FIREBASE_CLIENT_X509_CERT_URL: ${{ secrets.FIREBASE_CLIENT_X509_CERT_URL }}
       PORT: ${{ secrets.PORT }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
       EMAIL_USER: ${{ secrets.EMAIL_USER }}
       EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
       JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
@@ -66,6 +72,13 @@ jobs:
           $env:JWT_REFRESH_EXPIRES = "${{ secrets.JWT_REFRESH_EXPIRES }}"
           $env:EMAIL_USER = "${{ secrets.EMAIL_USER }}"
           $env:EMAIL_PASS = "${{ secrets.EMAIL_PASS }}"
+          $env:GEMINI_API_KEY = "${{ secrets.GEMINI_API_KEY }}"
+          $env:ONBOARDING_VIDEO_URL = "${{ secrets.ONBOARDING_VIDEO_URL }}"
+          $env:AWS_ACCESS_KEY_ID = "${{ secrets.AWS_ACCESS_KEY_ID }}"
+          $env:AWS_SECRET_ACCESS_KEY = "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          $env:AWS_REGION = "${{ secrets.AWS_REGION }}"
+          $env:AWS_BUCKET_NAME = "${{ secrets.AWS_BUCKET_NAME }}"
+          $env:PORT = "${{ secrets.PORT }}"
           $env:FIREBASE_TYPE = "${{ secrets.FIREBASE_TYPE }}"
           $env:FIREBASE_PRIVATE_KEY_ID = "${{ secrets.FIREBASE_PRIVATE_KEY_ID }}"
           $env:FIREBASE_CLIENT_ID = "${{ secrets.FIREBASE_CLIENT_ID }}"
