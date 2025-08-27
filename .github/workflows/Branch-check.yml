@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-      - develop
+      - production
   pull_request:
     branches:
       - main
-      - develop
+      - production
 
 jobs:
   branch-naming:
@@ -17,9 +17,10 @@ jobs:
       - name: Validate branch name
         run: |
           BRANCH_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          if [[ ! "$BRANCH_NAME" =~ ^(feature|bugfix|hotfix|main|develop)\/[a-z0-9._-]+$ ]] && [[ "$BRANCH_NAME" != "main" ]] && [[ "$BRANCH_NAME" != "develop" ]]; then
+          LOWER="${BRANCH_NAME,,}"
+          if [[ ! "$LOWER" =~ ^(feature|bugfix|hotfix|fix)\/[a-z0-9._-]+$ ]] && [[ "$LOWER" != "main" ]] && [[ "$LOWER" != "production" ]]; then
             echo "Invalid branch name: $BRANCH_NAME"
-            echo "Branch names must follow: feature/<name>, bugfix/<name>, or hotfix/<name>"
+            echo "Branch names must follow: feature/<name>, bugfix/<name>, hotfix/<name>, fix/<name> (lowercase) or be exactly main/production"
             exit 1
           fi
 
@@ -72,8 +73,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     needs: test-and-quality
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -90,7 +90,8 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Upload build artifacts
+      - name: Upload build artifacts (only main/develop)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
         uses: actions/upload-artifact@v4
         with:
           name: build-files
@@ -118,4 +119,3 @@ jobs:
 
       - name: Run dependency check
         run: npx audit-ci --moderate
-
