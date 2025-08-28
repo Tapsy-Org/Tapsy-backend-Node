@@ -2,6 +2,19 @@
 
 The Location API provides comprehensive location management functionality for users in the Tapsy application. Users can create, read, update, and delete their locations, as well as discover nearby locations.
 
+## 🌟 Enhanced Location System
+
+The Location API now supports comprehensive address information including:
+
+- **📍 Street Address**: Complete street address with building numbers
+- **📮 Postal/ZIP Code**: Postal codes for precise location identification
+- **🌍 GPS Coordinates**: Latitude and longitude for mapping and navigation
+- **🏙️ City Information**: City, state, and country details
+- **🏢 Location Types**: HOME, WORK, or OTHER categorization
+- **📝 General Description**: Human-readable location descriptions
+
+This enhanced system provides rich location data for better user experience, mapping integration, and location-based services.
+
 ## 🔐 Authentication
 
 Most endpoints require authentication via Bearer token in the Authorization header:
@@ -21,10 +34,12 @@ Creates a new location for the authenticated user.
 **Request Body:**
 ```json
 {
-  "location": "123 Main Street",
+  "address": "123 Main Street",
+  "zip_code": "12345",
   "latitude": 40.7128,
   "longitude": -74.0060,
-  "location_type": "HOME",
+  "location": "Downtown Office Building",
+  "location_type": "WORK",
   "city": "New York",
   "state": "NY",
   "country": "USA"
@@ -32,12 +47,14 @@ Creates a new location for the authenticated user.
 ```
 
 **Required Fields:**
-- `location`: Street address
+- `location`: General location description
 - `latitude`: Latitude coordinate (-90 to 90)
 - `longitude`: Longitude coordinate (-180 to 180)
 - `location_type`: One of "HOME", "WORK", or "OTHER"
 
 **Optional Fields:**
+- `address`: Street address
+- `zip_code`: Postal/ZIP code
 - `city`: City name
 - `state`: State/province name
 - `country`: Country name
@@ -50,10 +67,12 @@ Creates a new location for the authenticated user.
   "data": {
     "id": "uuid",
     "userId": "user_uuid",
-    "location": "123 Main Street",
+    "address": "123 Main Street",
+    "zip_code": "12345",
     "latitude": 40.7128,
     "longitude": -74.0060,
-    "location_type": "HOME",
+    "location": "Downtown Office Building",
+    "location_type": "WORK",
     "city": "New York",
     "state": "NY",
     "country": "USA",
@@ -77,10 +96,12 @@ Retrieves all locations for the authenticated user.
     {
       "id": "uuid",
       "userId": "user_uuid",
-      "location": "123 Main Street",
+      "address": "123 Main Street",
+      "zip_code": "12345",
       "latitude": 40.7128,
       "longitude": -74.0060,
-      "location_type": "HOME",
+      "location": "Downtown Office Building",
+      "location_type": "WORK",
       "city": "New York",
       "state": "NY",
       "country": "USA",
@@ -104,10 +125,12 @@ Retrieves a specific location by ID (must belong to the authenticated user).
   "data": {
     "id": "uuid",
     "userId": "user_uuid",
-    "location": "123 Main Street",
+    "address": "123 Main Street",
+    "zip_code": "12345",
     "latitude": 40.7128,
     "longitude": -74.0060,
-    "location_type": "HOME",
+    "location": "Downtown Office Building",
+    "location_type": "WORK",
     "city": "New York",
     "state": "NY",
     "country": "USA",
@@ -125,9 +148,11 @@ Updates a specific location (must belong to the authenticated user).
 **Request Body:**
 ```json
 {
-  "location": "456 Oak Avenue",
+  "address": "456 Oak Avenue",
+  "zip_code": "10001",
   "latitude": 40.7589,
   "longitude": -73.9851,
+  "location": "Midtown Office",
   "city": "New York"
 }
 ```
@@ -188,10 +213,12 @@ Retrieves locations within a specified radius (public endpoint, no authenticatio
     {
       "id": "uuid",
       "userId": "user_uuid",
-      "location": "123 Main Street",
+      "address": "123 Main Street",
+      "zip_code": "12345",
       "latitude": 40.7128,
       "longitude": -74.0060,
-      "location_type": "HOME",
+      "location": "Downtown Office Building",
+      "location_type": "WORK",
       "city": "New York",
       "state": "NY",
       "country": "USA",
@@ -284,11 +311,15 @@ curl -X POST http://localhost:3000/api/locations \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "location": "123 Main Street",
+    "address": "123 Main Street",
+    "zip_code": "12345",
     "latitude": 40.7128,
     "longitude": -74.0060,
-    "location_type": "HOME",
-    "city": "New York"
+    "location": "Downtown Office Building",
+    "location_type": "WORK",
+    "city": "New York",
+    "state": "NY",
+    "country": "USA"
   }'
 ```
 
