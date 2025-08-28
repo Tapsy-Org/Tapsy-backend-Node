@@ -253,4 +253,36 @@ export default class ReviewController {
       next(error);
     }
   }
+
+  static async updateReviewStatus(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { reviewId } = req.params;
+      const { status } = req.body;
+      const adminUserId = req.user?.userId;
+
+      if (!adminUserId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      if (!reviewId) {
+        throw new AppError('Review ID is required', 400);
+      }
+
+      if (!status) {
+        throw new AppError('Status is required', 400);
+      }
+
+      // Validate status enum
+      const validStatuses = ['ACTIVE', 'PENDING', 'INACTIVE'];
+      if (!validStatuses.includes(status)) {
+        throw new AppError('Invalid status value. Must be ACTIVE, PENDING, or INACTIVE', 400);
+      }
+
+      const updatedReview = await reviewService.updateReviewStatus(reviewId, status, adminUserId);
+
+      return res.success(updatedReview, 'Review status updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
 }

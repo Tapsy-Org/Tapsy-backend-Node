@@ -376,8 +376,17 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *   get:
  *     summary: Get all reviews with optional filtering and pagination
  *     description: |
- *       Retrieves reviews with optional filtering by user, business, or rating.
+ *       Retrieves reviews with optional filtering by user, business, rating, or status.
  *       Supports pagination for large result sets.
+ *       **Status Filtering:**
+ *       - Default: Shows only `ACTIVE` and `PENDING` reviews
+ *       - `DELETED` reviews are automatically excluded from all queries
+ *       - Use `status` parameter to filter by specific status values
+ *       **Available Status Values:**
+ *       - `ACTIVE`: Reviews with ratings 3-5, immediately visible
+ *       - `PENDING`: Reviews with ratings 1-2, awaiting approval
+ *       - `INACTIVE`: Available for future use
+ *       - `DELETED`: Soft-deleted reviews (hidden from queries)
  *     tags: [Reviews]
  *     parameters:
  *       - in: query
@@ -397,6 +406,11 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *         schema:
  *           $ref: '#/components/schemas/ReviewRating'
  *         description: Filter reviews by rating
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           $ref: '#/components/schemas/ReviewStatus'
+ *         description: Filter reviews by status (ACTIVE, PENDING, INACTIVE)
  *       - in: query
  *         name: page
  *         schema:
@@ -532,12 +546,152 @@ router.get('/my/reviews', requireAuth(), ReviewController.getMyReviews);
 
 /**
  * @swagger
+ * /api/reviews/{reviewId}/status:
+ *   patch:
+ *     summary: Update review status (Admin only)
+ *     description: |
+ *       Updates the status of a review. This endpoint is restricted to admin users only.
+ *       Useful for approving pending reviews, deactivating problematic content, or managing review workflow.
+ *       **Common Use Cases:**
+ *       - Approve `PENDING` reviews (change status to `ACTIVE`)
+ *       - Deactivate problematic reviews (change status to `INACTIVE`)
+ *       - Reactivate previously deactivated reviews (change status to `ACTIVE`)
+ *       **Status Transitions:**
+ *       - `PENDING` → `ACTIVE`: Review approved and visible to users
+ *       - `ACTIVE` → `INACTIVE`: Review temporarily hidden
+ *       - `INACTIVE` → `ACTIVE`: Review reactivated
+ *       - `DELETED` status cannot be changed via this endpoint
+ *       **Note:** Only admin users with valid access tokens can use this endpoint.
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: reviewId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: The review ID to update
+ *       - in: body
+ *         name: status
+ *         required: true
+ *         schema:
+ *           type: object
+ *           required:
+ *             - status
+ *           properties:
+ *             status:
+ *               $ref: '#/components/schemas/ReviewStatus'
+ *               description: New status for the review
+ *         examples:
+ *           approve_review:
+ *             summary: Approve a pending review
+ *             value:
+ *               status: "ACTIVE"
+ *           deactivate_review:
+ *             summary: Deactivate an active review
+ *             value:
+ *               status: "INACTIVE"
+ *           reactivate_review:
+ *             summary: Reactivate an inactive review
+ *             value:
+ *               status: "ACTIVE"
+ *     responses:
+ *       200:
+ *         description: Review status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Review status updated successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/Review'
+ *             examples:
+ *               status_updated:
+ *                 summary: Review status successfully updated
+ *                 value:
+ *                   status: "success"
+ *                   message: "Review status updated successfully"
+ *                   data:
+ *                     id: "60cc2365-74ae-4b50-b7f7-a356c4a417ea"
+ *                     rating: "TWO"
+ *                     status: "ACTIVE"
+ *                     caption: "Poor service experience"
+ *                     user:
+ *                       id: "user-123"
+ *                       username: "john_doe"
+ *                       user_type: "INDIVIDUAL"
+ *       400:
+ *         description: Bad request - invalid status value or missing review ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalid_status:
+ *                 summary: Invalid status value
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Invalid status value"
+ *                   details: null
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - user is not an admin
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               not_admin:
+ *                 summary: User is not an admin
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 403
+ *                   message: "Admin user not found or unauthorized"
+ *                   details: null
+ *       404:
+ *         description: Review not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewStatus);
+
+/**
+ * @swagger
  * /api/reviews/{reviewId}:
  *   delete:
- *     summary: Delete a review
+ *     summary: Soft delete a review
  *     description: |
- *       Deletes a review. Users can only delete their own reviews.
- *       This will also remove all associated likes and comments.
+ *       Soft deletes a review by setting its status to `DELETED`.
+ *       Users can only delete their own reviews.
+ *       **Soft Deletion Behavior:**
+ *       - Review status is set to `DELETED` instead of permanent removal
+ *       - Associated likes and comments are preserved
+ *       - Deleted reviews are automatically excluded from all queries
+ *       - Data integrity is maintained for analytics and audit purposes
+ *       **Note:** This is a soft delete operation. The review data remains in the database
+ *       but is hidden from user-facing queries.
  *     tags: [Reviews]
  *     security:
  *       - bearerAuth: []
@@ -551,7 +705,7 @@ router.get('/my/reviews', requireAuth(), ReviewController.getMyReviews);
  *         description: The review ID to delete
  *     responses:
  *       200:
- *         description: Review deleted successfully
+ *         description: Review soft deleted successfully
  *         content:
  *           application/json:
  *             schema:
