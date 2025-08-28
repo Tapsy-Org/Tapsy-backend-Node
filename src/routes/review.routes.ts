@@ -376,8 +376,17 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *   get:
  *     summary: Get all reviews with optional filtering and pagination
  *     description: |
- *       Retrieves reviews with optional filtering by user, business, or rating.
+ *       Retrieves reviews with optional filtering by user, business, rating, or status.
  *       Supports pagination for large result sets.
+ *       **Status Filtering:**
+ *       - Default: Shows only `ACTIVE` and `PENDING` reviews
+ *       - `DELETED` reviews are automatically excluded from all queries
+ *       - Use `status` parameter to filter by specific status values
+ *       **Available Status Values:**
+ *       - `ACTIVE`: Reviews with ratings 3-5, immediately visible
+ *       - `PENDING`: Reviews with ratings 1-2, awaiting approval
+ *       - `INACTIVE`: Available for future use
+ *       - `DELETED`: Soft-deleted reviews (hidden from queries)
  *     tags: [Reviews]
  *     parameters:
  *       - in: query
@@ -397,6 +406,11 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *         schema:
  *           $ref: '#/components/schemas/ReviewRating'
  *         description: Filter reviews by rating
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           $ref: '#/components/schemas/ReviewStatus'
+ *         description: Filter reviews by status (ACTIVE, PENDING, INACTIVE)
  *       - in: query
  *         name: page
  *         schema:
@@ -534,10 +548,17 @@ router.get('/my/reviews', requireAuth(), ReviewController.getMyReviews);
  * @swagger
  * /api/reviews/{reviewId}:
  *   delete:
- *     summary: Delete a review
+ *     summary: Soft delete a review
  *     description: |
- *       Deletes a review. Users can only delete their own reviews.
- *       This will also remove all associated likes and comments.
+ *       Soft deletes a review by setting its status to `DELETED`.
+ *       Users can only delete their own reviews.
+ *       **Soft Deletion Behavior:**
+ *       - Review status is set to `DELETED` instead of permanent removal
+ *       - Associated likes and comments are preserved
+ *       - Deleted reviews are automatically excluded from all queries
+ *       - Data integrity is maintained for analytics and audit purposes
+ *       **Note:** This is a soft delete operation. The review data remains in the database
+ *       but is hidden from user-facing queries.
  *     tags: [Reviews]
  *     security:
  *       - bearerAuth: []
@@ -551,7 +572,7 @@ router.get('/my/reviews', requireAuth(), ReviewController.getMyReviews);
  *         description: The review ID to delete
  *     responses:
  *       200:
- *         description: Review deleted successfully
+ *         description: Review soft deleted successfully
  *         content:
  *           application/json:
  *             schema:

@@ -1,4 +1,4 @@
-import type { Prisma, ReviewRating } from '@prisma/client';
+import type { Prisma, ReviewRating, Status } from '@prisma/client';
 
 import prisma from '../config/db';
 import AppError from '../utils/AppError';
@@ -26,6 +26,14 @@ export class ReviewService {
         throw new AppError('Invalid rating value', 400);
       }
 
+      // Determine status based on rating
+      let status: Status;
+      if (data.rating === 'ONE' || data.rating === 'TWO') {
+        status = 'PENDING';
+      } else {
+        status = 'ACTIVE';
+      }
+
       // Check if user exists and is active
       const user = await prisma.user.findUnique({
         where: { id: data.userId, status: 'ACTIVE' },
@@ -48,7 +56,6 @@ export class ReviewService {
         }
       }
 
-      // Create the review
       const review = await prisma.review.create({
         data: {
           userId: data.userId,
@@ -60,6 +67,7 @@ export class ReviewService {
           video_url: data.video_url,
           businessId: data.businessId,
           views: 0,
+          status: status,
         },
         include: {
           user: {
@@ -97,12 +105,13 @@ export class ReviewService {
       userId?: string;
       businessId?: string;
       rating?: ReviewRating;
+      status?: Status;
       page?: number;
       limit?: number;
     } = {},
   ) {
     try {
-      const { userId, businessId, rating, page = 1, limit = 10 } = filters;
+      const { userId, businessId, rating, status, page = 1, limit = 10 } = filters;
       const skip = (page - 1) * limit;
 
       const where: Prisma.ReviewWhereInput = {};
@@ -117,6 +126,13 @@ export class ReviewService {
 
       if (rating) {
         where.rating = rating;
+      }
+
+      // Filter by status - default to only show ACTIVE and PENDING reviews
+      if (status) {
+        where.status = status;
+      } else {
+        where.status = { in: ['ACTIVE', 'PENDING'] };
       }
 
       const [reviews, total] = await Promise.all([
@@ -187,7 +203,10 @@ export class ReviewService {
   async getReviewById(reviewId: string) {
     try {
       const review = await prisma.review.findUnique({
-        where: { id: reviewId },
+        where: {
+          id: reviewId,
+          status: { not: 'DELETED' },
+        },
         include: {
           user: {
             select: {
@@ -244,7 +263,10 @@ export class ReviewService {
   async updateReviewViews(reviewId: string) {
     try {
       const review = await prisma.review.update({
-        where: { id: reviewId },
+        where: {
+          id: reviewId,
+          status: { not: 'DELETED' },
+        },
         data: {
           views: {
             increment: 1,
@@ -265,7 +287,10 @@ export class ReviewService {
     try {
       // Check if review exists and belongs to user
       const review = await prisma.review.findUnique({
-        where: { id: reviewId },
+        where: {
+          id: reviewId,
+          status: { not: 'DELETED' },
+        },
         select: { userId: true },
       });
 
@@ -277,12 +302,11 @@ export class ReviewService {
         throw new AppError('You can only delete your own reviews', 403);
       }
 
-      // Delete related records first (likes, comments)
-      await prisma.$transaction([
-        prisma.like.deleteMany({ where: { reviewId } }),
-        prisma.comment.deleteMany({ where: { reviewId } }),
-        prisma.review.delete({ where: { id: reviewId } }),
-      ]);
+      // Soft delete by setting status to DELETED
+      await prisma.review.update({
+        where: { id: reviewId },
+        data: { status: 'DELETED' },
+      });
 
       return { message: 'Review deleted successfully' };
     } catch (error) {
@@ -290,6 +314,69 @@ export class ReviewService {
         throw error;
       }
       throw new AppError('Failed to delete review', 500, { originalError: error });
+    }
+  }
+
+  // Method to update review status (useful for admin approval)
+  async updateReviewStatus(reviewId: string, status: Status, adminUserId: string) {
+    try {
+      // Check if admin user exists and has appropriate permissions
+      const adminUser = await prisma.user.findUnique({
+        where: {
+          id: adminUserId,
+          status: 'ACTIVE',
+          user_type: 'ADMIN', // Assuming you have ADMIN user type
+        },
+        select: { id: true },
+      });
+
+      if (!adminUser) {
+        throw new AppError('Admin user not found or unauthorized', 403);
+      }
+
+      // Check if review exists
+      const review = await prisma.review.findUnique({
+        where: {
+          id: reviewId,
+          status: { not: 'DELETED' },
+        },
+        select: { id: true, status: true },
+      });
+
+      if (!review) {
+        throw new AppError('Review not found', 404);
+      }
+
+      // Update review status
+      const updatedReview = await prisma.review.update({
+        where: { id: reviewId },
+        data: { status },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              user_type: true,
+              logo_url: true,
+            },
+          },
+          business: {
+            select: {
+              id: true,
+              username: true,
+              user_type: true,
+              logo_url: true,
+            },
+          },
+        },
+      });
+
+      return updatedReview;
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to update review status', 500, { originalError: error });
     }
   }
 }
