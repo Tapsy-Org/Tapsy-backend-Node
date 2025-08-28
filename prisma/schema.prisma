@@ -203,8 +203,8 @@ model Review {
   businessId String?      @db.Uuid
   views      Int          @default(0)
   createdAt  DateTime     @default(now())
-  is_deleted Boolean      @default(false)
-  user     User      @relation("UserReviews", fields: [userId], references: [id])
+  status     Status       @default(ACTIVE)
+  user       User      @relation("UserReviews", fields: [userId], references: [id])
   business User?     @relation("BusinessReviews", fields: [businessId], references: [id])
   likes    Like[]
   comments Comment[]
