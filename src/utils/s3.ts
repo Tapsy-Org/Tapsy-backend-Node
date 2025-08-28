@@ -37,6 +37,7 @@ export async function generateSignedUrl(
     throw err;
   }
 }
+
 /**
  * Upload file to S3 and return public file URL
  * @param file - multer uploaded file
@@ -66,4 +67,56 @@ export async function uploadFileToS3(
 
   // return file URL
   return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+}
+
+/**
+ * Upload a file directly to S3
+ * This function automatically creates the folder structure if it doesn't exist
+ * @param fileBuffer - The file buffer to upload
+ * @param fileName - The name of the file
+ * @param fileType - MIME type of the file
+ * @param uploadType - Type of upload (gallery or review)
+ * @param userId - User ID for organizing files
+ * @returns The S3 key and full URL of the uploaded file
+ */
+export async function uploadFileToS3(
+  fileBuffer: Buffer,
+  fileName: string,
+  fileType: string,
+  uploadType: 'gallery' | 'review',
+  userId: string,
+) {
+  if (!process.env.AWS_BUCKET_NAME) {
+    throw new Error('Missing AWS_BUCKET_NAME in environment variables');
+  }
+
+  const timestamp = Date.now();
+  // S3 automatically creates folders when files are uploaded with folder structure in the key
+  const key = `${uploadType}/${userId}/${timestamp}-${fileName}`;
+
+  try {
+    const command = new PutObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+      Body: fileBuffer,
+      ContentType: fileType,
+      Metadata: {
+        uploadType,
+        userId,
+        originalFileName: fileName,
+        uploadTimestamp: timestamp.toString(),
+      },
+    });
+
+    await s3.send(command);
+
+    // Generate the public URL
+    const publicUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    console.log(`File uploaded successfully to S3 at ${key}`);
+    return { key, publicUrl };
+  } catch (error) {
+    console.error('Failed to upload file to S3:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to upload file to S3: ${errorMessage}`);
+  }
 }
