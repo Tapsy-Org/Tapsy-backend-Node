@@ -112,8 +112,6 @@ async function seedBusinessUsers() {
           firebase_token: faker.string.uuid(),
           otp_verified: true,
           verification_method: faker.helpers.arrayElement(['MOBILE', 'EMAIL']),
-          address: faker.location.streetAddress(),
-          zip_code: faker.location.zipCode(),
           website: faker.internet.url(),
           about: faker.company.catchPhrase(),
           logo_url: faker.image.urlLoremFlickr({ category: 'business' }),
@@ -150,8 +148,6 @@ async function seedIndividualUsers() {
           firebase_token: faker.string.uuid(),
           otp_verified: true,
           verification_method: faker.helpers.arrayElement(['MOBILE', 'EMAIL']),
-          address: faker.location.streetAddress(),
-          zip_code: faker.location.zipCode(),
           about: faker.person.bio(),
           video_url: faker.helpers.arrayElement([faker.image.urlLoremFlickr({ category: 'video' }), null])
         }
