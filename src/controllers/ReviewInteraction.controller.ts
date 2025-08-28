@@ -1,12 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { InteractionService } from '../services/ReviewInteraction.service';
+import { ReviewInteractionService } from '../services/ReviewInteraction.service';
 import { AuthRequest } from '../types/express';
 import AppError from '../utils/AppError';
 
-const interactionService = new InteractionService();
+const reviewInteractionService = new ReviewInteractionService();
 
-export default class InteractionController {
+export default class ReviewInteractionController {
+  // Like/Unlike a review
   static async toggleLike(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { reviewId } = req.params;
@@ -20,7 +21,7 @@ export default class InteractionController {
         throw new AppError('Review ID is required', 400);
       }
 
-      const result = await interactionService.toggleLike(reviewId, userId);
+      const result = await reviewInteractionService.toggleLike(reviewId, userId);
 
       return res.success(
         result,
@@ -31,6 +32,7 @@ export default class InteractionController {
     }
   }
 
+  // Get all likes for a review
   static async getReviewLikes(req: Request, res: Response, next: NextFunction) {
     try {
       const { reviewId } = req.params;
@@ -46,7 +48,7 @@ export default class InteractionController {
         limit: parseInt(limit as string, 10),
       };
 
-      const result = await interactionService.getReviewLikes(filters);
+      const result = await reviewInteractionService.getReviewLikes(filters);
 
       return res.success(result, 'Review likes fetched successfully');
     } catch (error) {
@@ -54,6 +56,7 @@ export default class InteractionController {
     }
   }
 
+  // Check if user has liked a review
   static async checkUserLike(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { reviewId } = req.params;
@@ -67,7 +70,7 @@ export default class InteractionController {
         throw new AppError('Review ID is required', 400);
       }
 
-      const result = await interactionService.checkUserLike(reviewId, userId);
+      const result = await reviewInteractionService.checkUserLike(reviewId, userId);
 
       return res.success(result, 'User like status checked successfully');
     } catch (error) {
@@ -101,7 +104,7 @@ export default class InteractionController {
         parentCommentId: parentCommentId || null,
       };
 
-      const result = await interactionService.addComment(commentData);
+      const result = await reviewInteractionService.addComment(commentData);
 
       return res.created(result, 'Comment added successfully');
     } catch (error) {
@@ -125,7 +128,7 @@ export default class InteractionController {
         limit: parseInt(limit as string, 10),
       };
 
-      const result = await interactionService.getReviewComments(filters);
+      const result = await reviewInteractionService.getReviewComments(filters);
 
       return res.success(result, 'Review comments fetched successfully');
     } catch (error) {
@@ -152,7 +155,11 @@ export default class InteractionController {
         throw new AppError('Comment text is required', 400);
       }
 
-      const result = await interactionService.updateComment(commentId, userId, comment.trim());
+      const result = await reviewInteractionService.updateComment(
+        commentId,
+        userId,
+        comment.trim(),
+      );
 
       return res.success(result, 'Comment updated successfully');
     } catch (error) {
@@ -174,7 +181,7 @@ export default class InteractionController {
         throw new AppError('Comment ID is required', 400);
       }
 
-      const result = await interactionService.deleteComment(commentId, userId);
+      const result = await reviewInteractionService.deleteComment(commentId, userId);
 
       return res.success(result, 'Comment deleted successfully');
     } catch (error) {
@@ -198,9 +205,40 @@ export default class InteractionController {
         limit: parseInt(limit as string, 10),
       };
 
-      const result = await interactionService.getCommentReplies(filters);
+      const result = await reviewInteractionService.getCommentReplies(filters);
 
       return res.success(result, 'Comment replies fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Reply to a comment (specific endpoint for replying)
+  static async replyToComment(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { commentId } = req.params;
+      const { comment } = req.body;
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      if (!commentId) {
+        throw new AppError('Comment ID is required', 400);
+      }
+
+      if (!comment || comment.trim().length === 0) {
+        throw new AppError('Comment text is required', 400);
+      }
+
+      const result = await reviewInteractionService.replyToComment(
+        commentId,
+        userId,
+        comment.trim(),
+      );
+
+      return res.created(result, 'Reply added successfully');
     } catch (error) {
       next(error);
     }

@@ -1,6 +1,6 @@
 import express from 'express';
 
-import InteractionController from '../controllers/ReviewInteraction.controller';
+import ReviewInteractionController from '../controllers/ReviewInteraction.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
 
 const router = express.Router();
@@ -191,7 +191,7 @@ const router = express.Router();
  *       500:
  *         description: Internal server error
  */
-router.post('/reviews/:reviewId/like', requireAuth(), InteractionController.toggleLike);
+router.post('/reviews/:reviewId/like', requireAuth(), ReviewInteractionController.toggleLike);
 
 /**
  * @swagger
@@ -255,7 +255,7 @@ router.post('/reviews/:reviewId/like', requireAuth(), InteractionController.togg
  *       500:
  *         description: Internal server error
  */
-router.get('/reviews/:reviewId/likes', InteractionController.getReviewLikes);
+router.get('/reviews/:reviewId/likes', ReviewInteractionController.getReviewLikes);
 
 /**
  * @swagger
@@ -300,7 +300,11 @@ router.get('/reviews/:reviewId/likes', InteractionController.getReviewLikes);
  *       500:
  *         description: Internal server error
  */
-router.get('/reviews/:reviewId/like/check', requireAuth(), InteractionController.checkUserLike);
+router.get(
+  '/reviews/:reviewId/like/check',
+  requireAuth(),
+  ReviewInteractionController.checkUserLike,
+);
 
 /**
  * @swagger
@@ -352,7 +356,7 @@ router.get('/reviews/:reviewId/like/check', requireAuth(), InteractionController
  *       500:
  *         description: Internal server error
  */
-router.post('/reviews/:reviewId/comments', requireAuth(), InteractionController.addComment);
+router.post('/reviews/:reviewId/comments', requireAuth(), ReviewInteractionController.addComment);
 
 /**
  * @swagger
@@ -416,7 +420,7 @@ router.post('/reviews/:reviewId/comments', requireAuth(), InteractionController.
  *       500:
  *         description: Internal server error
  */
-router.get('/reviews/:reviewId/comments', InteractionController.getReviewComments);
+router.get('/reviews/:reviewId/comments', ReviewInteractionController.getReviewComments);
 
 /**
  * @swagger
@@ -468,7 +472,7 @@ router.get('/reviews/:reviewId/comments', InteractionController.getReviewComment
  *       500:
  *         description: Internal server error
  */
-router.put('/comments/:commentId', requireAuth(), InteractionController.updateComment);
+router.put('/comments/:commentId', requireAuth(), ReviewInteractionController.updateComment);
 
 /**
  * @swagger
@@ -518,7 +522,7 @@ router.put('/comments/:commentId', requireAuth(), InteractionController.updateCo
  *       500:
  *         description: Internal server error
  */
-router.delete('/comments/:commentId', requireAuth(), InteractionController.deleteComment);
+router.delete('/comments/:commentId', requireAuth(), ReviewInteractionController.deleteComment);
 
 /**
  * @swagger
@@ -582,6 +586,69 @@ router.delete('/comments/:commentId', requireAuth(), InteractionController.delet
  *       500:
  *         description: Internal server error
  */
-router.get('/comments/:commentId/replies', InteractionController.getCommentReplies);
+router.get('/comments/:commentId/replies', ReviewInteractionController.getCommentReplies);
+
+/**
+ * @swagger
+ * /api/review-interactions/comments/{commentId}/reply:
+ *   post:
+ *     summary: Reply to a comment
+ *     description: |
+ *       Adds a reply to a specific comment. This is a dedicated endpoint for replying
+ *       to comments, making it easier to distinguish between top-level comments and replies.
+ *       Requires authentication.
+ *     tags: [Interactions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: commentId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: The comment ID to reply to
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - comment
+ *             properties:
+ *               comment:
+ *                 type: string
+ *                 description: The reply text
+ *     responses:
+ *       201:
+ *         description: Reply added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Reply added successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/Comment'
+ *       400:
+ *         description: Bad request - missing comment text or comment ID
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *       404:
+ *         description: Parent comment not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post(
+  '/comments/:commentId/reply',
+  requireAuth(),
+  ReviewInteractionController.replyToComment,
+);
 
 export default router;

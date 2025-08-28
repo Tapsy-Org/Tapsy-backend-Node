@@ -1,7 +1,7 @@
 import prisma from '../config/db';
 import AppError from '../utils/AppError';
 
-export class InteractionService {
+export class ReviewInteractionService {
   // Toggle like/unlike for a review
   async toggleLike(reviewId: string, userId: string) {
     try {
@@ -222,6 +222,63 @@ export class InteractionService {
         throw error;
       }
       throw new AppError('Failed to add comment', 500, { originalError: error });
+    }
+  }
+
+  // Reply to a specific comment (dedicated method for replies)
+  async replyToComment(commentId: string, userId: string, comment: string) {
+    try {
+      // Check if parent comment exists
+      const parentComment = await prisma.comment.findUnique({
+        where: {
+          id: commentId,
+        },
+        select: { id: true, reviewId: true },
+      });
+
+      if (!parentComment) {
+        throw new AppError('Parent comment not found', 404);
+      }
+
+      // Check if user exists and is active
+      const user = await prisma.user.findUnique({
+        where: {
+          id: userId,
+          status: 'ACTIVE',
+        },
+        select: { id: true },
+      });
+
+      if (!user) {
+        throw new AppError('User not found or inactive', 404);
+      }
+
+      // Create the reply
+      const reply = await prisma.comment.create({
+        data: {
+          reviewId: parentComment.reviewId,
+          userId,
+          comment,
+          parent_comment_id: commentId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              user_type: true,
+              logo_url: true,
+            },
+          },
+        },
+      });
+
+      return reply;
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to add reply', 500, { originalError: error });
     }
   }
 

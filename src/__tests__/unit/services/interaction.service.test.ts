@@ -1,5 +1,5 @@
 import prisma from '../../../config/db';
-import { InteractionService } from '../../../services/ReviewInteraction.service';
+import { ReviewInteractionService } from '../../../services/ReviewInteraction.service';
 import AppError from '../../../utils/AppError';
 
 // Mock Prisma
@@ -30,11 +30,11 @@ jest.mock('../../../config/db', () => ({
 // Get the mocked prisma client
 const mockPrisma = jest.mocked(prisma);
 
-describe('InteractionService', () => {
-  let interactionService: InteractionService;
+describe('ReviewInteractionService', () => {
+  let reviewInteractionService: ReviewInteractionService;
 
   beforeEach(() => {
-    interactionService = new InteractionService();
+    reviewInteractionService = new ReviewInteractionService();
     jest.clearAllMocks();
   });
 
@@ -63,7 +63,7 @@ describe('InteractionService', () => {
         reviewId: mockReviewId,
       } as any);
 
-      const result = await interactionService.toggleLike(mockReviewId, mockUserId);
+      const result = await reviewInteractionService.toggleLike(mockReviewId, mockUserId);
 
       expect(result).toEqual({
         liked: true,
@@ -95,7 +95,7 @@ describe('InteractionService', () => {
         reviewId: mockReviewId,
       } as any);
 
-      const result = await interactionService.toggleLike(mockReviewId, mockUserId);
+      const result = await reviewInteractionService.toggleLike(mockReviewId, mockUserId);
 
       expect(result).toEqual({
         liked: false,
@@ -112,7 +112,7 @@ describe('InteractionService', () => {
       // Mock review not found
       mockPrisma.review.findUnique.mockResolvedValue(null);
 
-      await expect(interactionService.toggleLike(mockReviewId, mockUserId)).rejects.toThrow(
+      await expect(reviewInteractionService.toggleLike(mockReviewId, mockUserId)).rejects.toThrow(
         new AppError('Review not found', 404),
       );
     });
@@ -126,7 +126,7 @@ describe('InteractionService', () => {
       // Mock user not found
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(interactionService.toggleLike(mockReviewId, mockUserId)).rejects.toThrow(
+      await expect(reviewInteractionService.toggleLike(mockReviewId, mockUserId)).rejects.toThrow(
         new AppError('User not found or inactive', 404),
       );
     });
@@ -165,7 +165,7 @@ describe('InteractionService', () => {
       };
       mockPrisma.comment.create.mockResolvedValue(mockCreatedComment as any);
 
-      const result = await interactionService.addComment({
+      const result = await reviewInteractionService.addComment({
         reviewId: mockReviewId,
         userId: mockUserId,
         comment: mockComment,
@@ -228,7 +228,7 @@ describe('InteractionService', () => {
       };
       mockPrisma.comment.create.mockResolvedValue(mockCreatedComment as any);
 
-      const result = await interactionService.addComment({
+      const result = await reviewInteractionService.addComment({
         reviewId: mockReviewId,
         userId: mockUserId,
         comment: mockComment,
@@ -258,7 +258,7 @@ describe('InteractionService', () => {
 
     it('should throw error when comment text is empty', async () => {
       await expect(
-        interactionService.addComment({
+        reviewInteractionService.addComment({
           reviewId: mockReviewId,
           userId: mockUserId,
           comment: '',
@@ -296,7 +296,7 @@ describe('InteractionService', () => {
       mockPrisma.like.findMany.mockResolvedValue(mockLikes as any);
       mockPrisma.like.count.mockResolvedValue(mockTotal);
 
-      const result = await interactionService.getReviewLikes({
+      const result = await reviewInteractionService.getReviewLikes({
         reviewId: mockReviewId,
         page: 1,
         limit: 20,
@@ -346,7 +346,7 @@ describe('InteractionService', () => {
       mockPrisma.comment.findMany.mockResolvedValue(mockComments as any);
       mockPrisma.comment.count.mockResolvedValue(mockTotal);
 
-      const result = await interactionService.getReviewComments({
+      const result = await reviewInteractionService.getReviewComments({
         reviewId: mockReviewId,
         page: 1,
         limit: 20,
