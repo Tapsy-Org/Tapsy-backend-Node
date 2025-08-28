@@ -44,7 +44,7 @@ export async function generateSignedUrl(
  * @param uploadType - "logo" | "video"
  * @param identifier - string used as folder name (UUID/username)
  */
-export async function uploadFileToS3(
+export async function uploadToS3(
   file: Express.Multer.File,
   uploadType: 'logo' | 'video',
   identifier: string,

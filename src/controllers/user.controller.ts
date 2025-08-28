@@ -3,7 +3,7 @@ import { NextFunction, Request, Response } from 'express';
 
 import { UserService } from '../services/user.service';
 import AppError from '../utils/AppError';
-import { uploadFileToS3 } from '../utils/s3';
+import { uploadToS3 } from '../utils/s3';
 
 const userService = new UserService();
 
@@ -38,11 +38,11 @@ export default class UserController {
       const tempKey = crypto.randomUUID();
 
       if (logoFile) {
-        logo_url = await uploadFileToS3(logoFile, 'logo', tempKey);
+        logo_url = await uploadToS3(logoFile, 'logo', tempKey);
       }
 
       if (videoFile) {
-        video_url = await uploadFileToS3(videoFile, 'video', tempKey);
+        video_url = await uploadToS3(videoFile, 'video', tempKey);
       }
 
       // INDIVIDUAL users must provide Firebase tokens
