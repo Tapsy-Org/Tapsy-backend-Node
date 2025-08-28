@@ -1,7 +1,9 @@
+import type { Express } from 'express';
 import { NextFunction, Request, Response } from 'express';
 
 import { UserService } from '../services/user.service';
 import AppError from '../utils/AppError';
+import { uploadToS3 } from '../utils/s3';
 
 const userService = new UserService();
 
@@ -20,11 +22,28 @@ export default class UserController {
         zip_code,
         website,
         about,
-        logo_url,
-        video_url,
         categories,
         subcategories,
       } = req.body;
+
+      // Files from multipart
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      const logoFile = files?.['logo']?.[0];
+      const videoFile = files?.['video']?.[0];
+      let logo_url: string | undefined;
+      let video_url: string | undefined;
+
+      // temporary key for uploads (random UUID since user id not available yet)
+      const tempKey = crypto.randomUUID();
+
+      if (logoFile) {
+        logo_url = await uploadToS3(logoFile, 'logo', tempKey);
+      }
+
+      if (videoFile) {
+        video_url = await uploadToS3(videoFile, 'video', tempKey);
+      }
 
       // INDIVIDUAL users must provide Firebase tokens
       if (user_type === 'INDIVIDUAL' && (!idToken || !firebase_token)) {
@@ -38,16 +57,22 @@ export default class UserController {
           400,
         );
       }
+      let categoriesParsed = categories;
+      let subcategoriesParsed = subcategories;
 
-      // Validate arrays for business users
-      if (categories && !Array.isArray(categories)) {
-        throw new AppError('Categories must be an array', 400);
+      if (typeof categories === 'string') {
+        try {
+          categoriesParsed = JSON.parse(categories);
+        } catch {
+          categoriesParsed = [categories]; // fallback if plain string
+        }
       }
-      if (categories && categories.length > 1) {
-        throw new AppError('Business users can only have one category', 400);
-      }
-      if (subcategories && !Array.isArray(subcategories)) {
-        throw new AppError('Subcategories must be an array', 400);
+      if (typeof subcategories === 'string') {
+        try {
+          subcategoriesParsed = JSON.parse(subcategories);
+        } catch {
+          subcategoriesParsed = [subcategories];
+        }
       }
 
       // Call service to register
@@ -65,8 +90,8 @@ export default class UserController {
         about,
         logo_url,
         video_url,
-        categories,
-        subcategories,
+        categories: categoriesParsed,
+        subcategories: subcategoriesParsed,
       });
 
       return res.created({ user }, 'User registered successfully');

@@ -1,5 +1,8 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl as awsGetSignedUrl } from '@aws-sdk/s3-request-presigner';
+import crypto from 'crypto';
+import type { Express } from 'express';
+import path from 'path';
 
 export const s3 = new S3Client({
   region: process.env.AWS_REGION,
@@ -36,28 +39,34 @@ export async function generateSignedUrl(
 }
 
 /**
- * Generate a pre-signed URL for uploading an object to S3
- * @param key - The S3 object key (e.g., "users/123/profile.png")
- * @param fileType - MIME type of the file (e.g., "image/png")
- * @param expiresIn - Expiration time in seconds (default: 5 minutes)
+ * Upload file to S3 and return public file URL
+ * @param file - multer uploaded file
+ * @param uploadType - "logo" | "video"
+ * @param identifier - string used as folder name (UUID/username)
  */
-export async function generateUploadUrl(
-  fileName: string,
-  fileType: string,
+export async function uploadToS3(
+  file: Express.Multer.File,
   uploadType: 'logo' | 'video',
-  userId: string,
-) {
-  const key = `${uploadType}s/${userId}/${Date.now()}-${fileName}`;
+  identifier: string,
+): Promise<string> {
+  // create unique file name
+  const ext = path.extname(file.originalname) || '';
+  const uniqueName = `${Date.now()}-${crypto.randomUUID()}${ext}`;
+
+  // s3 key: logos/<id>/file or videos/<id>/file
+  const key = `${uploadType}/${identifier}/${uniqueName}`;
 
   const command = new PutObjectCommand({
     Bucket: process.env.AWS_BUCKET_NAME!,
     Key: key,
-    ContentType: fileType,
+    Body: file.buffer, // multer gives us the buffer
+    ContentType: file.mimetype,
   });
 
-  const uploadUrl = await awsGetSignedUrl(s3, command, { expiresIn: 60 * 5 }); // 5 min
+  await s3.send(command);
 
-  return { uploadUrl, key };
+  // return file URL
+  return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 }
 
 /**
