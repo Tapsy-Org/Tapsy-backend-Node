@@ -89,14 +89,22 @@ export class UserService {
     user_type?: UserType;
     mobile_number?: string;
     email?: string;
-    address?: string;
-    zip_code?: string;
+
     website?: string;
     about?: string;
     logo_url?: string;
     video_url?: string;
     categories?: string[];
     subcategories?: string[];
+    address?: string;
+    zip_code?: string;
+    latitude?: number | string; // allow both
+    longitude?: number | string;
+    location?: string;
+    location_type?: 'HOME' | 'WORK' | 'OTHER';
+    city?: string;
+    state?: string;
+    country?: string;
   }) {
     try {
       if (!data.device_id) throw new AppError('Device ID is required', 400);
@@ -165,8 +173,6 @@ export class UserService {
           throw new AppError('Business user must register with mobile (Firebase) or email', 400);
         }
 
-        // userData.address = data.address;
-        // userData.zip_code = data.zip_code;
         userData.website = data.website;
         userData.about = data.about;
         userData.logo_url = data.logo_url;
@@ -185,7 +191,33 @@ export class UserService {
       } else {
         user = await this.create(userData);
       }
-
+      if (
+        data.address ||
+        data.zip_code ||
+        data.latitude ||
+        data.longitude ||
+        data.location ||
+        data.location_type ||
+        data.city ||
+        data.state ||
+        data.country
+      ) {
+        const createdUser = user as { id: string; user_type: UserType };
+        await prisma.location.create({
+          data: {
+            userId: createdUser.id,
+            address: data.address || null,
+            zip_code: data.zip_code || null,
+            latitude: data.latitude ? parseFloat(data.latitude as string) : 0,
+            longitude: data.longitude ? parseFloat(data.longitude as string) : 0,
+            location: data.location || '',
+            location_type: data.location_type || 'OTHER',
+            city: data.city || null,
+            state: data.state || null,
+            country: data.country || null,
+          },
+        });
+      }
       // GENERATE TOKENS ONLY IF VERIFIED
       let tokens = null;
       if (userData.otp_verified) {

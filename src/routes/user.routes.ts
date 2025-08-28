@@ -9,6 +9,88 @@ const router = Router();
  * tags:
  *   - name: Users
  *     description: Unified user management for both individual and business users
+ *
+ * components:
+ *   schemas:
+ *     UserRegistration:
+ *       type: object
+ *       required: [device_id, username]
+ *       properties:
+ *         idToken:
+ *           type: string
+ *           description: Firebase ID token for mobile verification
+ *         firebase_token:
+ *           type: string
+ *           description: Firebase messaging token
+ *         user_type:
+ *           type: string
+ *           enum: [INDIVIDUAL, BUSINESS]
+ *           default: INDIVIDUAL
+ *           description: Type of user account
+ *         mobile_number:
+ *           type: string
+ *           description: Mobile number (for business users only)
+ *         email:
+ *           type: string
+ *           description: Email address (for business users only)
+ *         username:
+ *           type: string
+ *           description: Unique username
+ *         device_id:
+ *           type: string
+ *           description: Unique device identifier
+ *         # Location fields (for business users)
+ *         address:
+ *           type: string
+ *           description: Street address
+ *         zip_code:
+ *           type: string
+ *           description: Postal/ZIP code
+ *         latitude:
+ *           type: number
+ *           description: GPS latitude coordinate
+ *         longitude:
+ *           type: number
+ *           description: GPS longitude coordinate
+ *         location:
+ *           type: string
+ *           description: General location description
+ *         location_type:
+ *           type: string
+ *           enum: [HOME, WORK, OTHER]
+ *           description: Type of location
+ *         city:
+ *           type: string
+ *           description: City name
+ *         state:
+ *           type: string
+ *           description: State/Province
+ *         country:
+ *           type: string
+ *           description: Country name
+ *         # Business-specific fields
+ *         website:
+ *           type: string
+ *           description: Business website URL
+ *         about:
+ *           type: string
+ *           description: About the business
+ *         logo_url:
+ *           type: string
+ *           description: Business logo URL
+ *         video_url:
+ *           type: string
+ *           description: Business video URL
+ *         categories:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Category IDs
+ *         subcategories:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Subcategory names
  */
 
 /**
@@ -44,39 +126,50 @@ const router = Router();
  *                 description: Email (required if mobile_number not provided)
  *               username:
  *                 type: string
+ *                 description: Unique username for the user
  *               device_id:
  *                 type: string
- *               business_name:
- *                 type: string
- *                 description: Required for business users
- *               tags:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Business tags (for business users only)
+ *                 description: Unique device identifier
  *               address:
  *                 type: string
  *                 description: Business address (for business users only)
  *               zip_code:
  *                 type: string
  *                 description: Business zip code (for business users only)
+ *               latitude:
+ *                 type: number
+ *                 description: GPS latitude coordinate (for business users only)
+ *               longitude:
+ *                 type: number
+ *                 description: GPS longitude coordinate (for business users only)
+ *               location:
+ *                 type: string
+ *                 description: General location description (for business users only)
+ *               location_type:
+ *                 type: string
+ *                 enum: [HOME, WORK, OTHER]
+ *                 description: Type of location (for business users only)
+ *               city:
+ *                 type: string
+ *                 description: City name (for business users only)
+ *               state:
+ *                 type: string
+ *                 description: State/Province (for business users only)
+ *               country:
+ *                 type: string
+ *                 description: Country name (for business users only)
  *               website:
  *                 type: string
  *                 description: Business website URL (for business users only)
  *               about:
  *                 type: string
  *                 description: About the business (for business users only)
- *               bio:
- *                 type: string
- *                 description: Business bio (for business users only)
  *               logo_url:
  *                 type: string
  *                 description: Business logo URL (for business users only)
- *               video_urls:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Business video URLs (for business users only)
+ *               video_url:
+ *                 type: string
+ *                 description: Business video URL (for business users only)
  *               categories:
  *                 type: array
  *                 items:
@@ -104,15 +197,19 @@ const router = Router();
  *                 user_type: "BUSINESS"
  *                 mobile_number: "+1234567890"
  *                 username: "business_user"
- *                 business_name: "My Business"
- *                 tags: ["technology", "software", "consulting"]
- *                 address: "123 Business Street, City, State"
+ *                 address: "123 Business Street"
  *                 zip_code: "12345"
+ *                 latitude: 40.7128
+ *                 longitude: -74.0060
+ *                 location: "Downtown Business District"
+ *                 location_type: "WORK"
+ *                 city: "New York"
+ *                 state: "NY"
+ *                 country: "USA"
  *                 website: "https://mybusiness.com"
  *                 about: "We are a technology consulting company"
- *                 bio: "Helping businesses grow with technology"
  *                 logo_url: "https://mybusiness.com/logo.png"
- *                 video_urls: ["https://youtube.com/watch?v=123", "https://vimeo.com/456"]
+ *                 video_url: "https://youtube.com/watch?v=123"
  *                 categories: ["category-id-1", "category-id-2"]
  *                 subcategories: ["Web Development", "Mobile Apps"]
  *     responses:

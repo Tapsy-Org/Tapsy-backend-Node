@@ -7,6 +7,143 @@ const router = Router();
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Location:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *           description: Unique location identifier
+ *         userId:
+ *           type: string
+ *           format: uuid
+ *           description: ID of the user who owns this location
+ *         address:
+ *           type: string
+ *           nullable: true
+ *           description: Street address
+ *         zip_code:
+ *           type: string
+ *           nullable: true
+ *           description: Postal/ZIP code
+ *         latitude:
+ *           type: number
+ *           description: GPS latitude coordinate
+ *         longitude:
+ *           type: number
+ *           description: GPS longitude coordinate
+ *         location:
+ *           type: string
+ *           description: General location description
+ *         location_type:
+ *           type: string
+ *           enum: [HOME, WORK, OTHER]
+ *           description: Type of location
+ *         city:
+ *           type: string
+ *           nullable: true
+ *           description: City name
+ *         state:
+ *           type: string
+ *           nullable: true
+ *           description: State/Province
+ *         country:
+ *           type: string
+ *           nullable: true
+ *           description: Country name
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the location was created
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the location was last updated
+ *       required:
+ *         - userId
+ *         - latitude
+ *         - longitude
+ *         - location
+ *         - location_type
+ *
+ *     CreateLocationRequest:
+ *       type: object
+ *       required: [location, latitude, longitude, location_type]
+ *       properties:
+ *         address:
+ *           type: string
+ *           description: Street address (optional)
+ *         zip_code:
+ *           type: string
+ *           description: Postal/ZIP code (optional)
+ *         latitude:
+ *           type: number
+ *           minimum: -90
+ *           maximum: 90
+ *           description: GPS latitude coordinate
+ *         longitude:
+ *           type: number
+ *           minimum: -180
+ *           maximum: 180
+ *           description: GPS longitude coordinate
+ *         location:
+ *           type: string
+ *           description: General location description
+ *         location_type:
+ *           type: string
+ *           enum: [HOME, WORK, OTHER]
+ *           description: Type of location
+ *         city:
+ *           type: string
+ *           description: City name (optional)
+ *         state:
+ *           type: string
+ *           description: State/Province (optional)
+ *         country:
+ *           type: string
+ *           description: Country name (optional)
+ *
+ *     UpdateLocationRequest:
+ *       type: object
+ *       properties:
+ *         address:
+ *           type: string
+ *           description: Street address
+ *         zip_code:
+ *           type: string
+ *           description: Postal/ZIP code
+ *         latitude:
+ *           type: number
+ *           minimum: -90
+ *           maximum: 90
+ *           description: GPS latitude coordinate
+ *         longitude:
+ *           type: number
+ *           minimum: -180
+ *           maximum: 180
+ *           description: GPS longitude coordinate
+ *         location:
+ *           type: string
+ *           description: General location description
+ *         location_type:
+ *           type: string
+ *           enum: [HOME, WORK, OTHER]
+ *           description: Type of location
+ *         city:
+ *           type: string
+ *           description: City name
+ *         state:
+ *           type: string
+ *           description: State/Province
+ *         country:
+ *           type: string
+ *           description: Country name
+ */
+
+/**
+ * @swagger
  * /api/locations:
  *   post:
  *     summary: Create a new location for the authenticated user
@@ -18,7 +155,51 @@ const router = Router();
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/CreateLocationRequest'
+ *             type: object
+ *             required: [location, latitude, longitude, location_type]
+ *             properties:
+ *               address:
+ *                 type: string
+ *                 description: Street address (optional)
+ *               zip_code:
+ *                 type: string
+ *                 description: Postal/ZIP code (optional)
+ *               latitude:
+ *                 type: number
+ *                 minimum: -90
+ *                 maximum: 90
+ *                 description: GPS latitude coordinate
+ *               longitude:
+ *                 type: number
+ *                 minimum: -180
+ *                 maximum: 180
+ *                 description: GPS longitude coordinate
+ *               location:
+ *                 type: string
+ *                 description: General location description
+ *               location_type:
+ *                 type: string
+ *                 enum: [HOME, WORK, OTHER]
+ *                 description: Type of location
+ *               city:
+ *                 type: string
+ *                 description: City name (optional)
+ *               state:
+ *                 type: string
+ *                 description: State/Province (optional)
+ *               country:
+ *                 type: string
+ *                 description: Country name (optional)
+ *           example:
+ *             address: "123 Main Street"
+ *             zip_code: "12345"
+ *             latitude: 40.7128
+ *             longitude: -74.0060
+ *             location: "Downtown Office Building"
+ *             location_type: "WORK"
+ *             city: "New York"
+ *             state: "NY"
+ *             country: "USA"
  *     responses:
  *       201:
  *         description: Location created successfully
@@ -134,7 +315,45 @@ router.get('/', requireAuth(), locationController.getUserLocations);
  *                     data:
  *                       type: array
  *                       items:
- *                         $ref: '#/components/schemas/NearbyLocation'
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           address:
+ *                             type: string
+ *                           zip_code:
+ *                             type: string
+ *                           latitude:
+ *                             type: number
+ *                           longitude:
+ *                             type: number
+ *                           location:
+ *                             type: string
+ *                           location_type:
+ *                             type: string
+ *                             enum: [HOME, WORK, OTHER]
+ *                           city:
+ *                             type: string
+ *                           state:
+ *                             type: string
+ *                           country:
+ *                             type: string
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           user:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                               username:
+ *                                 type: string
+ *                               user_type:
+ *                                 type: string
+ *                                 enum: [INDIVIDUAL, BUSINESS]
+ *                               logo_url:
+ *                                 type: string
  *       400:
  *         description: Bad request - invalid coordinates or radius
  *         content:
