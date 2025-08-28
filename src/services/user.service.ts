@@ -165,8 +165,8 @@ export class UserService {
           throw new AppError('Business user must register with mobile (Firebase) or email', 400);
         }
 
-        userData.address = data.address;
-        userData.zip_code = data.zip_code;
+        // userData.address = data.address;
+        // userData.zip_code = data.zip_code;
         userData.website = data.website;
         userData.about = data.about;
         userData.logo_url = data.logo_url;
