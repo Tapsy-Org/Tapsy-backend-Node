@@ -2,7 +2,7 @@
   "family": "backend-dev",
   "networkMode": "awsvpc",
   "requiresCompatibilities": [
-      "Fargate"
+      "FARGATE"
   ],
   "cpu": "512",
   "memory": "2048",
@@ -146,3 +146,4 @@
   "volumes": [],
   "placementConstraints": []
 }
+
