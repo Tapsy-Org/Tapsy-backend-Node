@@ -5,6 +5,7 @@ WORKDIR /usr/src/app
 # Stage 2: Install all dependencies for caching
 FROM base AS dependencies
 COPY package*.json ./
+COPY prisma ./prisma
 RUN npm ci
 
 # Stage 3: Build the application
