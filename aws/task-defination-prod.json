@@ -1,97 +1,51 @@
 {
-    "compatibilities": [
-      "EC2",
-      "FARGATE"
-    ],
-    "containerDefinitions": [
-      {
-        "cpu": 0,
-        "environment": [],
-        "environmentFiles": [],
-        "essential": true,
-        "image": "029923774811.dkr.ecr.us-west-1.amazonaws.com/tapsy/tapsy-backend-node:latest",
-        "logConfiguration": {
-          "logDriver": "awslogs",
-          "options": {
-            "awslogs-group": "/ecs/backend-prod",
-            "awslogs-create-group": "true",
-            "awslogs-region": "us-west-1",
-            "awslogs-stream-prefix": "ecs"
-          },
-          "secretOptions": []
-        },
-        "mountPoints": [],
-        "name": "backend-prod-container",
-        "portMappings": [
-          {
-            "appProtocol": "http",
-            "containerPort": 80,
-            "hostPort": 80,
-            "name": "backend-dev-container-80-tcp",
-            "protocol": "tcp"
-          },
-          {
-            "appProtocol": "http",
-            "containerPort": 3000,
-            "hostPort": 3000,
-            "name": "backend-dev-container-3000-tcp",
-            "protocol": "tcp"
-          }
-        ],
-        "systemControls": [],
-        "ulimits": [],
-        "volumesFrom": []
-      }
-    ],
-    "cpu": "512",
-    "enableFaultInjection": false,
-    "executionRoleArn": "arn:aws:iam::029923774811:role/ecsTaskExecutionRole",
     "family": "backend-prod",
-    "memory": "2048",
     "networkMode": "awsvpc",
-    "placementConstraints": [],
-    "registeredAt": "2025-09-01T13:58:08.749Z",
-    "registeredBy": "arn:aws:iam::029923774811:user/Aayush",
-    "requiresAttributes": [
-      {
-        "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
-      },
-      {
-        "name": "ecs.capability.execution-role-awslogs"
-      },
-      {
-        "name": "com.amazonaws.ecs.capability.ecr-auth"
-      },
-      {
-        "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
-      },
-      {
-        "name": "com.amazonaws.ecs.capability.task-iam-role"
-      },
-      {
-        "name": "ecs.capability.execution-role-ecr-pull"
-      },
-      {
-        "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
-      },
-      {
-        "name": "ecs.capability.task-eni"
-      },
-      {
-        "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
-      }
-    ],
     "requiresCompatibilities": [
       "FARGATE"
     ],
-    "revision": 2,
+    "cpu": "512",
+    "memory": "2048",
+    "executionRoleArn": "arn:aws:iam::029923774811:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::029923774811:role/ecsTaskExecutionRole",
     "runtimePlatform": {
       "cpuArchitecture": "X86_64",
       "operatingSystemFamily": "LINUX"
     },
-    "status": "ACTIVE",
-    "taskDefinitionArn": "arn:aws:ecs:us-west-1:029923774811:task-definition/backend-prod:2",
-    "taskRoleArn": "arn:aws:iam::029923774811:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+      {
+        "name": "backend-prod-container",
+        "image": "029923774811.dkr.ecr.us-west-1.amazonaws.com/tapsy/tapsy-backend-node:latest",
+        "cpu": 0,
+        "essential": true,
+        "portMappings": [
+          {
+            "containerPort": 80,
+            "hostPort": 80,
+            "protocol": "tcp",
+            "name": "backend-dev-container-80-tcp",
+            "appProtocol": "http"
+          },
+          {
+            "containerPort": 3000,
+            "hostPort": 3000,
+            "protocol": "tcp",
+            "name": "backend-dev-container-3000-tcp",
+            "appProtocol": "http"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-create-group": "true",
+            "awslogs-group": "/ecs/backend-prod",
+            "awslogs-region": "us-west-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        }
+      }
+    ],
     "volumes": [],
-    "tags": []
+    "placementConstraints": []
   }
+  
