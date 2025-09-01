@@ -1,0 +1,1 @@
+- REMOVE swagger-jsdoc from dependency and move it to dev dependency
