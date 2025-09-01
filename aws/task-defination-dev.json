@@ -2,48 +2,146 @@
   "family": "backend-dev",
   "networkMode": "awsvpc",
   "requiresCompatibilities": [
-    "FARGATE"
+      "Fargate"
   ],
   "cpu": "512",
   "memory": "2048",
   "executionRoleArn": "arn:aws:iam::029923774811:role/ecsTaskExecutionRole",
   "taskRoleArn": "arn:aws:iam::029923774811:role/ecsTaskExecutionRole",
   "runtimePlatform": {
-    "cpuArchitecture": "X86_64",
-    "operatingSystemFamily": "LINUX"
+      "cpuArchitecture": "X86_64",
+      "operatingSystemFamily": "LINUX"
   },
   "containerDefinitions": [
-    {
-      "name": "backend-dev-container",
-      "image": "029923774811.dkr.ecr.us-west-1.amazonaws.com/tapsy/tapsy-backend-node:latest",
-      "cpu": 0,
-      "essential": true,
-      "portMappings": [
-        {
-          "containerPort": 80,
-          "hostPort": 80,
-          "protocol": "tcp",
-          "name": "backend-prod-container-80-tcp",
-          "appProtocol": "http"
-        },
-        {
-          "containerPort": 3000,
-          "hostPort": 3000,
-          "protocol": "tcp",
-          "name": "backend-prod-container-3000-tcp",
-          "appProtocol": "http"
-        }
-      ],
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-create-group": "true",
-          "awslogs-group": "/ecs/",
-          "awslogs-region": "us-west-1",
-          "awslogs-stream-prefix": "ecs"
-        }
+      {
+          "name": "backend-dev-container",
+          "image": "029923774811.dkr.ecr.us-west-1.amazonaws.com/tapsy/tapsy-backend-node:latest",
+          "cpu": 0,
+          "essential": true,
+          "portMappings": [
+              {
+                  "containerPort": 80,
+                  "hostPort": 80,
+                  "protocol": "tcp",
+                  "name": "backend-prod-container-80-tcp",
+                  "appProtocol": "http"
+              },
+              {
+                  "containerPort": 3000,
+                  "hostPort": 3000,
+                  "protocol": "tcp",
+                  "name": "backend-prod-container-3000-tcp",
+                  "appProtocol": "http"
+              }
+          ],
+          "logConfiguration": {
+              "logDriver": "awslogs",
+              "options": {
+                  "awslogs-create-group": "true",
+                  "awslogs-group": "/ecs/",
+                  "awslogs-region": "us-west-1",
+                  "awslogs-stream-prefix": "ecs"
+              }
+          },
+          "secrets": [
+              {
+                  "name": "DATABASE_URL",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/dev/database_url-4FHiqx"
+              },
+              {
+                  "name": "PORT",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/port-CiNs1R"
+              },
+              {
+                  "name": "NODE_ENV",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/NODE_ENV-5WDHdd"
+              },
+              {
+                  "name": "GOOGLE_API_KEY",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/GOOGLE_API_KEY-VPAwcy"
+              },
+              {
+                  "name": "GEMINI_API_KEY",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/gemini_api_key-U9SCqW"
+              },
+              {
+                  "name": "ONBOARDING_VIDEO_URL",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/ONBOARDING_VIDEO_URL-Y2v4FS"
+              },
+              {
+                  "name": "FIREBASE_TYPE",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/firebase_type-WBvZYg"
+              },
+              {
+                  "name": "FIREBASE_PROJECT_ID",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/firebase_project_id-68O8su"
+              },
+              {
+                  "name": "FIREBASE_PRIVATE_KEY_ID",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/firebase_private_key_id-v9DwKd"
+              },
+              {
+                  "name": "FIREBASE_PRIVATE_KEY",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/firebase_private_key-URAPt0"
+              },
+              {
+                  "name": "FIREBASE_CLIENT_EMAIL",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/firebase_client_email-twdeqI"
+              },
+              {
+                  "name": "FIREBASE_CLIENT_ID",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/firebase_client_id-ZRES9y"
+              },
+              {
+                  "name": "FIREBASE_CLIENT_X509_CERT_URL",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/firebase_client_x509_cert_url-8is81U"
+              },
+              {
+                  "name": "EMAIL_USER",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/email_user-WKnnDq"
+              },
+              {
+                  "name": "EMAIL_PASS",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/email_pass-KZA79U"
+              },
+              {
+                  "name": "JWT_ACCESS_SECRET",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/jwt_access_secret-iJzuh4"
+              },
+              {
+                  "name": "JWT_REFRESH_SECRET",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/jwt_refresh_secret-A9hpjl"
+              },
+              {
+                  "name": "TEST_PHONE_NUMBER",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/test_phone_number-x6XnRv"
+              },
+              {
+                  "name": "JWT_ACCESS_EXPIRES",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/jws_access_expires-b7VzMs"
+              },
+              {
+                  "name": "JWT_REFRESH_EXPIRES",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/jwt_refresh_expires-yyE6CE"
+              },
+              {
+                  "name": "AWS_ACCESS_KEY_ID",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:aws/both/access-key-4UDczn"
+              },
+              {
+                  "name": "AWS_SECRET_ACCESS_KEY",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:aws/both/secret-access-key-i1IYZ9"
+              },
+              {
+                  "name": "AWS_REGION",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:aws/both/region-HFD92J"
+              },
+              {
+                  "name": "AWS_BUCKET_NAME",
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:aws/both/bucket-name-xXRzA3"
+              }
+          ]
       }
-    }
   ],
   "volumes": [],
   "placementConstraints": []
