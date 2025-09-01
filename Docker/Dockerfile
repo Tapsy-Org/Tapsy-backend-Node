@@ -18,7 +18,7 @@ FROM base AS production
 ENV NODE_ENV=production
 
 # Copy only production packages and package.json
-COPY package.json ./
+COPY package*.json ./
 RUN npm ci --only=production --ignore-scripts
 
 # Copy the built application and necessary Prisma assets from the builder stage
