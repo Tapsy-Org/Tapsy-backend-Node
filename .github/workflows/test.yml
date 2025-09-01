@@ -2,13 +2,11 @@ name: Test Suite
 
 on:
   push:
-    branches:
+    branches-ignore:
       - main
       - production
   pull_request:
-    branches:
-      - main
-      - production
+    # Run on all PRs regardless of target branch
 
 jobs:
   test:

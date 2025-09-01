@@ -2,13 +2,11 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
+    branches-ignore:
       - main
       - production
   pull_request:
-    branches:
-      - main
-      - production
+    # Run on all PRs regardless of target branch
 
 jobs:
   branch-naming:
@@ -18,11 +16,18 @@ jobs:
         run: |
           BRANCH_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
           LOWER="${BRANCH_NAME,,}"
-          if [[ ! "$LOWER" =~ ^(feature|bugfix|hotfix|fix)\/[a-z0-9._-]+$ ]] && [[ "$LOWER" != "main" ]] && [[ "$LOWER" != "production" ]]; then
+          # Skip validation for main and production branches
+          if [[ "$LOWER" == "main" ]] || [[ "$LOWER" == "production" ]]; then
+            echo "Skipping branch name validation for $BRANCH_NAME (main/production branch)"
+            exit 0
+          fi
+          # Validate feature branch naming
+          if [[ ! "$LOWER" =~ ^(feature|bugfix|hotfix|fix)\/[a-z0-9._-]+$ ]]; then
             echo "Invalid branch name: $BRANCH_NAME"
-            echo "Branch names must follow: feature/<name>, bugfix/<name>, hotfix/<name>, fix/<name> (lowercase) or be exactly main/production"
+            echo "Branch names must follow: feature/<name>, bugfix/<name>, hotfix/<name>, fix/<name> (lowercase)"
             exit 1
           fi
+          echo "Branch name validation passed for: $BRANCH_NAME"
 
   test-and-quality:
     runs-on: ubuntu-latest
