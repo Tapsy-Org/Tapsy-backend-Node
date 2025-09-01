@@ -38,9 +38,9 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -f docker/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          
       # --- Deployment to DEV Environment ---
       - name: Prepare new task definition for DEV
         if: github.ref == 'refs/heads/main'
