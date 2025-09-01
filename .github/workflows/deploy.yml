@@ -47,7 +47,7 @@ jobs:
         id: render-dev-task
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: backend-dev
+          task-definition: aws/task-defination-dev.json
           container-name: backend-dev-container
           image: ${{ steps.build-image.outputs.image }}
 
@@ -66,7 +66,7 @@ jobs:
         id: render-prod-task
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: backend-prod
+          task-definition: aws/task-defination-prod.json
           container-name: backend-prod-container
           image: ${{ steps.build-image.outputs.image }}
 
