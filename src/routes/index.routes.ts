@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import adminRouter from './admin.routes';
 import categoryRouter from './category.routes';
+import followRouter from './follow.routes';
 import locationRouter from './location.routes';
 import reviewRouter from './review.routes';
 import reviewInteractionRouter from './ReviewInteraction.routes';
@@ -14,6 +15,7 @@ const mainRouter = Router();
 mainRouter.use('/', welcomeRouter);
 mainRouter.use('/admin', adminRouter);
 mainRouter.use('/categories', categoryRouter);
+mainRouter.use('/follow', followRouter);
 mainRouter.use('/users', userRouter);
 mainRouter.use('/user-categories', userCategoryRouter);
 mainRouter.use('/locations', locationRouter);
