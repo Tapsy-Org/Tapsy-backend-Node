@@ -1,25 +1,6 @@
 import prisma from '../config/db';
+import { CreateLocationData, UpdateLocationData } from '../types/types';
 import AppError from '../utils/AppError';
-
-export interface CreateLocationData {
-  location: string;
-  latitude: number;
-  longitude: number;
-  location_type: 'HOME' | 'WORK' | 'OTHER';
-  city?: string;
-  state?: string;
-  country?: string;
-}
-
-export interface UpdateLocationData {
-  location?: string;
-  latitude?: number;
-  longitude?: number;
-  location_type?: 'HOME' | 'WORK' | 'OTHER';
-  city?: string;
-  state?: string;
-  country?: string;
-}
 
 export const createLocationForUser = async (userId: string, locationData: CreateLocationData) => {
   try {
