@@ -15,7 +15,7 @@
   "containerDefinitions": [
       {
           "name": "backend-dev-container",
-          "image": "029923774811.dkr.ecr.us-west-1.amazonaws.com/tapsy/tapsy-backend-node:latest",
+          "image": "029923774811.dkr.ecr.us-west-1.amazonaws.com/tapsy/tapsy-backend-node:dev_latest",
           "cpu": 0,
           "essential": true,
           "portMappings": [
