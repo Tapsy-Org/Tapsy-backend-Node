@@ -17,14 +17,12 @@ RUN npm run build
 # Stage 4: Final, small production image
 FROM base AS production
 ENV NODE_ENV=production
-
-# Copy only production packages and package.json
 COPY package*.json ./
-RUN npm ci --only=production --ignore-scripts
+COPY prisma ./prisma
+RUN npm ci --ignore-scripts
 
 # Copy the built application and necessary Prisma assets from the builder stage
 COPY --from=builder /usr/src/app/dist ./dist
-COPY --from=builder /usr/src/app/prisma ./prisma
 COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
 
 EXPOSE 3000

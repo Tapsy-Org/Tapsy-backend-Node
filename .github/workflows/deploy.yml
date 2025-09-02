@@ -37,9 +37,28 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          # Build the base image
           docker build -f Docker/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          
+          # Tag and push based on environment
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            # DEV environment
+            docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:dev_latest
+            docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:dev_${{ github.sha }}
+            docker push $ECR_REGISTRY/$ECR_REPOSITORY:dev_latest
+            docker push $ECR_REGISTRY/$ECR_REPOSITORY:dev_${{ github.sha }}
+            echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:dev_latest" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/production" ]; then
+            # PROD environment
+            docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:prod_latest
+            docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:prod_${{ github.sha }}
+            docker push $ECR_REGISTRY/$ECR_REPOSITORY:prod_latest
+            docker push $ECR_REGISTRY/$ECR_REPOSITORY:prod_${{ github.sha }}
+            echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:prod_latest" >> $GITHUB_OUTPUT
+          fi
+          
+          # Always push the base image with commit SHA
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       # --- Deployment to DEV Environment ---
       - name: Prepare new task definition for DEV
@@ -53,7 +72,7 @@ jobs:
 
       - name: Deploy to DEV service
         if: github.ref == 'refs/heads/main'
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.render-dev-task.outputs.task-definition }}
           service: backend-dev-service
@@ -72,7 +91,7 @@ jobs:
 
       - name: Deploy to PROD service
         if: github.ref == 'refs/heads/production'
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.render-prod-task.outputs.task-definition }}
           service: backend-prod-service
