@@ -152,11 +152,11 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000',
+        url: 'Development server',
         description: 'Development server',
       },
       {
-        url: 'https://tapsy.mechlintech.com',
+        url: 'Production server',
         description: 'Production server',
       },
     ],
