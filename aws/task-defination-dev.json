@@ -23,10 +23,20 @@
                   "containerPort": 3000,
                   "hostPort": 3000,
                   "protocol": "tcp",
-                  "name": "backend-prod-container-3000-tcp",
+                  "name": "backend-dev-container-3000-tcp",
                   "appProtocol": "http"
               }
           ],
+          "healthCheck": {
+              "command": [
+                  "CMD-SHELL",
+                  "curl -f http://localhost:3000/health || exit 1"
+              ],
+              "interval": 30,
+              "timeout": 5,
+              "retries": 3,
+              "startPeriod": 60
+          },
           "logConfiguration": {
               "logDriver": "awslogs",
               "options": {
@@ -132,6 +142,20 @@
               {
                   "name": "AWS_BUCKET_NAME",
                   "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:aws/both/bucket-name-xXRzA3"
+              }
+          ],
+          "environment": [
+              {
+                  "name": "HOST",
+                  "value": "0.0.0.0"
+              },
+              {
+                  "name": "ECS_ENVIRONMENT",
+                  "value": "dev"
+              },
+              {
+                  "name": "ECS_CLUSTER",
+                  "value": "Tapsy"
               }
           ]
       }

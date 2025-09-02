@@ -14,10 +14,24 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(responseMiddleware);
 
+// Health check endpoint for ECS
+app.get('/health', (_req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Tapsy Backend is healthy',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+  });
+});
+
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api', mainRouter);
 app.get('/', (_req, res) => {
-  res.send('Tapsy Backend is running!');
+  res.json({
+    message: 'Tapsy Backend is running!',
+    environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.use(globalErrorHandler);

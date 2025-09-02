@@ -34,7 +34,9 @@ describe('API Integration Tests', () => {
     it('should return root message', async () => {
       const response = await request(app).get('/').expect(200);
 
-      expect(response.text).toBe('Tapsy Backend is running!');
+      expect(response.body.message).toBe('Tapsy Backend is running!');
+      expect(response.body.environment).toBe('test');
+      expect(response.body.timestamp).toBeDefined();
     });
   });
 
