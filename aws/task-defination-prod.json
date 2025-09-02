@@ -143,6 +143,20 @@
                   "name": "AWS_BUCKET_NAME",
                   "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:aws/both/bucket-name-xXRzA3"
               }
+          ],
+          "environment": [
+              {
+                  "name": "HOST",
+                  "value": "0.0.0.0"
+              },
+              {
+                  "name": "ECS_ENVIRONMENT",
+                  "value": "production"
+              },
+              {
+                  "name": "ECS_CLUSTER",
+                  "value": "Tapsy"
+              }
           ]
       }
   ],
