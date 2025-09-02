@@ -24,6 +24,14 @@ export default class UserController {
         about,
         categories,
         subcategories,
+        latitude,
+        longitude,
+        location,
+        location_type,
+
+        city,
+        state,
+        country,
       } = req.body;
 
       // Files from multipart
@@ -92,6 +100,13 @@ export default class UserController {
         video_url,
         categories: categoriesParsed,
         subcategories: subcategoriesParsed,
+        latitude,
+        longitude,
+        location,
+        location_type,
+        city,
+        state,
+        country,
       });
 
       return res.created({ user }, 'User registered successfully');

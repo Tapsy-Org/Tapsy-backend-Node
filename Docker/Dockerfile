@@ -1,46 +1,31 @@
-# Start with a fresh, dependable Node.js base. We're ready to build!
-FROM node:22-alpine AS builder
-
-# Define DATABASE_URL as a build argument and set it as an environment variable.
-# This makes it available during the build process for commands like 'prisma db push'.
-ARG DATABASE_URL
-ENV DATABASE_URL=$DATABASE_URL
-
-# --- Diagnostic Step ---
-# This command will print the value of DATABASE_URL during the build process.
-# Look for this output when you run 'docker-compose build --no-cache'.
-# It should show the full connection string. If it's empty, the variable is not being passed correctly.
-RUN echo "DATABASE_URL during build: $DATABASE_URL"
-# --- End Diagnostic Step ---
-
-# Set the stage—this is where the magic happens.
+# Stage 1: Base image with working directory
+FROM node:22-alpine AS base
 WORKDIR /usr/src/app
 
-# Let's get our essential files in place, ensuring we have a solid foundation.
+# Stage 2: Install all dependencies for caching
+FROM base AS dependencies
 COPY package*.json ./
-
-# IMPORTANT: Copy the prisma directory and its contents here,
-# BEFORE running npm install, so schema.prisma is available for 'prisma generate'
 COPY prisma ./prisma
+RUN npm ci
 
-# All aboard! We're installing every dependency needed for a successful build. No shortcuts here!
-# This step might trigger 'prisma generate' via a postinstall script.
-RUN npm install
-
-# Bringing the rest of the application into the fold. The team is now complete.
+# Stage 3: Build the application
+FROM dependencies AS builder
 COPY . .
-
-# Run the database deployment/push for development.
-# This step now has access to DATABASE_URL through the build argument.
-# RUN npm run db:dev:deploy
-
-# The moment of truth! We're building the TypeScript for optimal performance.
-# This compiles your source code (e.g., TypeScript) into JavaScript.
+RUN npx prisma generate
 RUN npm run build
 
-# --- Runtime Stage ---
-# Define the command to run the application.
-# Your package.json defines a 'start' script that handles both building
-# and running the compiled server (dist/server.js).
-# Using 'npm start' here ensures your Dockerfile uses your defined startup logic.
-CMD [ "npm", "start" ]
+# Stage 4: Final, small production image
+FROM base AS production
+ENV NODE_ENV=production
+COPY package*.json ./
+COPY prisma ./prisma
+RUN npm ci --ignore-scripts
+
+# Copy the built application and necessary Prisma assets from the builder stage
+COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
+
+EXPOSE 3000
+
+# This command runs migrations and then starts the application
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
