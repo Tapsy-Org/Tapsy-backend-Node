@@ -4,37 +4,6 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const fs = require('fs');
 const path = require('path');
 
-// Function to get the appropriate server URL based on environment
-function getServerUrl() {
-  // Development environment (local)
-  if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:3000';
-  }
-  
-  // Production environment - check for specific environment indicators
-  if (process.env.NODE_ENV === 'production') {
-    // Check if we're in ECS dev environment
-    if (process.env.ECS_ENVIRONMENT === 'dev' || 
-        process.env.AWS_EXECUTION_ENV?.includes('AWS_ECS_FARGATE') && 
-        process.env.ECS_CLUSTER === 'Tapsy' && 
-        !process.env.PRODUCTION_DOMAIN) {
-      return 'http://backend-dev-alb-278107495.us-west-1.elb.amazonaws.com';
-    }
-    
-    // Check if we have a production domain set
-    if (process.env.PRODUCTION_DOMAIN) {
-      return process.env.PRODUCTION_DOMAIN;
-    }
-    
-    // Default to dev ECS if no other indicators
-    return 'http://backend-dev-alb-278107495.us-west-1.elb.amazonaws.com';
-  }
-  
-  // Fallback
-  return 'http://localhost:3000';
-}
-
-// Swagger configuration
 const options = {
   definition: {
     openapi: '3.0.0',
@@ -187,10 +156,8 @@ const options = {
     },
     servers: [
       {
-        url: getServerUrl(),
-        description: process.env.NODE_ENV === 'development' 
-          ? 'Development server (Local)' 
-          : 'Production server (ECS)',
+        url: '/',
+        description: 'Current Environment Server',
       },
     ],
     tags: [
@@ -236,5 +203,5 @@ if (!fs.existsSync(distDir)) {
 const outputPath = path.join(distDir, 'swagger.json');
 fs.writeFileSync(outputPath, JSON.stringify(swaggerSpec, null, 2));
 
-console.log('✅ Swagger specification generated successfully at:', outputPath);
-console.log('📊 Found', Object.keys(swaggerSpec.paths || {}).length, 'API endpoints');
+console.log('Swagger specification generated successfully at:', outputPath);
+console.log('Found', Object.keys(swaggerSpec.paths || {}).length, 'API endpoints');
