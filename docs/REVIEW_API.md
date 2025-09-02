@@ -177,15 +177,82 @@ curl -H "Authorization: Bearer <access_token>" \
 
 **GET** `/reviews/business/:businessId`
 
-Retrieves all reviews for a specific business.
+Retrieves all reviews for a specific business with pagination support. Default limit is 5 reviews per page.
+
+**Headers:**
+- `Authorization: Bearer <access_token>` (required)
 
 **Query Parameters:**
 - `page` (optional): Page number (default: 1)
-- `limit` (optional): Items per page (default: 10)
+- `limit` (optional): Items per page (default: 5, max: 100)
+- `status` (optional): Filter by status (ACTIVE, PENDING, INACTIVE)
 
 **Example Request:**
 ```bash
-curl "http://localhost:3000/reviews/business/business-uuid-123?page=1&limit=20"
+curl -H "Authorization: Bearer <access_token>" \
+  "http://localhost:3000/reviews/business/business-uuid-123?page=1&limit=5&status=ACTIVE"
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "Business reviews fetched successfully",
+  "data": {
+    "reviews": [
+      {
+        "id": "review-uuid-123",
+        "userId": "user-uuid-123",
+        "rating": "FIVE",
+        "badges": null,
+        "caption": "Amazing service and great food!",
+        "hashtags": ["#great", "#food", "#service"],
+        "title": "Best Restaurant Experience",
+        "video_url": "https://bucket.s3.region.amazonaws.com/videos/user-uuid-123/review-timestamp.mp4",
+        "businessId": "business-uuid-123",
+        "views": 15,
+        "status": "ACTIVE",
+        "createdAt": "2024-01-01T00:00:00.000Z",
+        "user": {
+          "id": "user-uuid-123",
+          "username": "john_doe",
+          "user_type": "INDIVIDUAL",
+          "logo_url": "https://example.com/avatar.jpg"
+        },
+        "business": {
+          "id": "business-uuid-123",
+          "username": "restaurant_name",
+          "user_type": "BUSINESS",
+          "logo_url": "https://example.com/logo.png"
+        },
+        "likes": [
+          {
+            "id": "like-uuid-123",
+            "userId": "user-uuid-456"
+          }
+        ],
+        "comments": [
+          {
+            "id": "comment-uuid-123",
+            "comment": "I agree, great place!",
+            "createdAt": "2024-01-01T01:00:00.000Z",
+            "user": {
+              "id": "user-uuid-456",
+              "username": "jane_doe",
+              "logo_url": "https://example.com/avatar2.jpg"
+            }
+          }
+        ]
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 5,
+      "total": 25,
+      "totalPages": 5
+    }
+  }
+}
 ```
 
 ### 6. Delete Review
@@ -253,6 +320,16 @@ curl -X DELETE \
   "status": "fail",
   "statusCode": 404,
   "message": "Review not found",
+  "details": null
+}
+```
+
+**Business Reviews Specific Errors:**
+```json
+{
+  "status": "fail",
+  "statusCode": 404,
+  "message": "Business not found or inactive",
   "details": null
 }
 ```

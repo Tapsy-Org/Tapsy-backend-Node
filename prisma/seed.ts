@@ -52,15 +52,33 @@ const bothCategories = [
 async function clearDatabase() {
   console.log('🧹 Clearing existing data...');
   
-  // Delete in reverse order of dependencies
-  await prisma.review.deleteMany();
-  await prisma.userCategory.deleteMany();
-  await prisma.location.deleteMany();
-  await prisma.follow.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.category.deleteMany();
-  
-  console.log('✅ Database cleared successfully');
+  try {
+    // Disable foreign key checks temporarily
+    await prisma.$executeRaw`SET session_replication_role = replica;`;
+    
+    // Delete all data
+    await prisma.review.deleteMany();
+    await prisma.userCategory.deleteMany();
+    await prisma.location.deleteMany();
+    await prisma.follow.deleteMany();
+    await prisma.notification.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.category.deleteMany();
+    
+    // Re-enable foreign key checks
+    await prisma.$executeRaw`SET session_replication_role = DEFAULT;`;
+    
+    console.log('✅ Database cleared successfully');
+  } catch (error) {
+    console.log('⚠️ Error clearing database:', error);
+    // Try to re-enable foreign key checks even if clearing failed
+    try {
+      await prisma.$executeRaw`SET session_replication_role = DEFAULT;`;
+    } catch (e) {
+      console.log('⚠️ Could not re-enable foreign key checks');
+    }
+    throw error;
+  }
 }
 
 async function seedCategories() {
@@ -106,6 +124,7 @@ async function seedBusinessUsers() {
           mobile_number: faker.phone.number(),
           email: faker.internet.email(),
           username: faker.company.name(),
+          avatarUrl: faker.image.avatar(),
           device_id: faker.string.uuid(),
           status: faker.helpers.arrayElement(['ACTIVE', 'ACTIVE', 'ACTIVE', 'PENDING']), // Mostly active
           last_login: faker.date.recent({ days: 30 }),
@@ -142,6 +161,7 @@ async function seedIndividualUsers() {
           mobile_number: faker.phone.number(),
           email: faker.internet.email(),
           username: faker.internet.username(),
+          avatarUrl: faker.image.avatar(),
           device_id: faker.string.uuid(),
           status: faker.helpers.arrayElement(['ACTIVE', 'ACTIVE', 'ACTIVE', 'PENDING']), // Mostly active
           last_login: faker.date.recent({ days: 30 }),

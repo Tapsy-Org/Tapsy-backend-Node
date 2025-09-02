@@ -1,4 +1,4 @@
-import { ReviewRating } from '@prisma/client';
+import { ReviewRating, Status } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 
 import { ReviewService } from '../services/review.service';
@@ -281,6 +281,49 @@ export default class ReviewController {
       const updatedReview = await reviewService.updateReviewStatus(reviewId, status, adminUserId);
 
       return res.success(updatedReview, 'Review status updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getBusinessReviews(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { businessId } = req.params;
+      const { page = '1', limit = '5', status } = req.query;
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      if (!businessId) {
+        throw new AppError('Business ID is required', 400);
+      }
+
+      // Validate business ID format
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(businessId)) {
+        throw new AppError('Invalid business ID format. Must be a valid UUID', 400);
+      }
+
+      // Validate status if provided
+      if (status && typeof status === 'string') {
+        const validStatuses = ['ACTIVE', 'PENDING', 'INACTIVE'];
+        if (!validStatuses.includes(status)) {
+          throw new AppError('Invalid status value. Must be ACTIVE, PENDING, or INACTIVE', 400);
+        }
+      }
+
+      const filters = {
+        page: parseInt(page as string, 10),
+        limit: parseInt(limit as string, 10),
+        status: status as Status,
+      };
+
+      const result = await reviewService.getBusinessReviews(businessId, filters);
+
+      return res.success(result, 'Business reviews fetched successfully');
     } catch (error) {
       next(error);
     }

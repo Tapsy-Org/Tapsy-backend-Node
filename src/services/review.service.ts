@@ -379,4 +379,100 @@ export class ReviewService {
       throw new AppError('Failed to update review status', 500, { originalError: error });
     }
   }
+
+  async getBusinessReviews(
+    businessId: string,
+    filters: {
+      page?: number;
+      limit?: number;
+      status?: Status;
+    } = {},
+  ) {
+    try {
+      const { page = 1, limit = 5, status } = filters;
+      const skip = (page - 1) * limit;
+
+      // Validate business exists
+      const business = await prisma.user.findUnique({
+        where: {
+          id: businessId,
+          status: 'ACTIVE',
+          user_type: 'BUSINESS',
+        },
+        select: { id: true },
+      });
+
+      if (!business) {
+        throw new AppError('Business not found or inactive', 404);
+      }
+
+      const where: Prisma.ReviewWhereInput = {
+        businessId,
+        status: status ? status : { not: 'DELETED' },
+      };
+
+      const [reviews, total] = await Promise.all([
+        prisma.review.findMany({
+          where,
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                user_type: true,
+                logo_url: true,
+              },
+            },
+            business: {
+              select: {
+                id: true,
+                username: true,
+                logo_url: true,
+                user_type: true,
+              },
+            },
+            likes: {
+              select: {
+                id: true,
+                userId: true,
+              },
+            },
+            comments: {
+              select: {
+                id: true,
+                comment: true,
+                createdAt: true,
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    logo_url: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.review.count({ where }),
+      ]);
+
+      return {
+        reviews,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch business reviews', 500, { originalError: error });
+    }
+  }
 }
