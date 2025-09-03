@@ -382,7 +382,7 @@ async function seedPlans() {
     {
       name: 'Basic',
       price: 999, // $9.99 in cents
-      billingCycle: 'MONTHLY' as BillingCycle,
+      billingCycle: BillingCycle.MONTHLY,
       features: ['Basic listing', 'Up to 5 reviews', 'Standard support'],
       limits: ['5 reviews per month', 'Basic analytics'],
       status: true,
@@ -394,7 +394,7 @@ async function seedPlans() {
     {
       name: 'Professional',
       price: 1999, // $19.99 in cents
-      billingCycle: 'MONTHLY' as BillingCycle,
+      billingCycle: BillingCycle.MONTHLY,
       features: ['Enhanced listing', 'Unlimited reviews', 'Priority support', 'Advanced analytics'],
       limits: ['Unlimited reviews', 'Advanced analytics', 'Priority support'],
       status: true,
@@ -406,7 +406,7 @@ async function seedPlans() {
     {
       name: 'Enterprise',
       price: 4999, // $49.99 in cents
-      billingCycle: 'MONTHLY' as BillingCycle,
+      billingCycle: BillingCycle.MONTHLY,
       features: ['Premium listing', 'Unlimited everything', '24/7 support', 'Custom integrations'],
       limits: ['Unlimited everything', 'Custom integrations', '24/7 support'],
       status: true,
@@ -443,18 +443,18 @@ async function seedSubscriptions(businessUsers: any[], plans: any[]) {
     endDate.setMonth(endDate.getMonth() + 1);
     
     try {
-      await prisma.subscription.create({
-        data: {
-          businessId: businessUser.id,
-          planId: plan.id,
-          status: faker.helpers.arrayElement(['ACTIVE', 'ACTIVE', 'ACTIVE', 'TRIAL', 'PAST_DUE']),
-          starts_at: startDate,
-          ends_at: endDate,
-          trial_ends_at: plan.trial_days > 0 ? new Date(startDate.getTime() + plan.trial_days * 24 * 60 * 60 * 1000) : null,
-          cancelled_at: faker.helpers.arrayElement([null, null, null, faker.date.recent({ days: 10 })]),
-          payment_method: faker.helpers.arrayElement(['STRIPE', 'RAZORPAY', 'CARD'])
-        }
-      });
+              await prisma.subscription.create({
+          data: {
+            businessId: businessUser.id,
+            planId: plan.id,
+            status: faker.helpers.arrayElement([SubscriptionStatus.ACTIVE, SubscriptionStatus.ACTIVE, SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL, SubscriptionStatus.PAST_DUE]),
+            starts_at: startDate,
+            ends_at: endDate,
+            trial_ends_at: plan.trial_days > 0 ? new Date(startDate.getTime() + plan.trial_days * 24 * 60 * 60 * 1000) : null,
+            cancelled_at: faker.helpers.arrayElement([null, null, null, faker.date.recent({ days: 10 })]),
+            payment_method: faker.helpers.arrayElement([PaymentMethod.STRIPE, PaymentMethod.RAZORPAY, PaymentMethod.CARD])
+          }
+        });
     } catch (error) {
       console.log(`⚠️ Skipping subscription creation for business ${businessUser.id}: ${error}`);
     }
@@ -661,11 +661,11 @@ async function seedNotifications(users: any[]) {
         await prisma.notification.create({
           data: {
             userId: user.id,
-            type: faker.helpers.arrayElement(['SYSTEM', 'MARKETING', 'TRANSACTIONAL']),
+            type: faker.helpers.arrayElement([NotificationType.SYSTEM, NotificationType.MARKETING, NotificationType.TRANSACTIONAL]),
             title: faker.lorem.words(3),
             content: faker.lorem.sentence(),
             image_url: faker.helpers.arrayElement([faker.image.urlLoremFlickr({ category: 'notification' }), null]),
-            status: faker.helpers.arrayElement(['PENDING', 'SENT', 'READ', 'ARCHIVED']),
+            status: faker.helpers.arrayElement([NotificationStatus.PENDING, NotificationStatus.SENT, NotificationStatus.READ, NotificationStatus.ARCHIVED]),
             is_read: faker.datatype.boolean()
           }
         });
@@ -693,7 +693,7 @@ async function seedSupportTickets(users: any[]) {
             title: faker.lorem.words(4),
             email: user.email || faker.internet.email(),
             description: faker.lorem.paragraph(),
-            status: faker.helpers.arrayElement(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'])
+            status: faker.helpers.arrayElement([SupportStatus.OPEN, SupportStatus.IN_PROGRESS, SupportStatus.RESOLVED, SupportStatus.CLOSED])
           }
         });
       } catch (error) {
