@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
 
 import { ReviewInteractionService } from '../services/ReviewInteraction.service';
 import { AuthRequest } from '../types/express';
@@ -33,7 +33,7 @@ export default class ReviewInteractionController {
   }
 
   // Get all likes for a review
-  static async getReviewLikes(req: Request, res: Response, next: NextFunction) {
+  static async getReviewLikes(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { reviewId } = req.params;
       const { page = '1', limit = '20' } = req.query;
@@ -113,7 +113,7 @@ export default class ReviewInteractionController {
   }
 
   // Get all comments for a review
-  static async getReviewComments(req: Request, res: Response, next: NextFunction) {
+  static async getReviewComments(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { reviewId } = req.params;
       const { page = '1', limit = '20' } = req.query;
@@ -190,7 +190,7 @@ export default class ReviewInteractionController {
   }
 
   // Get comment replies
-  static async getCommentReplies(req: Request, res: Response, next: NextFunction) {
+  static async getCommentReplies(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { commentId } = req.params;
       const { page = '1', limit = '20' } = req.query;
@@ -239,6 +239,40 @@ export default class ReviewInteractionController {
       );
 
       return res.created(result, 'Reply added successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get like count for a review
+  static async getReviewLikeCount(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { reviewId } = req.params;
+
+      if (!reviewId) {
+        throw new AppError('Review ID is required', 400);
+      }
+
+      const result = await reviewInteractionService.getReviewLikeCount(reviewId);
+
+      return res.success(result, 'Review like count fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get comment count for a review (including replies)
+  static async getReviewCommentCount(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { reviewId } = req.params;
+
+      if (!reviewId) {
+        throw new AppError('Review ID is required', 400);
+      }
+
+      const result = await reviewInteractionService.getReviewCommentCount(reviewId);
+
+      return res.success(result, 'Review comment count fetched successfully');
     } catch (error) {
       next(error);
     }

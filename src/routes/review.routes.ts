@@ -28,6 +28,10 @@ const router = express.Router();
  *       type: string
  *       enum: [ONE, TWO, THREE, FOUR, FIVE]
  *       description: Rating value for the review
+ *     ReviewStatus:
+ *       type: string
+ *       enum: [ACTIVE, PENDING, INACTIVE, DELETED]
+ *       description: Status of the review
  *     Review:
  *       type: object
  *       properties:
@@ -79,14 +83,17 @@ const router = express.Router();
  *         business:
  *           $ref: '#/components/schemas/UserSummary'
  *           nullable: true
- *         likes:
- *           type: array
- *           items:
- *             $ref: '#/components/schemas/Like'
- *         comments:
- *           type: array
- *           items:
- *             $ref: '#/components/schemas/Comment'
+ *         _count:
+ *           type: object
+ *           properties:
+ *             likes:
+ *               type: integer
+ *               description: Total number of likes for the review
+ *               example: 42
+ *             comments:
+ *               type: integer
+ *               description: Total number of comments for the review (including replies)
+ *               example: 15
  *     UserSummary:
  *       type: object
  *       properties:
@@ -121,6 +128,11 @@ const router = express.Router();
  *         createdAt:
  *           type: string
  *           format: date-time
+ *         parent_comment_id:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *           description: ID of parent comment if this is a reply
  *         user:
  *           $ref: '#/components/schemas/UserSummary'
  *     ReviewFilters:

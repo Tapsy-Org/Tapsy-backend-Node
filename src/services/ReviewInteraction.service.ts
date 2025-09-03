@@ -485,4 +485,62 @@ export class ReviewInteractionService {
       throw new AppError('Failed to fetch comment replies', 500, { originalError: error });
     }
   }
+
+  // Get like count for a review
+  async getReviewLikeCount(reviewId: string) {
+    try {
+      // Check if review exists
+      const review = await prisma.review.findUnique({
+        where: {
+          id: reviewId,
+          status: { not: 'DELETED' },
+        },
+        select: { id: true },
+      });
+
+      if (!review) {
+        throw new AppError('Review not found', 404);
+      }
+
+      const likeCount = await prisma.like.count({
+        where: { reviewId },
+      });
+
+      return { likeCount };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch review like count', 500, { originalError: error });
+    }
+  }
+
+  // Get comment count for a review (including replies)
+  async getReviewCommentCount(reviewId: string) {
+    try {
+      // Check if review exists
+      const review = await prisma.review.findUnique({
+        where: {
+          id: reviewId,
+          status: { not: 'DELETED' },
+        },
+        select: { id: true },
+      });
+
+      if (!review) {
+        throw new AppError('Review not found', 404);
+      }
+
+      const commentCount = await prisma.comment.count({
+        where: { reviewId },
+      });
+
+      return { commentCount };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch review comment count', 500, { originalError: error });
+    }
+  }
 }

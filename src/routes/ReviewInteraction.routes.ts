@@ -8,7 +8,7 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   - name: Interactions
+ *   - name: Review-Interactions
  *     description: Like and comment management for reviews
  * components:
  *   securitySchemes:
@@ -155,7 +155,7 @@ const router = express.Router();
  *       Toggles the like status for a review. If the user hasn't liked the review,
  *       it will be liked. If they have already liked it, the like will be removed.
  *       Requires authentication.
- *     tags: [Interactions]
+ *     tags: [Review-Interactions]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -201,7 +201,9 @@ router.post('/reviews/:reviewId/like', requireAuth(), ReviewInteractionControlle
  *     description: |
  *       Retrieves all users who have liked a specific review with their details.
  *       Supports pagination for large numbers of likes.
- *     tags: [Interactions]
+ *     tags: [Review-Interactions]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: reviewId
@@ -255,7 +257,7 @@ router.post('/reviews/:reviewId/like', requireAuth(), ReviewInteractionControlle
  *       500:
  *         description: Internal server error
  */
-router.get('/reviews/:reviewId/likes', ReviewInteractionController.getReviewLikes);
+router.get('/reviews/:reviewId/likes', requireAuth(), ReviewInteractionController.getReviewLikes);
 
 /**
  * @swagger
@@ -266,7 +268,7 @@ router.get('/reviews/:reviewId/likes', ReviewInteractionController.getReviewLike
  *       Checks whether the currently authenticated user has liked a specific review.
  *       Returns the like status and timestamp if they have liked it.
  *       Requires authentication.
- *     tags: [Interactions]
+ *     tags: [Review-Interactions]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -314,7 +316,7 @@ router.get(
  *     description: |
  *       Adds a new comment to a review. Can be a top-level comment or a reply to
  *       an existing comment. Requires authentication.
- *     tags: [Interactions]
+ *     tags: [Review-Interactions]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -366,7 +368,9 @@ router.post('/reviews/:reviewId/comments', requireAuth(), ReviewInteractionContr
  *     description: |
  *       Retrieves all comments for a specific review with user details and replies.
  *       Supports pagination and returns nested comment structure.
- *     tags: [Interactions]
+ *     tags: [Review-Interactions]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: reviewId
@@ -420,7 +424,11 @@ router.post('/reviews/:reviewId/comments', requireAuth(), ReviewInteractionContr
  *       500:
  *         description: Internal server error
  */
-router.get('/reviews/:reviewId/comments', ReviewInteractionController.getReviewComments);
+router.get(
+  '/reviews/:reviewId/comments',
+  requireAuth(),
+  ReviewInteractionController.getReviewComments,
+);
 
 /**
  * @swagger
@@ -430,7 +438,7 @@ router.get('/reviews/:reviewId/comments', ReviewInteractionController.getReviewC
  *     description: |
  *       Updates an existing comment. Users can only update their own comments.
  *       Requires authentication.
- *     tags: [Interactions]
+ *     tags: [Review-Interactions]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -482,7 +490,7 @@ router.put('/comments/:commentId', requireAuth(), ReviewInteractionController.up
  *     description: |
  *       Deletes a comment and all its replies. Users can only delete their own comments.
  *       Requires authentication.
- *     tags: [Interactions]
+ *     tags: [Review-Interactions]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -532,7 +540,9 @@ router.delete('/comments/:commentId', requireAuth(), ReviewInteractionController
  *     description: |
  *       Retrieves all replies to a specific comment with user details.
  *       Supports pagination for large numbers of replies.
- *     tags: [Interactions]
+ *     tags: [Review-Interactions]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: commentId
@@ -586,7 +596,11 @@ router.delete('/comments/:commentId', requireAuth(), ReviewInteractionController
  *       500:
  *         description: Internal server error
  */
-router.get('/comments/:commentId/replies', ReviewInteractionController.getCommentReplies);
+router.get(
+  '/comments/:commentId/replies',
+  requireAuth(),
+  ReviewInteractionController.getCommentReplies,
+);
 
 /**
  * @swagger
@@ -597,7 +611,7 @@ router.get('/comments/:commentId/replies', ReviewInteractionController.getCommen
  *       Adds a reply to a specific comment. This is a dedicated endpoint for replying
  *       to comments, making it easier to distinguish between top-level comments and replies.
  *       Requires authentication.
- *     tags: [Interactions]
+ *     tags: [Review-Interactions]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -649,6 +663,113 @@ router.post(
   '/comments/:commentId/reply',
   requireAuth(),
   ReviewInteractionController.replyToComment,
+);
+
+/**
+ * @swagger
+ * /api/review-interactions/reviews/{reviewId}/like-count:
+ *   get:
+ *     summary: Get like count for a review
+ *     description: |
+ *       Retrieves the total number of likes for a specific review.
+ *       This is a lightweight endpoint that only returns the count.
+ *     tags: [Review-Interactions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: reviewId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: The review ID to get like count for
+ *     responses:
+ *       200:
+ *         description: Review like count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Review like count fetched successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     likeCount:
+ *                       type: integer
+ *                       description: Total number of likes for the review
+ *                       example: 42
+ *       400:
+ *         description: Bad request - missing review ID
+ *       404:
+ *         description: Review not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+  '/reviews/:reviewId/like-count',
+  requireAuth(),
+  ReviewInteractionController.getReviewLikeCount,
+);
+
+/**
+ * @swagger
+ * /api/review-interactions/reviews/{reviewId}/comment-count:
+ *   get:
+ *     summary: Get comment count for a review
+ *     description: |
+ *       Retrieves the total number of comments for a specific review.
+ *       This count includes both top-level comments and all replies.
+ *       This is a lightweight endpoint that only returns the count.
+ *     tags: [Review-Interactions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: reviewId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: The review ID to get comment count for
+ *     responses:
+ *       200:
+ *         description: Review comment count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Review comment count fetched successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     commentCount:
+ *                       type: integer
+ *                       description: Total number of comments for the review (including replies)
+ *                       example: 15
+ *       400:
+ *         description: Bad request - missing review ID
+ *       404:
+ *         description: Review not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+  '/reviews/:reviewId/comment-count',
+  requireAuth(),
+  ReviewInteractionController.getReviewCommentCount,
 );
 
 export default router;
