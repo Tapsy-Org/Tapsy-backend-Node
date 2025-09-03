@@ -148,7 +148,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/interactions/reviews/{reviewId}/like:
+ * /api/review-interactions/reviews/{reviewId}/like:
  *   post:
  *     summary: Toggle like/unlike for a review
  *     description: |
@@ -195,7 +195,7 @@ router.post('/reviews/:reviewId/like', requireAuth(), ReviewInteractionControlle
 
 /**
  * @swagger
- * /api/interactions/reviews/{reviewId}/likes:
+ * /api/review-interactions/reviews/{reviewId}/likes:
  *   get:
  *     summary: Get all likes for a review
  *     description: |
@@ -259,7 +259,7 @@ router.get('/reviews/:reviewId/likes', ReviewInteractionController.getReviewLike
 
 /**
  * @swagger
- * /api/interactions/reviews/{reviewId}/like/check:
+ * /api/review-interactions/reviews/{reviewId}/like/check:
  *   get:
  *     summary: Check if user has liked a review
  *     description: |
@@ -308,7 +308,7 @@ router.get(
 
 /**
  * @swagger
- * /api/interactions/reviews/{reviewId}/comments:
+ * /api/review-interactions/reviews/{reviewId}/comments:
  *   post:
  *     summary: Add a comment to a review
  *     description: |
@@ -360,7 +360,7 @@ router.post('/reviews/:reviewId/comments', requireAuth(), ReviewInteractionContr
 
 /**
  * @swagger
- * /api/interactions/reviews/{reviewId}/comments:
+ * /api/review-interactions/reviews/{reviewId}/comments:
  *   get:
  *     summary: Get all comments for a review
  *     description: |
@@ -424,7 +424,7 @@ router.get('/reviews/:reviewId/comments', ReviewInteractionController.getReviewC
 
 /**
  * @swagger
- * /api/interactions/comments/{commentId}:
+ * /api/review-interactions/comments/{commentId}:
  *   put:
  *     summary: Update a comment
  *     description: |
@@ -476,7 +476,7 @@ router.put('/comments/:commentId', requireAuth(), ReviewInteractionController.up
 
 /**
  * @swagger
- * /api/interactions/comments/{commentId}:
+ * /api/review-interactions/comments/{commentId}:
  *   delete:
  *     summary: Delete a comment
  *     description: |
@@ -526,7 +526,7 @@ router.delete('/comments/:commentId', requireAuth(), ReviewInteractionController
 
 /**
  * @swagger
- * /api/interactions/comments/{commentId}/replies:
+ * /api/review-interactions/comments/{commentId}/replies:
  *   get:
  *     summary: Get comment replies
  *     description: |
