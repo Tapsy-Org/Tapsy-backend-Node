@@ -551,14 +551,17 @@ router.get('/mutual/:userId1/:userId2', requireAuth(), FollowController.getMutua
  * @swagger
  * /api/follow/search:
  *   get:
- *     summary: Search users with follow status
+ *     summary: Search users with advanced filtering
  *     description: |
- *       Searches for users by username or about text and includes follow status for the authenticated user.
- *       Useful for finding new people to follow.
+ *       Searches for users by username or about text with advanced filtering options.
+ *       Includes follow status for the authenticated user.
  *       **Search Criteria:**
  *       - Username (case-insensitive partial match)
  *       - About text (case-insensitive partial match)
  *       - Minimum 2 characters required
+ *       **Filter Options:**
+ *       - User type: INDIVIDUAL, BUSINESS, ADMIN
+ *       - Follow status: followers, following, not_following
  *       **Results Include:**
  *       - User details (username, type, logo, about)
  *       - Follow status (isFollowing, followType, followedAt)
@@ -573,6 +576,18 @@ router.get('/mutual/:userId1/:userId2', requireAuth(), FollowController.getMutua
  *           minLength: 2
  *         required: true
  *         description: Search query (minimum 2 characters)
+ *       - in: query
+ *         name: userType
+ *         schema:
+ *           type: string
+ *           enum: [INDIVIDUAL, BUSINESS, ADMIN]
+ *         description: Filter by user type
+ *       - in: query
+ *         name: followStatus
+ *         schema:
+ *           type: string
+ *           enum: [followers, following, not_following]
+ *         description: Filter by follow relationship status
  *       - in: query
  *         name: page
  *         schema:

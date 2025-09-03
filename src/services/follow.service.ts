@@ -1,3 +1,5 @@
+import type { Prisma, UserType } from '@prisma/client';
+
 import prisma from '../config/db';
 import AppError from '../utils/AppError';
 
@@ -360,35 +362,72 @@ export class FollowService {
     return following.map((f) => f.followingUserId);
   }
 
-  async searchUsers(query: string, currentUserId: string, page: number = 1, limit: number = 20) {
+  async searchUsers(
+    query: string,
+    currentUserId: string,
+    page: number = 1,
+    limit: number = 20,
+    userType?: string,
+    followStatus?: string,
+  ) {
     try {
       const skip = (page - 1) * limit;
 
-      const users = await prisma.user.findMany({
-        where: {
-          AND: [
-            { status: 'ACTIVE' },
-            { id: { not: currentUserId } }, // Exclude current user
-            {
-              OR: [
-                { username: { contains: query, mode: 'insensitive' } },
-                { about: { contains: query, mode: 'insensitive' } },
-              ],
-            },
+      // Build base where conditions
+      const andConditions: Prisma.UserWhereInput[] = [
+        { status: 'ACTIVE' },
+        { id: { not: currentUserId } }, // Exclude current user
+        {
+          OR: [
+            { username: { contains: query, mode: 'insensitive' } },
+            { about: { contains: query, mode: 'insensitive' } },
           ],
         },
-        select: {
-          id: true,
-          username: true,
-          user_type: true,
-          logo_url: true,
-          about: true,
-          createdAt: true,
-        },
-        orderBy: { username: 'asc' },
-        skip,
-        take: limit,
-      });
+      ];
+
+      // Add user type filter if specified
+      if (userType && ['INDIVIDUAL', 'BUSINESS', 'ADMIN'].includes(userType)) {
+        andConditions.push({ user_type: userType as UserType });
+      }
+
+      // Add follow status filter if specified
+      if (followStatus && ['followers', 'following', 'not_following'].includes(followStatus)) {
+        if (followStatus === 'followers') {
+          // Only show users who follow the current user
+          const followerIds = await this.getFollowerIds(currentUserId);
+          andConditions.push({ id: { in: followerIds } });
+        } else if (followStatus === 'following') {
+          // Only show users that the current user follows
+          const followingIds = await this.getFollowingUserIds(currentUserId);
+          andConditions.push({ id: { in: followingIds } });
+        } else if (followStatus === 'not_following') {
+          // Only show users that the current user doesn't follow
+          const followingIds = await this.getFollowingUserIds(currentUserId);
+          andConditions.push({ id: { notIn: followingIds } });
+        }
+      }
+
+      const whereConditions: Prisma.UserWhereInput = {
+        AND: andConditions,
+      };
+
+      const [users, total] = await Promise.all([
+        prisma.user.findMany({
+          where: whereConditions,
+          select: {
+            id: true,
+            username: true,
+            user_type: true,
+            logo_url: true,
+            about: true,
+            createdAt: true,
+          },
+          orderBy: { username: 'asc' },
+          skip,
+          take: limit,
+        }),
+        prisma.user.count({ where: whereConditions }),
+      ]);
 
       // Add follow status for each user
       const usersWithFollowStatus = await Promise.all(
@@ -406,7 +445,8 @@ export class FollowService {
         pagination: {
           page,
           limit,
-          total: users.length,
+          total,
+          totalPages: Math.ceil(total / limit),
         },
       };
     } catch (error) {
@@ -415,5 +455,14 @@ export class FollowService {
       }
       throw new AppError('Failed to search users', 500, { originalError: error });
     }
+  }
+
+  // Helper method to get follower IDs
+  private async getFollowerIds(userId: string): Promise<string[]> {
+    const followers = await prisma.follow.findMany({
+      where: { followingUserId: userId },
+      select: { followerId: true },
+    });
+    return followers.map((f) => f.followerId);
   }
 }

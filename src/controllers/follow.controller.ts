@@ -160,8 +160,7 @@ export default class FollowController {
 
   static async searchUsers(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { query } = req.query;
-      const { page = '1', limit = '20' } = req.query;
+      const { query, page = '1', limit = '20', userType, followStatus } = req.query;
       const currentUserId = req.user?.userId;
 
       if (!currentUserId) {
@@ -176,11 +175,29 @@ export default class FollowController {
         throw new AppError('Search query must be at least 2 characters long', 400);
       }
 
+      // Validate userType if provided
+      if (userType && !['INDIVIDUAL', 'BUSINESS', 'ADMIN'].includes(userType as string)) {
+        throw new AppError('Invalid user type. Must be INDIVIDUAL, BUSINESS, or ADMIN', 400);
+      }
+
+      // Validate followStatus if provided
+      if (
+        followStatus &&
+        !['followers', 'following', 'not_following'].includes(followStatus as string)
+      ) {
+        throw new AppError(
+          'Invalid follow status. Must be followers, following, or not_following',
+          400,
+        );
+      }
+
       const result = await followService.searchUsers(
         query.trim(),
         currentUserId,
         parseInt(page as string, 10),
         parseInt(limit as string, 10),
+        userType as string,
+        followStatus as string,
       );
 
       return res.success(result, 'Users search completed successfully');
