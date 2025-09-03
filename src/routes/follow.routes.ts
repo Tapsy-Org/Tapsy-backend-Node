@@ -338,6 +338,8 @@ router.get('/:followingUserId/status', requireAuth(), FollowController.checkFoll
  *       Retrieves a paginated list of users who follow the specified user.
  *       Returns user details including username, type, logo, and about information.
  *     tags: [Follow]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -384,7 +386,7 @@ router.get('/:followingUserId/status', requireAuth(), FollowController.checkFoll
  *       500:
  *         description: Internal server error
  */
-router.get('/:userId/followers', FollowController.getFollowers);
+router.get('/:userId/followers', requireAuth(), FollowController.getFollowers);
 
 /**
  * @swagger
@@ -395,6 +397,8 @@ router.get('/:userId/followers', FollowController.getFollowers);
  *       Retrieves a paginated list of users that the specified user is following.
  *       Returns user details including username, type, logo, and about information.
  *     tags: [Follow]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -441,7 +445,7 @@ router.get('/:userId/followers', FollowController.getFollowers);
  *       500:
  *         description: Internal server error
  */
-router.get('/:userId/following', FollowController.getFollowing);
+router.get('/:userId/following', requireAuth(), FollowController.getFollowing);
 
 /**
  * @swagger
@@ -452,6 +456,8 @@ router.get('/:userId/following', FollowController.getFollowing);
  *       Retrieves the total number of followers and following for a specific user.
  *       Useful for displaying follower/following counts on user profiles.
  *     tags: [Follow]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -483,7 +489,7 @@ router.get('/:userId/following', FollowController.getFollowing);
  *       500:
  *         description: Internal server error
  */
-router.get('/:userId/counts', FollowController.getFollowCounts);
+router.get('/:userId/counts', requireAuth(), FollowController.getFollowCounts);
 
 /**
  * @swagger

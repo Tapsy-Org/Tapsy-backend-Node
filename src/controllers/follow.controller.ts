@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
 
 import { FollowService } from '../services/follow.service';
 import { AuthRequest } from '../types/express';
@@ -71,7 +71,7 @@ export default class FollowController {
     }
   }
 
-  static async getFollowers(req: Request, res: Response, next: NextFunction) {
+  static async getFollowers(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { userId } = req.params;
       const { page = '1', limit = '20' } = req.query;
@@ -92,7 +92,7 @@ export default class FollowController {
     }
   }
 
-  static async getFollowing(req: Request, res: Response, next: NextFunction) {
+  static async getFollowing(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { userId } = req.params;
       const { page = '1', limit = '20' } = req.query;
@@ -113,7 +113,7 @@ export default class FollowController {
     }
   }
 
-  static async getFollowCounts(req: Request, res: Response, next: NextFunction) {
+  static async getFollowCounts(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { userId } = req.params;
 

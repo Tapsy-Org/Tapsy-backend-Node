@@ -400,6 +400,8 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *       - `INACTIVE`: Available for future use
  *       - `DELETED`: Soft-deleted reviews (hidden from queries)
  *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: userId
@@ -459,7 +461,7 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *       500:
  *         description: Internal server error
  */
-router.get('/', ReviewController.getReviews);
+router.get('/', requireAuth(), ReviewController.getReviews);
 
 /**
  * @swagger
@@ -470,6 +472,8 @@ router.get('/', ReviewController.getReviews);
  *       Retrieves a specific review by its ID and automatically increments the view count.
  *       Returns complete review data including user, business, likes, and comments.
  *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: reviewId
@@ -504,7 +508,7 @@ router.get('/', ReviewController.getReviews);
  *       500:
  *         description: Internal server error
  */
-router.get('/:reviewId', ReviewController.getReviewById);
+router.get('/:reviewId', requireAuth(), ReviewController.getReviewById);
 
 /**
  * @swagger
