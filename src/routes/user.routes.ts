@@ -16,12 +16,9 @@ const router = Router();
  *       type: object
  *       required: [device_id, username]
  *       properties:
- *         idToken:
- *           type: string
- *           description: Firebase ID token for mobile verification
  *         firebase_token:
  *           type: string
- *           description: Firebase messaging token
+ *           description: Firebase messaging token for push notifications
  *         user_type:
  *           type: string
  *           enum: [INDIVIDUAL, BUSINESS]
@@ -29,16 +26,13 @@ const router = Router();
  *           description: Type of user account
  *         mobile_number:
  *           type: string
- *           description: Mobile number (for business users only)
+ *           description: Mobile number (required for INDIVIDUAL, optional for BUSINESS)
  *         email:
  *           type: string
- *           description: Email address (for business users only)
+ *           description: Email address (optional for BUSINESS, not allowed for INDIVIDUAL)
  *         username:
  *           type: string
  *           description: Unique username
- *         device_id:
- *           type: string
- *           description: Unique device identifier
  *         # Location fields (for business users)
  *         address:
  *           type: string
@@ -98,7 +92,7 @@ const router = Router();
  * /api/users/register:
  *   post:
  *     summary: Register a new user (individual or business)
- *     description: For INDIVIDUAL users, mobile number is extracted from Firebase ID token. For BUSINESS users, all business details including categories and subcategories are provided in the same request.
+ *     description: For INDIVIDUAL users, mobile number is required. For BUSINESS users, either mobile number or email is required (but not both). OTP verification will be sent after registration.
  *     tags: [Users]
  *     requestBody:
  *       required: true
@@ -106,30 +100,24 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [idToken, firebase_token]
+ *             required: [username]
  *             properties:
- *               idToken:
- *                 type: string
- *                 description: Firebase ID token
  *               firebase_token:
  *                 type: string
- *                 description: Firebase messaging token
+ *                 description: Firebase messaging token for push notifications
  *               user_type:
  *                 type: string
  *                 enum: [INDIVIDUAL, BUSINESS]
  *                 default: INDIVIDUAL
  *               mobile_number:
  *                 type: string
- *                 description: Mobile number (for business users only - individual users get it from Firebase token)
+ *                 description: Mobile number (required for INDIVIDUAL users, optional for BUSINESS)
  *               email:
  *                 type: string
- *                 description: Email (required if mobile_number not provided)
+ *                 description: Email (optional for BUSINESS users only, not allowed for INDIVIDUAL)
  *               username:
  *                 type: string
  *                 description: Unique username for the user
- *               device_id:
- *                 type: string
- *                 description: Unique device identifier
  *               address:
  *                 type: string
  *                 description: Business address (for business users only)
@@ -182,20 +170,25 @@ const router = Router();
  *                 description: Subcategory names (for business users only)
  *           examples:
  *             individual:
- *               summary: Individual user registration (mobile number extracted from Firebase ID token)
+ *               summary: Individual user registration with mobile number
  *               value:
- *                 idToken: "firebase-id-token"
  *                 firebase_token: "firebase-messaging-token"
  *                 user_type: "INDIVIDUAL"
+ *                 mobile_number: "+1234567890"
  *                 username: "john_doe"
- *                 device_id: "device-123"
- *             business:
- *               summary: Business user registration with all business details
+ *             business_mobile:
+ *               summary: Business user registration with mobile number
  *               value:
- *                 idToken: "firebase-id-token"
  *                 firebase_token: "firebase-messaging-token"
  *                 user_type: "BUSINESS"
  *                 mobile_number: "+1234567890"
+ *                 username: "business_user"
+ *             business_email:
+ *               summary: Business user registration with email
+ *               value:
+ *                 firebase_token: "firebase-messaging-token"
+ *                 user_type: "BUSINESS"
+ *                 email: "business@example.com"
  *                 username: "business_user"
  *                 address: "123 Business Street"
  *                 zip_code: "12345"
@@ -214,7 +207,21 @@ const router = Router();
  *                 subcategories: ["Web Development", "Mobile Apps"]
  *     responses:
  *       201:
- *         description: User registered successfully
+ *         description: User registered successfully, OTP sent for verification
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "OTP_SENT"
+ *                 message:
+ *                   type: string
+ *                   example: "Registration successful. Please check your SMS/email for OTP verification."
+ *                 verification_method:
+ *                   type: string
+ *                   enum: [EMAIL, MOBILE]
  *       400:
  *         description: Missing required fields or validation errors
  *       409:
@@ -231,6 +238,7 @@ router.post(
  * /api/users/login:
  *   post:
  *     summary: Login user
+ *     description: Login with either mobile number or email. OTP will be sent for verification.
  *     tags: [Users]
  *     requestBody:
  *       required: true
@@ -238,21 +246,54 @@ router.post(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [idToken, firebase_token]
  *             properties:
- *               idToken:
- *                 type: string
  *               firebase_token:
  *                 type: string
+ *                 description: Firebase messaging token for push notifications
  *               mobile_number:
  *                 type: string
+ *                 description: Mobile number (for users who registered with mobile)
  *               email:
  *                 type: string
- *               device_id:
- *                 type: string
+ *                 description: Email (for business users who registered with email)
+ *           examples:
+ *             mobile_login:
+ *               summary: Login with mobile number
+ *               value:
+ *                 mobile_number: "+1234567890"
+ *                 firebase_token: "firebase-messaging-token"
+ *             email_login:
+ *               summary: Login with email
+ *               value:
+ *                 email: "user@example.com"
+ *                 firebase_token: "firebase-messaging-token"
  *     responses:
  *       200:
- *         description: Login successful
+ *         description: OTP sent for verification
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "OTP_SENT"
+ *                 message:
+ *                   type: string
+ *                   example: "OTP has been sent to your mobile number/email"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user_id:
+ *                       type: string
+ *                     user_type:
+ *                       type: string
+ *                       enum: [INDIVIDUAL, BUSINESS]
+ *                     verification_method:
+ *                       type: string
+ *                       enum: [EMAIL, MOBILE]
+ *       400:
+ *         description: Missing required fields
  *       404:
  *         description: User not found
  */
@@ -390,7 +431,7 @@ router.get('/type/:user_type', UserController.getUsersByType);
  * /api/users/send-otp:
  *   post:
  *     summary: Send OTP to user
- *     description: Send OTP to user's email or mobile number for verification
+ *     description: Send OTP to user's email or mobile number for verification. Use this endpoint to resend OTP if needed.
  *     tags: [Users]
  *     requestBody:
  *       required: true
@@ -405,11 +446,29 @@ router.get('/type/:user_type', UserController.getUsersByType);
  *               mobile_number:
  *                 type: string
  *                 description: User's mobile number
- *           example:
- *             email: "user@example.com"
+ *           examples:
+ *             email_otp:
+ *               summary: Send OTP to email
+ *               value:
+ *                 email: "user@example.com"
+ *             mobile_otp:
+ *               summary: Send OTP to mobile
+ *               value:
+ *                 mobile_number: "+1234567890"
  *     responses:
  *       200:
  *         description: OTP sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "OTP sent to email/mobile number successfully"
+ *                 otp_expiry:
+ *                   type: string
+ *                   format: date-time
  *       400:
  *         description: Email or mobile number is required
  *       404:
@@ -422,7 +481,7 @@ router.post('/send-otp', UserController.sendOtp);
  * /api/users/verify-otp:
  *   post:
  *     summary: Verify OTP
- *     description: Verify the OTP sent to user's email or mobile number
+ *     description: Verify the OTP sent to user's email or mobile number. Upon successful verification, user gets access and refresh tokens.
  *     tags: [Users]
  *     requestBody:
  *       required: true
@@ -441,12 +500,34 @@ router.post('/send-otp', UserController.sendOtp);
  *               otp:
  *                 type: string
  *                 description: The OTP code to verify
- *           example:
- *             email: "user@example.com"
- *             otp: "123456"
+ *           examples:
+ *             email_verify:
+ *               summary: Verify OTP sent to email
+ *               value:
+ *                 email: "user@example.com"
+ *                 otp: "123456"
+ *             mobile_verify:
+ *               summary: Verify OTP sent to mobile
+ *               value:
+ *                 mobile_number: "+1234567890"
+ *                 otp: "123456"
  *     responses:
  *       200:
  *         description: OTP verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 access_token:
+ *                   type: string
+ *                   description: JWT access token
+ *                 refresh_token:
+ *                   type: string
+ *                   description: JWT refresh token
+ *                 user:
+ *                   type: object
+ *                   description: User information
  *       400:
  *         description: Invalid or expired OTP
  *       404:

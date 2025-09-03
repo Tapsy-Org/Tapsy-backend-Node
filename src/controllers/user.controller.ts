@@ -11,9 +11,7 @@ export default class UserController {
   static async register(req: Request, res: Response, next: NextFunction) {
     try {
       const {
-        idToken,
         firebase_token,
-        device_id,
         username,
         user_type,
         mobile_number,
@@ -28,7 +26,6 @@ export default class UserController {
         longitude,
         location,
         location_type,
-
         city,
         state,
         country,
@@ -53,17 +50,22 @@ export default class UserController {
         video_url = await uploadToS3(videoFile, 'video', tempKey);
       }
 
-      // INDIVIDUAL users must provide Firebase tokens
-      if (user_type === 'INDIVIDUAL' && (!idToken || !firebase_token)) {
-        throw new AppError('idToken and firebase_token are required for individual users', 400);
+      // INDIVIDUAL users must provide mobile number
+      if (user_type === 'INDIVIDUAL' && !mobile_number) {
+        throw new AppError('Mobile number is required for individual users', 400);
       }
 
-      // BUSINESS users can use mobile (need Firebase tokens) or email (no tokens required)
-      if (user_type === 'BUSINESS' && !((idToken && firebase_token) || email)) {
-        throw new AppError(
-          'Business users must provide mobile (with Firebase tokens) or email',
-          400,
-        );
+      // BUSINESS users can use mobile OR email (but not both)
+      if (user_type === 'BUSINESS') {
+        if (mobile_number && email) {
+          throw new AppError(
+            'Business users can register with either mobile number or email, not both',
+            400,
+          );
+        }
+        if (!mobile_number && !email) {
+          throw new AppError('Business users must provide either mobile number or email', 400);
+        }
       }
       let categoriesParsed = categories;
       let subcategoriesParsed = subcategories;
@@ -85,9 +87,7 @@ export default class UserController {
 
       // Call service to register
       const user = await userService.register({
-        idToken,
         firebase_token,
-        device_id,
         username,
         user_type,
         mobile_number,
@@ -117,17 +117,16 @@ export default class UserController {
 
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const { idToken, firebase_token, device_id, mobile_number, email } = req.body;
+      const { firebase_token, mobile_number, email } = req.body;
 
       // Validate required fields
-      if (!idToken && !mobile_number && !email) {
-        throw new AppError('Either idToken, mobile_number, or email is required for login', 400);
+      if (!mobile_number && !email) {
+        throw new AppError('Either mobile_number or email is required for login', 400);
       }
 
       const result = await userService.login({
-        idToken,
         firebase_token,
-        device_id,
+        mobile_number,
         email,
       });
 
@@ -161,7 +160,6 @@ export default class UserController {
       const otp = await userService.sendOtp({ email, mobile_number });
 
       return res.success({ otp }, 'OTP sent successfully');
-      // ⚠️ in prod don’t return OTP in response
     } catch (error) {
       next(error);
     }
