@@ -33,6 +33,9 @@ const router = Router();
  *         username:
  *           type: string
  *           description: Unique username
+ *         name:
+ *           type: string
+ *           description: User's display name
  *         # Location fields (for business users)
  *         address:
  *           type: string
@@ -118,6 +121,9 @@ const router = Router();
  *               username:
  *                 type: string
  *                 description: Unique username for the user
+ *               name:
+ *                 type: string
+ *                 description: User's display name
  *               address:
  *                 type: string
  *                 description: Business address (for business users only)
@@ -176,6 +182,7 @@ const router = Router();
  *                 user_type: "INDIVIDUAL"
  *                 mobile_number: "+1234567890"
  *                 username: "john_doe"
+ *                 name: "John Doe"
  *             business_mobile:
  *               summary: Business user registration with mobile number
  *               value:
@@ -183,6 +190,7 @@ const router = Router();
  *                 user_type: "BUSINESS"
  *                 mobile_number: "+1234567890"
  *                 username: "business_user"
+ *                 name: "Business Name"
  *             business_email:
  *               summary: Business user registration with email
  *               value:
@@ -190,6 +198,7 @@ const router = Router();
  *                 user_type: "BUSINESS"
  *                 email: "business@example.com"
  *                 username: "business_user"
+ *                 name: "Business Name"
  *                 address: "123 Business Street"
  *                 zip_code: "12345"
  *                 latitude: 40.7128

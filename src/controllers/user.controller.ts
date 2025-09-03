@@ -13,6 +13,7 @@ export default class UserController {
       const {
         firebase_token,
         username,
+        name,
         user_type,
         mobile_number,
         email,
@@ -89,6 +90,7 @@ export default class UserController {
       const user = await userService.register({
         firebase_token,
         username,
+        name,
         user_type,
         mobile_number,
         email,

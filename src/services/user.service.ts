@@ -84,6 +84,7 @@ export class UserService {
   async register(data: {
     firebase_token?: string;
     username: string;
+    name?: string;
     user_type?: UserType;
     mobile_number?: string;
     email?: string;
@@ -110,6 +111,7 @@ export class UserService {
       let userData: Prisma.UserCreateInput = {
         user_type: data.user_type || 'INDIVIDUAL',
         username: data.username,
+        name: data.name,
         status: 'PENDING',
         verification_method: 'MOBILE',
       };
