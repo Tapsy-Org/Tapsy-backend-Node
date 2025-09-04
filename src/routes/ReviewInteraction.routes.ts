@@ -2,6 +2,7 @@ import express from 'express';
 
 import ReviewInteractionController from '../controllers/ReviewInteraction.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
+import { commentLimiter, likeToggleLimiter } from '../middlewares/rateLimit.middleware';
 
 const router = express.Router();
 
@@ -194,7 +195,12 @@ const router = express.Router();
  *       500:
  *         description: Internal server error
  */
-router.post('/reviews/:reviewId/like', requireAuth(), ReviewInteractionController.toggleLike);
+router.post(
+  '/reviews/:reviewId/like',
+  likeToggleLimiter,
+  requireAuth(),
+  ReviewInteractionController.toggleLike,
+);
 
 /**
  * @swagger
@@ -361,7 +367,12 @@ router.get(
  *       500:
  *         description: Internal server error
  */
-router.post('/reviews/:reviewId/comments', requireAuth(), ReviewInteractionController.addComment);
+router.post(
+  '/reviews/:reviewId/comments',
+  commentLimiter,
+  requireAuth(),
+  ReviewInteractionController.addComment,
+);
 
 /**
  * @swagger
@@ -483,7 +494,12 @@ router.get(
  *       500:
  *         description: Internal server error
  */
-router.put('/comments/:commentId', requireAuth(), ReviewInteractionController.updateComment);
+router.put(
+  '/comments/:commentId',
+  commentLimiter,
+  requireAuth(),
+  ReviewInteractionController.updateComment,
+);
 
 /**
  * @swagger
@@ -533,7 +549,12 @@ router.put('/comments/:commentId', requireAuth(), ReviewInteractionController.up
  *       500:
  *         description: Internal server error
  */
-router.delete('/comments/:commentId', requireAuth(), ReviewInteractionController.deleteComment);
+router.delete(
+  '/comments/:commentId',
+  commentLimiter,
+  requireAuth(),
+  ReviewInteractionController.deleteComment,
+);
 
 /**
  * @swagger
@@ -664,6 +685,7 @@ router.get(
  */
 router.post(
   '/comments/:commentId/reply',
+  commentLimiter,
   requireAuth(),
   ReviewInteractionController.replyToComment,
 );

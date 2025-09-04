@@ -2,6 +2,12 @@ import express from 'express';
 
 import FollowController from '../controllers/follow.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
+import {
+  dataFetchLimiter,
+  followToggleLimiter,
+  mutualFollowersLimiter,
+  searchLimiter,
+} from '../middlewares/rateLimit.middleware';
 
 const router = express.Router();
 
@@ -233,7 +239,12 @@ const router = express.Router();
  *       500:
  *         description: Internal server error
  */
-router.post('/:followingUserId/toggle', requireAuth(), FollowController.toggleFollow);
+router.post(
+  '/:followingUserId/toggle',
+  followToggleLimiter,
+  requireAuth(),
+  FollowController.toggleFollow,
+);
 
 /**
  * @swagger
@@ -495,7 +506,12 @@ router.get('/:userId/counts', requireAuth(), FollowController.getFollowCounts);
  *       500:
  *         description: Internal server error
  */
-router.get('/mutual/:userId1/:userId2', requireAuth(), FollowController.getMutualFollowers);
+router.get(
+  '/mutual/:userId1/:userId2',
+  mutualFollowersLimiter,
+  requireAuth(),
+  FollowController.getMutualFollowers,
+);
 
 /**
  * @swagger
@@ -576,7 +592,7 @@ router.get('/mutual/:userId1/:userId2', requireAuth(), FollowController.getMutua
  *       500:
  *         description: Internal server error
  */
-router.get('/search', requireAuth(), FollowController.searchUsers);
+router.get('/search', searchLimiter, requireAuth(), FollowController.searchUsers);
 
 /**
  * @swagger
@@ -626,7 +642,7 @@ router.get('/search', requireAuth(), FollowController.searchUsers);
  *       500:
  *         description: Internal server error
  */
-router.get('/my/followers', requireAuth(), FollowController.getMyFollowers);
+router.get('/my/followers', dataFetchLimiter, requireAuth(), FollowController.getMyFollowers);
 
 /**
  * @swagger
@@ -676,7 +692,7 @@ router.get('/my/followers', requireAuth(), FollowController.getMyFollowers);
  *       500:
  *         description: Internal server error
  */
-router.get('/my/following', requireAuth(), FollowController.getMyFollowing);
+router.get('/my/following', dataFetchLimiter, requireAuth(), FollowController.getMyFollowing);
 
 /**
  * @swagger
@@ -710,6 +726,6 @@ router.get('/my/following', requireAuth(), FollowController.getMyFollowing);
  *       500:
  *         description: Internal server error
  */
-router.get('/my/counts', requireAuth(), FollowController.getMyFollowCounts);
+router.get('/my/counts', dataFetchLimiter, requireAuth(), FollowController.getMyFollowCounts);
 
 export default router;
