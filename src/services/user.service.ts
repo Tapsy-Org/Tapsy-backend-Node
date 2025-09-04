@@ -156,7 +156,8 @@ export class UserService {
         userData.status = 'PENDING';
 
         // Generate OTP and send SMS
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        // const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otp = '699420'; // Static OTP for testing - TODO: Replace with dynamic generation when Twilio is fixed
         const hashedOtp = await bcryptjs.hash(otp, 10);
         userData.otp = hashedOtp;
         userData.otp_expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
@@ -189,7 +190,8 @@ export class UserService {
           userData.status = 'PENDING';
 
           // Generate OTP and send SMS
-          const otp = Math.floor(100000 + Math.random() * 900000).toString();
+          // const otp = Math.floor(100000 + Math.random() * 900000).toString();
+          const otp = '699420'; // Static OTP for testing - TODO: Replace with dynamic generation when Twilio is fixed
           const hashedOtp = await bcryptjs.hash(otp, 10);
           userData.otp = hashedOtp;
           userData.otp_expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
@@ -298,7 +300,8 @@ export class UserService {
       }
 
       // Generate OTP for login verification
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      // const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = '699420'; // Static OTP for testing - TODO: Replace with dynamic generation when Twilio is fixed
       const hashedOtp = await bcryptjs.hash(otp, 10);
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -368,7 +371,8 @@ export class UserService {
       }
 
       // Generate OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      // const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = '699420'; // Static OTP for testing - TODO: Replace with dynamic generation when Twilio is fixed
       const hashedOtp = await bcryptjs.hash(otp, 10);
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
