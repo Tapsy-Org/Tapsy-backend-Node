@@ -2,7 +2,11 @@ import express from 'express';
 
 import ReviewInteractionController from '../controllers/ReviewInteraction.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
-import { commentLimiter, likeToggleLimiter } from '../middlewares/rateLimit.middleware';
+import {
+  commentLimiter,
+  dataFetchLimiter,
+  likeToggleLimiter,
+} from '../middlewares/rateLimit.middleware';
 
 const router = express.Router();
 
@@ -266,7 +270,12 @@ router.post(
  *       500:
  *         description: Internal server error
  */
-router.get('/reviews/:reviewId/likes', requireAuth(), ReviewInteractionController.getReviewLikes);
+router.get(
+  '/reviews/:reviewId/likes',
+  dataFetchLimiter,
+  requireAuth(),
+  ReviewInteractionController.getReviewLikes,
+);
 
 /**
  * @swagger
@@ -313,6 +322,7 @@ router.get('/reviews/:reviewId/likes', requireAuth(), ReviewInteractionControlle
  */
 router.get(
   '/reviews/:reviewId/like/check',
+  dataFetchLimiter,
   requireAuth(),
   ReviewInteractionController.checkUserLike,
 );
@@ -440,6 +450,7 @@ router.post(
  */
 router.get(
   '/reviews/:reviewId/comments',
+  dataFetchLimiter,
   requireAuth(),
   ReviewInteractionController.getReviewComments,
 );
@@ -622,6 +633,7 @@ router.delete(
  */
 router.get(
   '/comments/:commentId/replies',
+  dataFetchLimiter,
   requireAuth(),
   ReviewInteractionController.getCommentReplies,
 );
@@ -793,6 +805,7 @@ router.get(
  */
 router.get(
   '/reviews/:reviewId/comment-count',
+  dataFetchLimiter,
   requireAuth(),
   ReviewInteractionController.getReviewCommentCount,
 );

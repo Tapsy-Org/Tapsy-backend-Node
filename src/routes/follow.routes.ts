@@ -288,7 +288,12 @@ router.post(
  *       500:
  *         description: Internal server error
  */
-router.get('/:followingUserId/status', requireAuth(), FollowController.checkFollowStatus);
+router.get(
+  '/:followingUserId/status',
+  dataFetchLimiter,
+  requireAuth(),
+  FollowController.checkFollowStatus,
+);
 
 /**
  * @swagger
@@ -347,7 +352,7 @@ router.get('/:followingUserId/status', requireAuth(), FollowController.checkFoll
  *       500:
  *         description: Internal server error
  */
-router.get('/:userId/followers', requireAuth(), FollowController.getFollowers);
+router.get('/:userId/followers', dataFetchLimiter, requireAuth(), FollowController.getFollowers);
 
 /**
  * @swagger
@@ -406,7 +411,7 @@ router.get('/:userId/followers', requireAuth(), FollowController.getFollowers);
  *       500:
  *         description: Internal server error
  */
-router.get('/:userId/following', requireAuth(), FollowController.getFollowing);
+router.get('/:userId/following', dataFetchLimiter, requireAuth(), FollowController.getFollowing);
 
 /**
  * @swagger
@@ -450,7 +455,7 @@ router.get('/:userId/following', requireAuth(), FollowController.getFollowing);
  *       500:
  *         description: Internal server error
  */
-router.get('/:userId/counts', requireAuth(), FollowController.getFollowCounts);
+router.get('/:userId/counts', dataFetchLimiter, requireAuth(), FollowController.getFollowCounts);
 
 /**
  * @swagger

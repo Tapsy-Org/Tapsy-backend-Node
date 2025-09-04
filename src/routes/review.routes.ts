@@ -3,6 +3,7 @@ import multer from 'multer';
 
 import ReviewController from '../controllers/review.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
+import { dataFetchLimiter } from '../middlewares/rateLimit.middleware';
 
 const router = express.Router();
 
@@ -464,7 +465,7 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *       500:
  *         description: Internal server error
  */
-router.get('/', requireAuth(), ReviewController.getReviews);
+router.get('/', dataFetchLimiter, requireAuth(), ReviewController.getReviews);
 
 /**
  * @swagger
@@ -511,7 +512,7 @@ router.get('/', requireAuth(), ReviewController.getReviews);
  *       500:
  *         description: Internal server error
  */
-router.get('/:reviewId', requireAuth(), ReviewController.getReviewById);
+router.get('/:reviewId', dataFetchLimiter, requireAuth(), ReviewController.getReviewById);
 
 /**
  * @swagger
