@@ -589,30 +589,31 @@ router.get('/my/reviews', requireAuth(), ReviewController.getMyReviews);
  *           format: uuid
  *         required: true
  *         description: The review ID to update
- *       - in: body
- *         name: status
- *         required: true
- *         schema:
- *           type: object
- *           required:
- *             - status
- *           properties:
- *             status:
- *               $ref: '#/components/schemas/ReviewStatus'
- *               description: New status for the review
- *         examples:
- *           approve_review:
- *             summary: Approve a pending review
- *             value:
- *               status: "ACTIVE"
- *           deactivate_review:
- *             summary: Deactivate an active review
- *             value:
- *               status: "INACTIVE"
- *           reactivate_review:
- *             summary: Reactivate an inactive review
- *             value:
- *               status: "ACTIVE"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 $ref: '#/components/schemas/ReviewStatus'
+ *                 description: New status for the review
+ *           examples:
+ *             approve_review:
+ *               summary: Approve a pending review
+ *               value:
+ *                 status: "ACTIVE"
+ *             deactivate_review:
+ *               summary: Deactivate an active review
+ *               value:
+ *                 status: "INACTIVE"
+ *             reactivate_review:
+ *               summary: Reactivate an inactive review
+ *               value:
+ *                 status: "ACTIVE"
  *     responses:
  *       200:
  *         description: Review status updated successfully

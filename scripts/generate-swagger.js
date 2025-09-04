@@ -252,13 +252,13 @@ console.log('Swagger specification generated successfully at:', outputPath);
 console.log('Found', Object.keys(swaggerSpec.paths || {}).length, 'API endpoints');
 
 // Log all found endpoints
-if (swaggerSpec.paths) {
-  console.log('\nFound endpoints:');
-  Object.keys(swaggerSpec.paths).forEach(path => {
-    const methods = Object.keys(swaggerSpec.paths[path]);
-    console.log(`  ${path}: ${methods.join(', ')}`);
-  });
-}
+// if (swaggerSpec.paths) {
+//   console.log('\nFound endpoints:');
+//   Object.keys(swaggerSpec.paths).forEach(path => {
+//     const methods = Object.keys(swaggerSpec.paths[path]);
+//     console.log(`  ${path}: ${methods.join(', ')}`);
+//   });
+// }
 
 // Log all found tags
 if (swaggerSpec.tags) {
