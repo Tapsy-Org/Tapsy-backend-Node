@@ -751,6 +751,7 @@ router.post(
  */
 router.get(
   '/reviews/:reviewId/like-count',
+  dataFetchLimiter,
   requireAuth(),
   ReviewInteractionController.getReviewLikeCount,
 );
