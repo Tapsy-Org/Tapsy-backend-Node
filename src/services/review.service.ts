@@ -74,6 +74,7 @@ export class ReviewService {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },
@@ -198,6 +199,7 @@ export class ReviewService {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },
@@ -206,6 +208,7 @@ export class ReviewService {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },
@@ -343,6 +346,7 @@ export class ReviewService {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },
@@ -351,6 +355,7 @@ export class ReviewService {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },

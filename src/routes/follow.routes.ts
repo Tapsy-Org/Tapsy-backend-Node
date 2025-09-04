@@ -54,6 +54,9 @@ const router = express.Router();
  *           format: uuid
  *         username:
  *           type: string
+ *         name:
+ *           type: string
+ *           nullable: true
  *         user_type:
  *           type: string
  *           enum: [INDIVIDUAL, BUSINESS, ADMIN]
@@ -153,7 +156,6 @@ const router = express.Router();
  *       **Response includes:**
  *       - `action`: "followed" or "unfollowed"
  *       - `isFollowing`: boolean indicating current follow status
- *       - `follow`: complete follow object (only when action is "followed")
  *     tags: [Follow]
  *     security:
  *       - bearerAuth: []
@@ -192,9 +194,6 @@ const router = express.Router();
  *                     isFollowing:
  *                       type: boolean
  *                       example: true
- *                     follow:
- *                       $ref: '#/components/schemas/Follow'
- *                       description: Follow object (only present when action is "followed")
  *             examples:
  *               followed:
  *                 summary: User successfully followed
@@ -205,21 +204,6 @@ const router = express.Router();
  *                     action: "followed"
  *                     message: "Successfully followed user"
  *                     isFollowing: true
- *                     follow:
- *                       id: "follow-uuid"
- *                       followerId: "follower-uuid"
- *                       followingUserId: "following-uuid"
- *                       createdAt: "2024-01-15T10:30:00Z"
- *                       follower:
- *                         id: "follower-uuid"
- *                         username: "john_doe"
- *                         user_type: "INDIVIDUAL"
- *                         logo_url: "https://example.com/avatar.jpg"
- *                       following:
- *                         id: "following-uuid"
- *                         username: "jane_doe"
- *                         user_type: "BUSINESS"
- *                         logo_url: "https://example.com/business.jpg"
  *               unfollowed:
  *                 summary: User successfully unfollowed
  *                 value:

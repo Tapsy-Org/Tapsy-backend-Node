@@ -86,6 +86,9 @@ const router = express.Router();
  *           format: uuid
  *         username:
  *           type: string
+ *         name:
+ *           type: string
+ *           nullable: true
  *         user_type:
  *           type: string
  *           enum: [INDIVIDUAL, BUSINESS, ADMIN]

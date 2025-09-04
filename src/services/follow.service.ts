@@ -59,28 +59,10 @@ export class FollowService {
         };
       } else {
         // If not following, follow
-        const follow = await prisma.follow.create({
+        await prisma.follow.create({
           data: {
             followerId,
             followingUserId,
-          },
-          include: {
-            follower: {
-              select: {
-                id: true,
-                username: true,
-                user_type: true,
-                logo_url: true,
-              },
-            },
-            following: {
-              select: {
-                id: true,
-                username: true,
-                user_type: true,
-                logo_url: true,
-              },
-            },
           },
         });
 
@@ -88,7 +70,6 @@ export class FollowService {
           action: 'followed',
           message: 'Successfully followed user',
           isFollowing: true,
-          follow,
         };
       }
     } catch (error) {
@@ -148,6 +129,7 @@ export class FollowService {
               select: {
                 id: true,
                 username: true,
+                name: true,
                 user_type: true,
                 logo_url: true,
                 about: true,
@@ -201,6 +183,7 @@ export class FollowService {
               select: {
                 id: true,
                 username: true,
+                name: true,
                 user_type: true,
                 logo_url: true,
                 about: true,
@@ -292,6 +275,7 @@ export class FollowService {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
               about: true,
@@ -375,6 +359,7 @@ export class FollowService {
           select: {
             id: true,
             username: true,
+            name: true,
             user_type: true,
             logo_url: true,
             about: true,
