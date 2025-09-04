@@ -3,6 +3,7 @@ import multer from 'multer';
 
 import ReviewController from '../controllers/review.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
+import { Limiter } from '../middlewares/rateLimit';
 
 const router = express.Router();
 
@@ -828,7 +829,12 @@ router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewSt
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/my/business-reviews', requireAuth('BUSINESS'), ReviewController.getBusinessReviews);
+router.get(
+  '/my/business-reviews',
+  Limiter,
+  requireAuth('BUSINESS'),
+  ReviewController.getBusinessReviews,
+);
 
 /**
  * @swagger

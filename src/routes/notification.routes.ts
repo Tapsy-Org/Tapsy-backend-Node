@@ -1,23 +1,9 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
 
 import * as notificationController from '../controllers/notification.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
-
+import { Limiter } from '../middlewares/rateLimit';
 const router = Router();
-
-// Rate limiting configuration
-const notificationLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: {
-    status: 'fail',
-    message: 'Too many requests, please try again later.',
-    statusCode: 429,
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
 
 /**
  * @swagger
@@ -95,12 +81,7 @@ const notificationLimiter = rateLimit({
  *       500:
  *         description: Internal server error
  */
-router.post(
-  '/',
-  notificationLimiter,
-  requireAuth('ADMIN'),
-  notificationController.createNotification,
-);
+router.post('/', Limiter, requireAuth('ADMIN'), notificationController.createNotification);
 
 /**
  * @swagger
@@ -163,7 +144,7 @@ router.post(
  *       500:
  *         description: Internal server error
  */
-router.get('/my', notificationLimiter, requireAuth(), notificationController.getMyNotifications);
+router.get('/my', Limiter, requireAuth(), notificationController.getMyNotifications);
 /**
  * @swagger
  * /notifications/my/unread-count:
@@ -198,7 +179,7 @@ router.get('/my', notificationLimiter, requireAuth(), notificationController.get
 
 router.get(
   '/my/unread-count',
-  notificationLimiter,
+  Limiter,
   requireAuth(),
   notificationController.getUsersUnreadNotificationCount,
 );
@@ -245,7 +226,7 @@ router.get(
 // User route - mark own notification as read
 router.patch(
   '/my/:id/mark-read',
-  notificationLimiter,
+  Limiter,
   requireAuth(),
   notificationController.markMyNotificationAsRead,
 );
@@ -287,7 +268,7 @@ router.patch(
 // User route - mark all own notifications as read
 router.patch(
   '/my/mark-all-read',
-  notificationLimiter,
+  Limiter,
   requireAuth(),
   notificationController.markAllMyNotificationsAsRead,
 );
