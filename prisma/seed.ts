@@ -1,4 +1,4 @@
-import { PrismaClient, UserType, Status, VerificationMethod, CategoryAudience, NotificationType, NotificationStatus, SupportStatus, BillingCycle, SubscriptionStatus, PaymentMethod } from '@prisma/client';
+import { PrismaClient, CategoryAudience, NotificationType, NotificationStatus, SupportStatus, BillingCycle, SubscriptionStatus, PaymentMethod } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 
 // Node.js globals for seeding
@@ -312,8 +312,10 @@ async function seedFollows(users: any[]) {
   
   const individualUsers = users.filter(user => user.user_type === 'INDIVIDUAL');
   const businessUsers = users.filter(user => user.user_type === 'BUSINESS');
+  let totalFollows = 0;
+  const followData: { followerId: string; followingUserId: string }[] = [];
   
-  // Individual users follow other individual users
+  // Pre-generate all potential follows for individual users following other individuals
   for (const user of individualUsers) {
     const followCount = faker.number.int({ min: 0, max: 3 });
     const availableUsers = individualUsers.filter(u => u.id !== user.id);
@@ -326,22 +328,14 @@ async function seedFollows(users: any[]) {
     );
     
     for (const userToFollow of usersToFollow) {
-      try {
-        await prisma.follow.create({
-          data: {
-            followerId: user.id,
-            followingUserId: userToFollow.id,
-            followType: 'INDIVIDUAL'
-          }
-        });
-      } catch (error) {
-        // Skip if follow already exists (due to unique constraint)
-        console.log(`⚠️ Skipping duplicate follow: ${user.id} -> ${userToFollow.id}`);
-      }
+      followData.push({
+        followerId: user.id,
+        followingUserId: userToFollow.id
+      });
     }
   }
   
-  // Individual users follow businesses
+  // Pre-generate all potential follows for individual users following businesses
   for (const user of individualUsers) {
     const businessFollowCount = faker.number.int({ min: 0, max: 3 });
     const availableBusinesses = businessUsers.filter(b => b.id !== user.id);
@@ -354,22 +348,27 @@ async function seedFollows(users: any[]) {
     );
     
     for (const business of businessesToFollow) {
-      try {
-        await prisma.follow.create({
-          data: {
-            followerId: user.id,
-            followingUserId: business.id,
-            followType: 'BUSINESS'
-          }
-        });
-      } catch (error) {
-        // Skip if follow already exists (due to unique constraint)
-        console.log(`⚠️ Skipping duplicate follow: ${user.id} -> ${business.id}`);
-      }
+      followData.push({
+        followerId: user.id,
+        followingUserId: business.id
+      });
     }
   }
   
-  console.log('✅ Follows created successfully');
+  // Create follows in batches, handling unique constraint violations
+  for (const follow of followData) {
+    try {
+      await prisma.follow.create({
+        data: follow
+      });
+      totalFollows++;
+    } catch (error) {
+      // Skip if follow already exists (due to unique constraint)
+      // This is expected behavior, so we don't log it as an error
+    }
+  }
+  
+  console.log(`✅ Created ${totalFollows} follows successfully`);
 }
 
 async function seedPlans() {
@@ -463,33 +462,44 @@ async function seedSubscriptions(businessUsers: any[], plans: any[]) {
 async function seedLikes(users: any[], reviews: any[]) {
   console.log('❤️ Seeding likes...');
   
+  let totalLikes = 0;
+  const likeData: { userId: string; reviewId: string }[] = [];
+  
+  // Pre-generate all potential likes
   for (const review of reviews) {
     const likeCount = faker.number.int({ min: 0, max: 5 });
     const availableUsers = users.filter(u => u.id !== review.userId);
     
     if (availableUsers.length === 0) continue;
     
+    // Randomly select users to like this review
     const usersToLike = faker.helpers.arrayElements(
       availableUsers,
       Math.min(likeCount, availableUsers.length)
     );
     
     for (const user of usersToLike) {
-      try {
-        await prisma.like.create({
-          data: {
-            userId: user.id,
-            reviewId: review.id
-          }
-        });
-      } catch (error) {
-        // Skip if like already exists (due to unique constraint)
-        console.log(`⚠️ Skipping duplicate like: ${user.id} -> ${review.id}`);
-      }
+      likeData.push({
+        userId: user.id,
+        reviewId: review.id
+      });
     }
   }
   
-  console.log('✅ Likes created successfully');
+  // Create likes in batches, handling unique constraint violations
+  for (const like of likeData) {
+    try {
+      await prisma.like.create({
+        data: like
+      });
+      totalLikes++;
+    } catch (error) {
+      // Skip if like already exists (due to unique constraint)
+      // This is expected behavior, so we don't log it as an error
+    }
+  }
+  
+  console.log(`✅ Created ${totalLikes} likes successfully`);
 }
 
 async function seedComments(users: any[], reviews: any[]) {
@@ -763,30 +773,6 @@ async function main() {
     
     // Seed follows
     await seedFollows(allUsers);
-    
-    // Seed subscriptions (business users only)
-    await seedSubscriptions(businessUsers, plans);
-    
-    // Seed likes for reviews
-    await seedLikes(allUsers, reviews);
-    
-    // Seed comments and replies for reviews
-    await seedComments(allUsers, reviews);
-    
-    // Seed messages between users
-    await seedMessages(allUsers);
-    
-    // Seed business videos
-    await seedBusinessVideos(businessUsers);
-    
-    // Seed notifications
-    await seedNotifications(allUsers);
-    
-    // Seed support tickets
-    await seedSupportTickets(allUsers);
-    
-    // Seed recent searches
-    await seedRecentSearches(allUsers);
     
     // Seed subscriptions (business users only)
     await seedSubscriptions(businessUsers, plans);

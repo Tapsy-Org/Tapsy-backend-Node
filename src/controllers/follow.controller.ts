@@ -7,29 +7,7 @@ import AppError from '../utils/AppError';
 const followService = new FollowService();
 
 export default class FollowController {
-  static async followUser(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { followingUserId } = req.params;
-      const { followType = 'FOLLOW' } = req.body;
-      const followerId = req.user?.userId;
-
-      if (!followerId) {
-        throw new AppError('User not authenticated', 401);
-      }
-
-      if (!followingUserId) {
-        throw new AppError('User ID to follow is required', 400);
-      }
-
-      const result = await followService.followUser(followerId, followingUserId, followType);
-
-      return res.created(result, 'Successfully followed user');
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async unfollowUser(req: AuthRequest, res: Response, next: NextFunction) {
+  static async toggleFollow(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { followingUserId } = req.params;
       const followerId = req.user?.userId;
@@ -39,12 +17,12 @@ export default class FollowController {
       }
 
       if (!followingUserId) {
-        throw new AppError('User ID to unfollow is required', 400);
+        throw new AppError('User ID is required', 400);
       }
 
-      const result = await followService.unfollowUser(followerId, followingUserId);
+      const result = await followService.toggleFollow(followerId, followingUserId);
 
-      return res.success(result, 'Successfully unfollowed user');
+      return res.success(result, result.message);
     } catch (error) {
       next(error);
     }

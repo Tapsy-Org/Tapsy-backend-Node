@@ -38,10 +38,6 @@ const router = express.Router();
  *           type: string
  *           format: uuid
  *           description: ID of the user being followed
- *         followType:
- *           type: string
- *           description: Type of follow relationship
- *           example: "FOLLOW"
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -76,10 +72,6 @@ const router = express.Router();
  *         isFollowing:
  *           type: boolean
  *           description: Whether the user is following the target user
- *         followType:
- *           type: string
- *           nullable: true
- *           description: Type of follow relationship if following
  *         followedAt:
  *           type: string
  *           format: date-time
@@ -144,31 +136,24 @@ const router = express.Router();
  *           type: integer
  *         totalPages:
  *           type: integer
- *     FollowRequest:
- *       type: object
- *       properties:
- *         followType:
- *           type: string
- *           default: "FOLLOW"
- *           description: Type of follow relationship
- *           example: "FOLLOW"
  */
 
 /**
  * @swagger
- * /api/follow/{followingUserId}:
+ * /api/follow/{followingUserId}/toggle:
  *   post:
- *     summary: Follow a user
+ *     summary: Toggle follow/unfollow a user
  *     description: |
- *       Creates a follow relationship between the authenticated user and another user.
- *       Users cannot follow themselves.
- *       **Follow Types:**
- *       - `FOLLOW`: Standard follow relationship
- *       - Custom types can be defined for different follow categories
+ *       Toggles the follow relationship between the authenticated user and another user.
+ *       If the user is already being followed, this will unfollow them.
+ *       If the user is not being followed, this will follow them.
  *       **Validation:**
  *       - Both users must exist and be active
  *       - Cannot follow yourself
- *       - Cannot follow the same user twice
+ *       **Response includes:**
+ *       - `action`: "followed" or "unfollowed"
+ *       - `isFollowing`: boolean indicating current follow status
+ *       - `follow`: complete follow object (only when action is "followed")
  *     tags: [Follow]
  *     security:
  *       - bearerAuth: []
@@ -179,25 +164,10 @@ const router = express.Router();
  *           type: string
  *           format: uuid
  *         required: true
- *         description: ID of the user to follow
- *     requestBody:
- *       required: false
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/FollowRequest'
- *           examples:
- *             standard_follow:
- *               summary: Standard follow
- *               value:
- *                 followType: "FOLLOW"
- *             custom_follow:
- *               summary: Custom follow type
- *               value:
- *                 followType: "BUSINESS_PARTNER"
+ *         description: ID of the user to toggle follow status with
  *     responses:
- *       201:
- *         description: Successfully followed user
+ *       200:
+ *         description: Successfully toggled follow status
  *         content:
  *           application/json:
  *             schema:
@@ -210,7 +180,55 @@ const router = express.Router();
  *                   type: string
  *                   example: Successfully followed user
  *                 data:
- *                   $ref: '#/components/schemas/Follow'
+ *                   type: object
+ *                   properties:
+ *                     action:
+ *                       type: string
+ *                       enum: [followed, unfollowed]
+ *                       example: followed
+ *                     message:
+ *                       type: string
+ *                       example: Successfully followed user
+ *                     isFollowing:
+ *                       type: boolean
+ *                       example: true
+ *                     follow:
+ *                       $ref: '#/components/schemas/Follow'
+ *                       description: Follow object (only present when action is "followed")
+ *             examples:
+ *               followed:
+ *                 summary: User successfully followed
+ *                 value:
+ *                   status: "success"
+ *                   message: "Successfully followed user"
+ *                   data:
+ *                     action: "followed"
+ *                     message: "Successfully followed user"
+ *                     isFollowing: true
+ *                     follow:
+ *                       id: "follow-uuid"
+ *                       followerId: "follower-uuid"
+ *                       followingUserId: "following-uuid"
+ *                       createdAt: "2024-01-15T10:30:00Z"
+ *                       follower:
+ *                         id: "follower-uuid"
+ *                         username: "john_doe"
+ *                         user_type: "INDIVIDUAL"
+ *                         logo_url: "https://example.com/avatar.jpg"
+ *                       following:
+ *                         id: "following-uuid"
+ *                         username: "jane_doe"
+ *                         user_type: "BUSINESS"
+ *                         logo_url: "https://example.com/business.jpg"
+ *               unfollowed:
+ *                 summary: User successfully unfollowed
+ *                 value:
+ *                   status: "success"
+ *                   message: "Successfully unfollowed user"
+ *                   data:
+ *                     action: "unfollowed"
+ *                     message: "Successfully unfollowed user"
+ *                     isFollowing: false
  *       400:
  *         description: Bad request
  *         content:
@@ -231,59 +249,7 @@ const router = express.Router();
  *       500:
  *         description: Internal server error
  */
-router.post('/:followingUserId', requireAuth(), FollowController.followUser);
-
-/**
- * @swagger
- * /api/follow/{followingUserId}:
- *   delete:
- *     summary: Unfollow a user
- *     description: |
- *       Removes the follow relationship between the authenticated user and another user.
- *       Users can only unfollow their own follows.
- *     tags: [Follow]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: followingUserId
- *         schema:
- *           type: string
- *           format: uuid
- *         required: true
- *         description: ID of the user to unfollow
- *     responses:
- *       200:
- *         description: Successfully unfollowed user
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 message:
- *                   type: string
- *                   example: Successfully unfollowed user
- *                 data:
- *                   type: object
- *                   properties:
- *                     message:
- *                       type: string
- *                       example: Successfully unfollowed user
- *       400:
- *         description: Bad request - missing user ID
- *       401:
- *         description: Unauthorized - missing or invalid access token
- *       403:
- *         description: Forbidden - can only unfollow your own follows
- *       404:
- *         description: Follow relationship not found
- *       500:
- *         description: Internal server error
- */
-router.delete('/:followingUserId', requireAuth(), FollowController.unfollowUser);
+router.post('/:followingUserId/toggle', requireAuth(), FollowController.toggleFollow);
 
 /**
  * @swagger
@@ -564,7 +530,7 @@ router.get('/mutual/:userId1/:userId2', requireAuth(), FollowController.getMutua
  *       - Follow status: followers, following, not_following
  *       **Results Include:**
  *       - User details (username, type, logo, about)
- *       - Follow status (isFollowing, followType, followedAt)
+ *       - Follow status (isFollowing, followedAt)
  *     tags: [Follow]
  *     security:
  *       - bearerAuth: []

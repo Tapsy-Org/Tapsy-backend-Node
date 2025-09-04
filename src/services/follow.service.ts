@@ -4,7 +4,7 @@ import prisma from '../config/db';
 import AppError from '../utils/AppError';
 
 export class FollowService {
-  async followUser(followerId: string, followingUserId: string, followType: string = 'FOLLOW') {
+  async toggleFollow(followerId: string, followingUserId: string) {
     try {
       // Check if user is trying to follow themselves
       if (followerId === followingUserId) {
@@ -42,100 +42,60 @@ export class FollowService {
       });
 
       if (existingFollow) {
-        throw new AppError('Already following this user', 400);
+        // If already following, unfollow
+        await prisma.follow.delete({
+          where: {
+            followerId_followingUserId: {
+              followerId,
+              followingUserId,
+            },
+          },
+        });
+
+        return {
+          action: 'unfollowed',
+          message: 'Successfully unfollowed user',
+          isFollowing: false,
+        };
+      } else {
+        // If not following, follow
+        const follow = await prisma.follow.create({
+          data: {
+            followerId,
+            followingUserId,
+          },
+          include: {
+            follower: {
+              select: {
+                id: true,
+                username: true,
+                user_type: true,
+                logo_url: true,
+              },
+            },
+            following: {
+              select: {
+                id: true,
+                username: true,
+                user_type: true,
+                logo_url: true,
+              },
+            },
+          },
+        });
+
+        return {
+          action: 'followed',
+          message: 'Successfully followed user',
+          isFollowing: true,
+          follow,
+        };
       }
-
-      // Create follow relationship
-      const follow = await prisma.follow.create({
-        data: {
-          followerId,
-          followingUserId,
-          followType,
-        },
-        include: {
-          follower: {
-            select: {
-              id: true,
-              username: true,
-              user_type: true,
-              logo_url: true,
-            },
-          },
-          following: {
-            select: {
-              id: true,
-              username: true,
-              user_type: true,
-              logo_url: true,
-            },
-          },
-        },
-      });
-
-      return follow;
     } catch (error) {
       if (error instanceof AppError) {
         throw error;
       }
-      throw new AppError('Failed to follow user', 500, { originalError: error });
-    }
-  }
-
-  async unfollowUser(followerId: string, followingUserId: string) {
-    try {
-      // Check if follow relationship exists
-      const follow = await prisma.follow.findUnique({
-        where: {
-          followerId_followingUserId: {
-            followerId,
-            followingUserId,
-          },
-        },
-        include: {
-          follower: {
-            select: {
-              id: true,
-              username: true,
-              user_type: true,
-              logo_url: true,
-            },
-          },
-          following: {
-            select: {
-              id: true,
-              username: true,
-              user_type: true,
-              logo_url: true,
-            },
-          },
-        },
-      });
-
-      if (!follow) {
-        throw new AppError('Follow relationship not found', 404);
-      }
-
-      // Check if user is trying to unfollow their own follow
-      if (follow.followerId !== followerId) {
-        throw new AppError('You can only unfollow your own follows', 403);
-      }
-
-      // Delete follow relationship
-      await prisma.follow.delete({
-        where: {
-          followerId_followingUserId: {
-            followerId,
-            followingUserId,
-          },
-        },
-      });
-
-      return { message: 'Successfully unfollowed user' };
-    } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
-      throw new AppError('Failed to unfollow user', 500, { originalError: error });
+      throw new AppError('Failed to toggle follow status', 500, { originalError: error });
     }
   }
 
@@ -150,14 +110,12 @@ export class FollowService {
         },
         select: {
           id: true,
-          followType: true,
           createdAt: true,
         },
       });
 
       return {
         isFollowing: !!follow,
-        followType: follow?.followType || null,
         followedAt: follow?.createdAt || null,
       };
     } catch (error) {

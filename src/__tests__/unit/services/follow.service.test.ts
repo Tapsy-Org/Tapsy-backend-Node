@@ -51,7 +51,6 @@ describe('FollowService', () => {
         id: 'follow-123',
         followerId: mockFollowerId,
         followingUserId: mockFollowingUserId,
-        followType: 'FOLLOW',
         createdAt: new Date(),
         follower: {
           id: mockFollowerId,
@@ -68,14 +67,13 @@ describe('FollowService', () => {
       };
       mockPrisma.follow.create.mockResolvedValue(mockFollow as any);
 
-      const result = await followService.followUser(mockFollowerId, mockFollowingUserId);
+      const result = await followService.toggleFollow(mockFollowerId, mockFollowingUserId);
 
       expect(result).toEqual(mockFollow);
       expect(mockPrisma.follow.create).toHaveBeenCalledWith({
         data: {
           followerId: mockFollowerId,
           followingUserId: mockFollowingUserId,
-          followType: 'FOLLOW',
         },
         include: {
           follower: {
@@ -99,7 +97,7 @@ describe('FollowService', () => {
     });
 
     it('should throw error if user tries to follow themselves', async () => {
-      await expect(followService.followUser(mockFollowerId, mockFollowerId)).rejects.toThrow(
+      await expect(followService.toggleFollow(mockFollowerId, mockFollowerId)).rejects.toThrow(
         new AppError('Users cannot follow themselves', 400),
       );
     });
@@ -107,7 +105,7 @@ describe('FollowService', () => {
     it('should throw error if follower not found', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(followService.followUser(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
+      await expect(followService.toggleFollow(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
         new AppError('Follower not found or inactive', 404),
       );
     });
@@ -120,7 +118,7 @@ describe('FollowService', () => {
         } as any)
         .mockResolvedValueOnce(null);
 
-      await expect(followService.followUser(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
+      await expect(followService.toggleFollow(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
         new AppError('User to follow not found or inactive', 404),
       );
     });
@@ -140,7 +138,7 @@ describe('FollowService', () => {
         id: 'existing-follow',
       } as any);
 
-      await expect(followService.followUser(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
+      await expect(followService.toggleFollow(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
         new AppError('Already following this user', 400),
       );
     });
@@ -174,7 +172,7 @@ describe('FollowService', () => {
       // Mock follow deletion
       mockPrisma.follow.delete.mockResolvedValue(mockFollow as any);
 
-      const result = await followService.unfollowUser(mockFollowerId, mockFollowingUserId);
+      const result = await followService.toggleFollow(mockFollowerId, mockFollowingUserId);
 
       expect(result).toEqual({ message: 'Successfully unfollowed user' });
       expect(mockPrisma.follow.delete).toHaveBeenCalledWith({
@@ -190,7 +188,7 @@ describe('FollowService', () => {
     it('should throw error if follow relationship not found', async () => {
       mockPrisma.follow.findUnique.mockResolvedValue(null);
 
-      await expect(followService.unfollowUser(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
+      await expect(followService.toggleFollow(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
         new AppError('Follow relationship not found', 404),
       );
     });
@@ -203,7 +201,7 @@ describe('FollowService', () => {
       };
       mockPrisma.follow.findUnique.mockResolvedValue(mockFollow as any);
 
-      await expect(followService.unfollowUser(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
+      await expect(followService.toggleFollow(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
         new AppError('You can only unfollow your own follows', 403),
       );
     });
@@ -216,7 +214,6 @@ describe('FollowService', () => {
     it('should return follow status when following', async () => {
       const mockFollow = {
         id: 'follow-123',
-        followType: 'FOLLOW',
         createdAt: new Date('2024-01-01'),
       };
       mockPrisma.follow.findUnique.mockResolvedValue(mockFollow as any);
@@ -225,7 +222,6 @@ describe('FollowService', () => {
 
       expect(result).toEqual({
         isFollowing: true,
-        followType: 'FOLLOW',
         followedAt: mockFollow.createdAt,
       });
     });
@@ -237,7 +233,6 @@ describe('FollowService', () => {
 
       expect(result).toEqual({
         isFollowing: false,
-        followType: null,
         followedAt: null,
       });
     });
@@ -371,7 +366,6 @@ describe('FollowService', () => {
       // Mock follow status check
       jest.spyOn(followService, 'checkFollowStatus').mockResolvedValue({
         isFollowing: false,
-        followType: null,
         followedAt: null,
       });
 
