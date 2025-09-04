@@ -4,9 +4,11 @@
   "description": "Backend server for the Tapsy project, built with Node.js, Express.js, TypeScript, PostgreSQL, and Prisma ORM.",
   "main": "server.js",
   "scripts": {
-    "dev": "cross-env NODE_ENV=development npm run swagger:generate && nodemon",
+    "dev": "cross-env NODE_ENV=development node scripts/dev-start.js",
+    "dev:simple": "cross-env NODE_ENV=development npm run swagger:generate && nodemon",
     "build": "tsc && npm run swagger:generate",
-    "swagger:generate": "node  scripts/generate-swagger.js",
+    "swagger:generate": "node scripts/generate-swagger.js",
+    "swagger:watch": "nodemon --watch src/routes --ext ts --exec \"npm run swagger:generate\"",
     "db:generate": "prisma generate",
     "start": "npm run build && cross-env NODE_ENV=production node dist/server.js",
     "db:dev:deploy": "cross-env NODE_ENV=development dotenv -e .env.development -- prisma db push",

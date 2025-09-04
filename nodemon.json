@@ -1,6 +1,11 @@
 {
     "watch": ["src"],
     "ext": "ts",
-    "exec": "ts-node ./src/server.ts"
+    "exec": "npm run swagger:generate && ts-node ./src/server.ts",
+    "events": {
+      "restart": "echo '\n🔄 Regenerating Swagger docs and restarting server...\n'"
+    },
+    "ignore": ["dist/*", "node_modules/*", "*.test.ts"],
+    "delay": "1000"
   }
   
