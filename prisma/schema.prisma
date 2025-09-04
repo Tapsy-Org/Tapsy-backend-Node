@@ -103,7 +103,7 @@ model User {
   mobile_number       String?            @unique
   email               String?            @unique 
   username            String
-  device_id           String?
+  name                String?
   status              Status
   last_login          DateTime?
   createdAt           DateTime           @default(now())

@@ -115,7 +115,7 @@ async function seedBusinessUsers() {
           mobile_number: faker.phone.number(),
           email: faker.internet.email(),
           username: faker.company.name(),
-          device_id: faker.string.uuid(),
+          name: faker.company.name(),
           status: faker.helpers.arrayElement(['ACTIVE', 'ACTIVE', 'ACTIVE', 'PENDING']), // Mostly active
           last_login: faker.date.recent({ days: 30 }),
           firebase_token: faker.string.uuid(),
@@ -130,7 +130,7 @@ async function seedBusinessUsers() {
       
       businessUsers.push(businessUser);
     } catch (error) {
-      console.log(`⚠️ Skipping business user creation: ${error}`);
+      console.log(`Skipping business user creation: ${error}`);
     }
   }
   
@@ -139,7 +139,7 @@ async function seedBusinessUsers() {
 }
 
 async function seedIndividualUsers() {
-  console.log('👤 Seeding individual users...');
+  console.log('Seeding individual users...');
   
   const individualUsers: any[] = [];
   
@@ -151,7 +151,7 @@ async function seedIndividualUsers() {
           mobile_number: faker.phone.number(),
           email: faker.internet.email(),
           username: faker.internet.username(),
-          device_id: faker.string.uuid(),
+          name: faker.person.fullName(),
           status: faker.helpers.arrayElement(['ACTIVE', 'ACTIVE', 'ACTIVE', 'PENDING']), // Mostly active
           last_login: faker.date.recent({ days: 30 }),
           firebase_token: faker.string.uuid(),
@@ -173,9 +173,6 @@ async function seedIndividualUsers() {
 }
 
 async function assignCategoriesToUsers(businessUsers: any[], individualUsers: any[], categories: any[]) {
-  console.log('🏷️ Seeding user categories...');
-  
-  // Assign categories to business users
   for (const businessUser of businessUsers) {
     const businessCategories = categories.filter(cat => 
       cat.audience === 'BUSINESS' || cat.audience === 'BOTH'
@@ -239,7 +236,7 @@ async function assignCategoriesToUsers(businessUsers: any[], individualUsers: an
 }
 
 async function seedLocations(users: any[]) {
-  console.log('📍 Seeding user locations...');
+  console.log('Seeding user locations...');
   
   for (const user of users) {
     const locationCount = faker.number.int({ min: 1, max: 2 });
@@ -265,7 +262,7 @@ async function seedLocations(users: any[]) {
 }
 
 async function seedReviews(users: any[]) {
-  console.log('⭐ Seeding reviews...');
+  console.log('Seeding reviews...');
   
   const businessUsers = users.filter(user => user.user_type === 'BUSINESS');
   const individualUsers = users.filter(user => user.user_type === 'INDIVIDUAL');
@@ -311,7 +308,7 @@ async function seedReviews(users: any[]) {
 }
 
 async function seedFollows(users: any[]) {
-  console.log('👥 Seeding follows...');
+  console.log('Seeding follows...');
   
   const individualUsers = users.filter(user => user.user_type === 'INDIVIDUAL');
   const businessUsers = users.filter(user => user.user_type === 'BUSINESS');
@@ -742,7 +739,7 @@ async function seedRecentSearches(users: any[]) {
 
 async function main() {
   try {
-    console.log('🌱 Starting seeding process...');
+    console.log('Starting seeding process...');
     
     await clearDatabase();
     
@@ -791,8 +788,32 @@ async function main() {
     // Seed recent searches
     await seedRecentSearches(allUsers);
     
-    console.log('🎯 All seeding completed successfully!');
-    console.log(`📊 Summary:`);
+    // Seed subscriptions (business users only)
+    await seedSubscriptions(businessUsers, plans);
+    
+    // Seed likes for reviews
+    await seedLikes(allUsers, reviews);
+    
+    // Seed comments and replies for reviews
+    await seedComments(allUsers, reviews);
+    
+    // Seed messages between users
+    await seedMessages(allUsers);
+    
+    // Seed business videos
+    await seedBusinessVideos(businessUsers);
+    
+    // Seed notifications
+    await seedNotifications(allUsers);
+    
+    // Seed support tickets
+    await seedSupportTickets(allUsers);
+    
+    // Seed recent searches
+    await seedRecentSearches(allUsers);
+    
+    console.log('All seeding completed successfully!');
+    console.log(`Summary:`);
     console.log(`   - Categories: ${await prisma.category.count()}`);
     console.log(`   - Business Users: ${businessUsers.length}`);
     console.log(`   - Individual Users: ${individualUsers.length}`);
