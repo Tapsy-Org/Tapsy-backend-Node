@@ -1,18 +1,14 @@
-import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER, // Gmail address
-    pass: process.env.EMAIL_PASS, // App Password (not your real Gmail password)
-  },
-});
+// Initialize SendGrid with API key
+sgMail.setApiKey(process.env.SG_API_KEY!);
+const FROM_EMAIL = process.env.FROM_EMAIL!;
 
 export const sendOtpEmail = async (to: string, otp: string) => {
-  const mailOptions = {
-    from: `"Tapsy Support" <${process.env.EMAIL_USER}>`,
+  const msg = {
     to,
-    subject: '🔐 Your Tapsy OTP Code',
+    from: FROM_EMAIL,
+    subject: 'Your Tapsy OTP Code',
     text: `Hello, your One-Time Password (OTP) is: ${otp}. This code will expire in 10 minutes. 
 If you did not request this, please ignore this email.`,
     html: `
@@ -30,7 +26,7 @@ If you did not request this, please ignore this email.`,
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    await sgMail.send(msg);
     console.log(`✅ OTP email sent successfully to ${to}`);
   } catch (error) {
     console.error('❌ Error sending OTP email:', error);

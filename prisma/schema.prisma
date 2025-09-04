@@ -104,7 +104,7 @@ model User {
   email               String?            @unique 
   username            String
   avatarUrl           String?
-  device_id           String?
+  name                String?
   status              Status
   last_login          DateTime?
   createdAt           DateTime           @default(now())
