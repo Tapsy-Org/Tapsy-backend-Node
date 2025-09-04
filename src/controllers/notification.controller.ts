@@ -1,6 +1,9 @@
+import { NotificationType } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 
 import * as notificationService from '../services/notification.service';
+import { AuthRequest } from '../types/express';
+import AppError from '../utils/AppError';
 
 export async function createNotification(req: Request, res: Response, next: NextFunction) {
   try {
@@ -11,37 +14,74 @@ export async function createNotification(req: Request, res: Response, next: Next
   }
 }
 
-export async function getNotifications(req: Request, res: Response, next: NextFunction) {
+export async function getMyNotifications(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const notifications = await notificationService.getNotifications(req.params.userId);
-    res.success(notifications, 'Notifications retrieved successfully');
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new AppError('User not authenticated', 401);
+    }
+
+    const { page = '1', limit = '20', type } = req.query;
+
+    const filters = {
+      page: parseInt(page as string, 10),
+      limit: parseInt(limit as string, 10),
+      type: type as NotificationType,
+    };
+
+    const notifications = await notificationService.getNotificationsWithFilters(userId, filters);
+    res.success(notifications, 'Your notifications retrieved successfully');
   } catch (error) {
     next(error);
   }
 }
 
-export async function getUnreadCount(req: Request, res: Response, next: NextFunction) {
+export async function getUsersUnreadNotificationCount(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
-    const unreadCount = await notificationService.getUnreadCount(req.params.userId);
-    res.success(unreadCount, 'Unread count retrieved successfully');
+    const userId = req.params.userId;
+    const count = await notificationService.getUnreadNotificationCount(userId);
+    res.success(count, 'Unread count retrieved successfully');
   } catch (error) {
     next(error);
   }
 }
 
-export async function markAsRead(req: Request, res: Response, next: NextFunction) {
+export async function markMyNotificationAsRead(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) {
   try {
-    const notification = await notificationService.markAsRead(req.params.id);
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new AppError('User not authenticated', 401);
+    }
+
+    const { id } = req.params;
+    const notification = await notificationService.markAsReadForUser(id, userId);
     res.success(notification, 'Notification marked as read successfully');
   } catch (error) {
     next(error);
   }
 }
 
-export async function markAllAsRead(req: Request, res: Response, next: NextFunction) {
+export async function markAllMyNotificationsAsRead(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) {
   try {
-    const notification = await notificationService.markAllAsRead(req.params.userId);
-    res.success(notification, 'All notifications marked as read successfully');
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new AppError('User not authenticated', 401);
+    }
+
+    const result = await notificationService.markAllAsReadforUser(userId);
+    res.success(result, 'All notifications marked as read successfully');
   } catch (error) {
     next(error);
   }

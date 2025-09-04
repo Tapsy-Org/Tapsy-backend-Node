@@ -173,7 +173,31 @@ export default class ReviewController {
 
   static async getReviews(req: Request, res: Response, next: NextFunction) {
     try {
-      const { userId, businessId, rating, page = '1', limit = '10' } = req.query;
+      const {
+        userId,
+        businessId,
+        rating,
+        page = '1',
+        limit = '10',
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        search,
+      } = req.query;
+
+      // Validate sortBy parameter
+      const validSortFields = ['createdAt', 'views', 'rating'];
+      const validSortOrder = ['asc', 'desc'];
+
+      if (sortBy && !validSortFields.includes(sortBy as string)) {
+        throw new AppError(
+          'Invalid sortBy parameter. Must be one of: createdAt, views, rating',
+          400,
+        );
+      }
+
+      if (sortOrder && !validSortOrder.includes(sortOrder as string)) {
+        throw new AppError('Invalid sortOrder parameter. Must be one of: asc, desc', 400);
+      }
 
       const filters = {
         userId: userId as string,
@@ -181,6 +205,9 @@ export default class ReviewController {
         rating: rating as ReviewRating,
         page: parseInt(page as string, 10),
         limit: parseInt(limit as string, 10),
+        sortBy: sortBy as 'createdAt' | 'views' | 'rating',
+        sortOrder: sortOrder as 'asc' | 'desc',
+        search: search as string,
       };
 
       const result = await reviewService.getReviews(filters);
@@ -288,42 +315,48 @@ export default class ReviewController {
 
   static async getBusinessReviews(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { businessId } = req.params;
-      const { page = '1', limit = '5', status } = req.query;
-      const userId = req.user?.userId;
+      const {
+        page = '1',
+        limit = '5',
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        search,
+        status,
+      } = req.query;
 
-      if (!userId) {
+      const businessId = req.user?.userId;
+
+      if (!businessId) {
         throw new AppError('User not authenticated', 401);
       }
 
-      if (!businessId) {
-        throw new AppError('Business ID is required', 400);
+      // Validate sortBy parameter
+      const validSortFields = ['createdAt', 'views', 'rating'];
+      const validSortOrder = ['asc', 'desc'];
+
+      if (sortBy && !validSortFields.includes(sortBy as string)) {
+        throw new AppError(
+          'Invalid sortBy parameter. Must be one of: createdAt, views, rating',
+          400,
+        );
       }
 
-      // Validate business ID format
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(businessId)) {
-        throw new AppError('Invalid business ID format. Must be a valid UUID', 400);
-      }
-
-      // Validate status if provided
-      if (status && typeof status === 'string') {
-        const validStatuses = ['ACTIVE', 'PENDING', 'INACTIVE'];
-        if (!validStatuses.includes(status)) {
-          throw new AppError('Invalid status value. Must be ACTIVE, PENDING, or INACTIVE', 400);
-        }
+      if (sortOrder && !validSortOrder.includes(sortOrder as string)) {
+        throw new AppError('Invalid sortOrder parameter. Must be one of: asc, desc', 400);
       }
 
       const filters = {
         page: parseInt(page as string, 10),
         limit: parseInt(limit as string, 10),
-        status: status as Status,
+        sortBy: sortBy as 'createdAt' | 'views' | 'rating',
+        sortOrder: sortOrder as 'asc' | 'desc',
+        search: search as string,
+        status: status as Status, // Will be validated in service
       };
 
       const result = await reviewService.getBusinessReviews(businessId, filters);
 
-      return res.success(result, 'Business reviews fetched successfully');
+      return res.success(result, 'Your business reviews fetched successfully');
     } catch (error) {
       next(error);
     }

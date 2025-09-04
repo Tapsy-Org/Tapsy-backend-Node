@@ -108,10 +108,13 @@ export class ReviewService {
       status?: Status;
       page?: number;
       limit?: number;
+      sortBy?: 'createdAt' | 'views' | 'rating';
+      sortOrder?: 'asc' | 'desc';
+      search?: string;
     } = {},
   ) {
     try {
-      const { userId, businessId, rating, status, page = 1, limit = 10 } = filters;
+      const { userId, businessId, rating, status, page = 1, limit = 10, search } = filters;
       const skip = (page - 1) * limit;
 
       const where: Prisma.ReviewWhereInput = {};
@@ -133,6 +136,15 @@ export class ReviewService {
         where.status = status;
       } else {
         where.status = { in: ['ACTIVE', 'PENDING'] };
+      }
+
+      // Add search functionality
+      if (search) {
+        where.OR = [
+          { title: { contains: search, mode: 'insensitive' } },
+          { caption: { contains: search, mode: 'insensitive' } },
+          { hashtags: { has: search } },
+        ];
       }
 
       const [reviews, total] = await Promise.all([
@@ -386,10 +398,13 @@ export class ReviewService {
       page?: number;
       limit?: number;
       status?: Status;
+      sortBy?: 'createdAt' | 'views' | 'rating';
+      sortOrder?: 'asc' | 'desc';
+      search?: string;
     } = {},
   ) {
     try {
-      const { page = 1, limit = 5, status } = filters;
+      const { page = 1, limit = 5, status, search } = filters;
       const skip = (page - 1) * limit;
 
       // Validate business exists
@@ -408,8 +423,17 @@ export class ReviewService {
 
       const where: Prisma.ReviewWhereInput = {
         businessId,
-        status: status ? status : { not: 'DELETED' },
+        status: status ? status : 'ACTIVE',
       };
+
+      // Add search functionality
+      if (search) {
+        where.OR = [
+          { title: { contains: search, mode: 'insensitive' } },
+          { caption: { contains: search, mode: 'insensitive' } },
+          { hashtags: { has: search } },
+        ];
+      }
 
       const [reviews, total] = await Promise.all([
         prisma.review.findMany({
@@ -420,7 +444,6 @@ export class ReviewService {
                 id: true,
                 username: true,
                 user_type: true,
-                logo_url: true,
               },
             },
             business: {

@@ -173,31 +173,34 @@ curl -H "Authorization: Bearer <access_token>" \
   "http://localhost:3000/reviews/my/reviews?page=1&limit=10"
 ```
 
-### 5. Get Business Reviews
+### 5. Get My Business Reviews
 
-**GET** `/reviews/business/:businessId`
+**GET** `/reviews/my/business-reviews`
 
-Retrieves all reviews for a specific business with pagination support. Default limit is 5 reviews per page.
+Retrieves all reviews for the authenticated business user with pagination support. Default limit is 5 reviews per page.
 
 **Headers:**
-- `Authorization: Bearer <access_token>` (required)
+- `Authorization: Bearer <access_token>` (required - BUSINESS user type)
 
 **Query Parameters:**
 - `page` (optional): Page number (default: 1)
 - `limit` (optional): Items per page (default: 5, max: 100)
-- `status` (optional): Filter by status (ACTIVE, PENDING, INACTIVE)
+- `status` (optional): Filter by status (ACTIVE, INACTIVE, PENDING, DELETED)
+- `sortBy` (optional): Sort by field (createdAt, views, rating)
+- `sortOrder` (optional): Sort order (asc, desc)
+- `search` (optional): Search in title, caption, or hashtags
 
 **Example Request:**
 ```bash
-curl -H "Authorization: Bearer <access_token>" \
-  "http://localhost:3000/reviews/business/business-uuid-123?page=1&limit=5&status=ACTIVE"
+curl -H "Authorization: Bearer <business_access_token>" \
+  "http://localhost:3000/reviews/my/business-reviews?page=1&limit=5&status=ACTIVE&sortBy=createdAt&sortOrder=desc"
 ```
 
 **Response (200 OK):**
 ```json
 {
   "status": "success",
-  "message": "Business reviews fetched successfully",
+  "message": "Your business reviews fetched successfully",
   "data": {
     "reviews": [
       {
@@ -334,6 +337,25 @@ curl -X DELETE \
 }
 ```
 
+**Video Upload Errors:**
+```json
+{
+  "status": "fail",
+  "statusCode": 400,
+  "message": "Invalid file type. Only video files are allowed",
+  "details": null
+}
+```
+
+```json
+{
+  "status": "fail",
+  "statusCode": 400,
+  "message": "File too large. Maximum size is 100MB",
+  "details": null
+}
+```
+
 ### 500 Internal Server Error
 ```json
 {
@@ -389,7 +411,9 @@ interface UserSummary {
 
 ## Rate Limiting
 
-Currently, no rate limiting is implemented. Consider implementing rate limiting for production use.
+Rate limiting is implemented for all review endpoints:
+- **General endpoints**: 100 requests per 15 minutes per IP
+- **Sensitive operations**: 20 requests per 15 minutes per IP
 
 ## Security Considerations
 

@@ -1,9 +1,23 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 
 import * as notificationController from '../controllers/notification.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
 
 const router = Router();
+
+// Rate limiting configuration
+const notificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    status: 'fail',
+    message: 'Too many requests, please try again later.',
+    statusCode: 429,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
  * @swagger
@@ -81,24 +95,43 @@ const router = Router();
  *       500:
  *         description: Internal server error
  */
-router.post('/', requireAuth('ADMIN'), notificationController.createNotification);
+router.post(
+  '/',
+  notificationLimiter,
+  requireAuth('ADMIN'),
+  notificationController.createNotification,
+);
 
 /**
  * @swagger
- * /notifications/{userId}:
+ * /notifications/my:
  *   get:
- *     summary: Get all notifications for a user
+ *     summary: Get my notifications
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *         example: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of notifications per page
+ *         example: 20
+ *       - in: query
+ *         name: type
  *         schema:
  *           type: string
- *         description: ID of the user
- *         example: "user123"
+ *           enum: [LIKE, COMMENT, FOLLOW, MENTION, MESSAGE, SYSTEM]
+ *         description: Filter notifications by type
+ *         example: "LIKE"
  *     responses:
  *       200:
  *         description: Notifications retrieved successfully
@@ -112,38 +145,33 @@ router.post('/', requireAuth('ADMIN'), notificationController.createNotification
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Notifications retrieved successfully"
+ *                   example: "Your notifications retrieved successfully"
  *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Notification'
+ *                   type: object
+ *                   properties:
+ *                     notifications:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Notification'
+ *                     nextCursor:
+ *                       type: string
+ *                       nullable: true
+ *                       description: Cursor for pagination
+ *                       example: "notification123"
  *       401:
  *         description: Unauthorized - Invalid or missing token
- *       403:
- *         description: Forbidden - Admin access required
- *       404:
- *         description: User not found
  *       500:
  *         description: Internal server error
  */
-router.get('/:userId', requireAuth('ADMIN'), notificationController.getNotifications);
-
+router.get('/my', notificationLimiter, requireAuth(), notificationController.getMyNotifications);
 /**
  * @swagger
- * /notifications/{userId}/unread-count:
+ * /notifications/my/unread-count:
  *   get:
- *     summary: Get unread notification count for a user
+ *     summary: Get my unread notification count
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID of the user
- *         example: "user123"
  *     responses:
  *       200:
  *         description: Unread count retrieved successfully
@@ -164,20 +192,22 @@ router.get('/:userId', requireAuth('ADMIN'), notificationController.getNotificat
  *                   example: 5
  *       401:
  *         description: Unauthorized - Invalid or missing token
- *       403:
- *         description: Forbidden - Admin access required
- *       404:
- *         description: User not found
  *       500:
  *         description: Internal server error
  */
-router.get('/:userId/unread-count', requireAuth('ADMIN'), notificationController.getUnreadCount);
+
+router.get(
+  '/my/unread-count',
+  notificationLimiter,
+  requireAuth(),
+  notificationController.getUsersUnreadNotificationCount,
+);
 
 /**
  * @swagger
- * /notifications/{id}/mark-read:
+ * /notifications/my/{id}/mark-read:
  *   patch:
- *     summary: Mark a notification as read
+ *     summary: Mark my notification as read
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
@@ -207,31 +237,27 @@ router.get('/:userId/unread-count', requireAuth('ADMIN'), notificationController
  *                   $ref: '#/components/schemas/Notification'
  *       401:
  *         description: Unauthorized - Invalid or missing token
- *       403:
- *         description: Forbidden - Admin access required
  *       404:
  *         description: Notification not found
  *       500:
  *         description: Internal server error
  */
-router.patch('/:id/mark-read', requireAuth('ADMIN'), notificationController.markAsRead);
+// User route - mark own notification as read
+router.patch(
+  '/my/:id/mark-read',
+  notificationLimiter,
+  requireAuth(),
+  notificationController.markMyNotificationAsRead,
+);
 
 /**
  * @swagger
- * /notifications/{userId}/mark-all-read:
+ * /notifications/my/mark-all-read:
  *   patch:
- *     summary: Mark all notifications as read for a user
+ *     summary: Mark all my notifications as read
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID of the user
- *         example: "user123"
  *     responses:
  *       200:
  *         description: All notifications marked as read successfully
@@ -255,14 +281,16 @@ router.patch('/:id/mark-read', requireAuth('ADMIN'), notificationController.mark
  *                       example: 5
  *       401:
  *         description: Unauthorized - Invalid or missing token
- *       403:
- *         description: Forbidden - Admin access required
- *       404:
- *         description: User not found
  *       500:
  *         description: Internal server error
  */
-router.patch('/:userId/mark-all-read', requireAuth('ADMIN'), notificationController.markAllAsRead);
+// User route - mark all own notifications as read
+router.patch(
+  '/my/mark-all-read',
+  notificationLimiter,
+  requireAuth(),
+  notificationController.markAllMyNotificationsAsRead,
+);
 
 /**
  * @swagger

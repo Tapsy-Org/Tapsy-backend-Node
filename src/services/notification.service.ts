@@ -1,4 +1,4 @@
-import { NotificationStatus, NotificationType } from '@prisma/client'; // import enums
+import { NotificationStatus, NotificationType, Prisma } from '@prisma/client'; // import enums
 
 import prisma from '../config/db';
 import { io, onlineUsers } from '../server';
@@ -53,29 +53,71 @@ export async function createNotification(data: {
   return notification;
 }
 
-export async function getNotifications(userId: string) {
-  return prisma.notification.findMany({
-    where: { userId },
+export async function getNotificationsWithFilters(
+  userId: string,
+  filters: {
+    limit?: number; // how many notifications to fetch
+    cursor?: string; // the last notification id from previous fetch
+    type?: NotificationType;
+  } = {},
+) {
+  const { limit = 20, cursor, type } = filters;
+
+  const where: Prisma.NotificationWhereInput = { userId, is_read: false };
+
+  if (type) {
+    where.type = type;
+  }
+
+  const notifications = await prisma.notification.findMany({
+    where,
     orderBy: { createdAt: 'desc' },
+    take: limit + 1, // fetch one extra to check if there's more
+    ...(cursor
+      ? { skip: 1, cursor: { id: cursor } } // start after the given cursor
+      : {}),
   });
+
+  // determine if more notifications exist
+  const hasMore = notifications.length > limit;
+
+  // return only the requested limit
+  const result = notifications.slice(0, limit);
+
+  return {
+    notifications: result,
+    nextCursor: hasMore ? result[result.length - 1].id : null,
+  };
 }
 
-export async function getUnreadCount(userId: string) {
+export async function getUnreadNotificationCount(userId: string) {
   return prisma.notification.count({
     where: { userId, is_read: false },
   });
 }
 
-export async function markAsRead(id: string) {
+export async function markAsReadForUser(notificationId: string, userId: string) {
+  // First verify the notification belongs to the user
+  const notification = await prisma.notification.findFirst({
+    where: {
+      id: notificationId,
+      userId,
+    },
+  });
+
+  if (!notification) {
+    throw new Error('Notification not found or does not belong to user');
+  }
+
   return prisma.notification.update({
-    where: { id },
-    data: { is_read: true },
+    where: { id: notificationId },
+    data: { is_read: true, status: NotificationStatus.ARCHIVED },
   });
 }
 
-export async function markAllAsRead(userId: string) {
+export async function markAllAsReadforUser(userId: string) {
   return prisma.notification.updateMany({
     where: { userId },
-    data: { is_read: true },
+    data: { is_read: true, status: NotificationStatus.ARCHIVED },
   });
 }

@@ -679,16 +679,16 @@ router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewSt
 
 /**
  * @swagger
- * /api/reviews/business/{businessId}:
+ * /api/reviews/my/business-reviews:
  *   get:
- *     summary: Get reviews for a specific business
+ *     summary: Get my business reviews
  *     description: |
- *       Retrieves reviews tagged with a specific business ID with pagination support.
- *       Default limit is 5 reviews per page as requested. Returns comprehensive review data
+ *       Retrieves reviews for the authenticated business user with pagination support.
+ *       Default limit is 5 reviews per page. Returns comprehensive review data
  *       including user information, likes, and comments.
- *       **Business Validation:**
- *       - Validates that the business exists and is active
- *       - Ensures the business is of type 'BUSINESS'
+ *       **Authentication:**
+ *       - Requires BUSINESS user type
+ *       - Uses authenticated user's ID as business ID
  *       **Pagination:**
  *       - Default: 5 reviews per page
  *       - Configurable page and limit parameters
@@ -700,13 +700,6 @@ router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewSt
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: businessId
- *         schema:
- *           type: string
- *           format: uuid
- *         required: true
- *         description: The business ID to get reviews for
  *       - in: query
  *         name: page
  *         schema:
@@ -741,7 +734,7 @@ router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewSt
  *                   example: success
  *                 message:
  *                   type: string
- *                   example: Business reviews fetched successfully
+ *                   example: Your business reviews fetched successfully
  *                 data:
  *                   $ref: '#/components/schemas/ReviewsResponse'
  *             examples:
@@ -749,7 +742,7 @@ router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewSt
  *                 summary: Business reviews with pagination
  *                 value:
  *                   status: "success"
- *                   message: "Business reviews fetched successfully"
+ *                   message: "Your business reviews fetched successfully"
  *                   data:
  *                     reviews:
  *                       - id: "60cc2365-74ae-4b50-b7f7-a356c4a417ea"
@@ -835,7 +828,7 @@ router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewSt
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/business/:businessId', requireAuth(), ReviewController.getBusinessReviews);
+router.get('/my/business-reviews', requireAuth('BUSINESS'), ReviewController.getBusinessReviews);
 
 /**
  * @swagger

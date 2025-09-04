@@ -4,7 +4,7 @@ This document describes the Notification API endpoints for the Tapsy backend.
 
 ## Overview
 
-The Notification API allows users to create, read, and manage notifications with real-time updates via WebSocket. The system supports various notification types including likes, comments, follows, mentions, messages, and system notifications.
+The Notification API allows users to create, read, and manage notifications with real-time updates via WebSocket. The system supports various notification types including likes, comments, follows, mentions, messages, and system notifications. Notifications are automatically archived when marked as read.
 
 ## Authentication
 
@@ -13,7 +13,7 @@ All protected endpoints require a valid Bearer token in the Authorization header
 Authorization: Bearer <access_token>
 ```
 
-**Note:** Most notification endpoints require ADMIN access for security reasons.
+**Note:** Create notification endpoint requires ADMIN access. User endpoints are for authenticated users only.
 
 ## Real-time Features
 
@@ -77,72 +77,65 @@ curl -X POST http://localhost:3000/notifications \
 }
 ```
 
-### 2. Get User Notifications
+### 2. Get My Notifications
 
-**GET** `/notifications/:userId`
+**GET** `/notifications/my`
 
-Retrieves all notifications for a specific user, ordered by creation date (newest first).
+Retrieves unread notifications for the authenticated user with optional filtering and pagination.
 
 **Headers:**
-- `Authorization: Bearer <access_token>` (required - ADMIN only)
+- `Authorization: Bearer <access_token>` (required)
+
+**Query Parameters:**
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20)
+- `type` (optional): Filter by notification type (LIKE, COMMENT, FOLLOW, MENTION, MESSAGE, SYSTEM)
 
 **Example Request:**
 ```bash
-curl -H "Authorization: Bearer <admin_access_token>" \
-  "http://localhost:3000/notifications/user-uuid-123"
+curl -H "Authorization: Bearer <access_token>" \
+  "http://localhost:3000/notifications/my?page=1&limit=20&type=LIKE"
 ```
 
 **Response (200 OK):**
 ```json
 {
   "status": "success",
-  "message": "Notifications retrieved successfully",
-  "data": [
-    {
-      "id": "notification-uuid-123",
-      "userId": "user-uuid-123",
-      "senderId": "user-uuid-456",
-      "type": "LIKE",
-      "referenceId": "post-uuid-789",
-      "title": "New Like",
-      "content": "John Doe liked your post",
-      "image_url": "https://example.com/avatar.jpg",
-      "is_read": false,
-      "status": "ACTIVE",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    },
-    {
-      "id": "notification-uuid-124",
-      "userId": "user-uuid-123",
-      "senderId": "user-uuid-789",
-      "type": "COMMENT",
-      "referenceId": "post-uuid-790",
-      "title": "New Comment",
-      "content": "Jane Smith commented on your post",
-      "image_url": "https://example.com/avatar2.jpg",
-      "is_read": true,
-      "status": "ACTIVE",
-      "createdAt": "2024-01-01T01:00:00.000Z",
-      "updatedAt": "2024-01-01T01:30:00.000Z"
-    }
-  ]
+  "message": "Your notifications retrieved successfully",
+  "data": {
+    "notifications": [
+      {
+        "id": "notification-uuid-123",
+        "userId": "user-uuid-123",
+        "senderId": "user-uuid-456",
+        "type": "LIKE",
+        "referenceId": "post-uuid-789",
+        "title": "New Like",
+        "content": "John Doe liked your post",
+        "image_url": "https://example.com/avatar.jpg",
+        "is_read": false,
+        "status": "ACTIVE",
+        "createdAt": "2024-01-01T00:00:00.000Z"
+      }
+    ],
+    "nextCursor": "notification-uuid-124"
+  }
 }
 ```
 
-### 3. Get Unread Count
+### 3. Get My Unread Count
 
-**GET** `/notifications/:userId/unread-count`
+**GET** `/notifications/my/unread-count`
 
-Retrieves the count of unread notifications for a specific user.
+Retrieves the count of unread notifications for the authenticated user.
 
 **Headers:**
-- `Authorization: Bearer <access_token>` (required - ADMIN only)
+- `Authorization: Bearer <access_token>` (required)
 
 **Example Request:**
 ```bash
-curl -H "Authorization: Bearer <admin_access_token>" \
-  "http://localhost:3000/notifications/user-uuid-123/unread-count"
+curl -H "Authorization: Bearer <access_token>" \
+  "http://localhost:3000/notifications/my/unread-count"
 ```
 
 **Response (200 OK):**
@@ -154,20 +147,20 @@ curl -H "Authorization: Bearer <admin_access_token>" \
 }
 ```
 
-### 4. Mark Notification as Read
+### 4. Mark My Notification as Read
 
-**PATCH** `/notifications/:id/mark-read`
+**PATCH** `/notifications/my/:id/mark-read`
 
-Marks a specific notification as read.
+Marks a specific notification as read and archives it.
 
 **Headers:**
-- `Authorization: Bearer <access_token>` (required - ADMIN only)
+- `Authorization: Bearer <access_token>` (required)
 
 **Example Request:**
 ```bash
 curl -X PATCH \
-  -H "Authorization: Bearer <admin_access_token>" \
-  "http://localhost:3000/notifications/notification-uuid-123/mark-read"
+  -H "Authorization: Bearer <access_token>" \
+  "http://localhost:3000/notifications/my/notification-uuid-123/mark-read"
 ```
 
 **Response (200 OK):**
@@ -185,27 +178,26 @@ curl -X PATCH \
     "content": "John Doe liked your post",
     "image_url": "https://example.com/avatar.jpg",
     "is_read": true,
-    "status": "ACTIVE",
-    "createdAt": "2024-01-01T00:00:00.000Z",
-    "updatedAt": "2024-01-01T02:00:00.000Z"
+    "status": "ARCHIVED",
+    "createdAt": "2024-01-01T00:00:00.000Z"
   }
 }
 ```
 
-### 5. Mark All Notifications as Read
+### 5. Mark All My Notifications as Read
 
-**PATCH** `/notifications/:userId/mark-all-read`
+**PATCH** `/notifications/my/mark-all-read`
 
-Marks all notifications for a specific user as read.
+Marks all notifications for the authenticated user as read and archives them.
 
 **Headers:**
-- `Authorization: Bearer <access_token>` (required - ADMIN only)
+- `Authorization: Bearer <access_token>` (required)
 
 **Example Request:**
 ```bash
 curl -X PATCH \
-  -H "Authorization: Bearer <admin_access_token>" \
-  "http://localhost:3000/notifications/user-uuid-123/mark-all-read"
+  -H "Authorization: Bearer <access_token>" \
+  "http://localhost:3000/notifications/my/mark-all-read"
 ```
 
 **Response (200 OK):**
@@ -308,7 +300,7 @@ type NotificationType =
 ```typescript
 type NotificationStatus = 
   | 'ACTIVE'      // Notification is active and visible
-  | 'INACTIVE';   // Notification is inactive/hidden
+  | 'ARCHIVED';   // Notification is archived (read notifications)
 ```
 
 ## Real-time WebSocket Events
@@ -357,11 +349,13 @@ The system automatically generates notification titles and content based on the 
 
 ## Security Considerations
 
-1. **Admin Access**: Most endpoints require ADMIN user type for security
-2. **User Validation**: All user IDs are validated before processing
-3. **Real-time Security**: WebSocket events are only sent to authenticated users
-4. **Input Validation**: All inputs are validated and sanitized
-5. **Rate Limiting**: Consider implementing rate limiting for production use
+1. **Admin Access**: Create notification endpoint requires ADMIN user type for security
+2. **User Access**: User endpoints are restricted to authenticated users only
+3. **User Validation**: All user IDs are validated before processing
+4. **Real-time Security**: WebSocket events are only sent to authenticated users
+5. **Input Validation**: All inputs are validated and sanitized
+6. **Rate Limiting**: Rate limiting is implemented for all endpoints
+7. **Auto-Archive**: Notifications are automatically archived when marked as read
 
 ## Integration Examples
 
@@ -387,13 +381,16 @@ const createLikeNotification = async (postId, likerId, postOwnerId) => {
 };
 ```
 
-### Getting User Notifications
+### Getting My Notifications
 ```javascript
-// Get all notifications for a user
-const getUserNotifications = async (userId) => {
-  const response = await fetch(`/notifications/${userId}`, {
+// Get my notifications with filtering
+const getMyNotifications = async (type = null, page = 1, limit = 20) => {
+  const params = new URLSearchParams({ page, limit });
+  if (type) params.append('type', type);
+  
+  const response = await fetch(`/notifications/my?${params}`, {
     headers: {
-      'Authorization': `Bearer ${adminToken}`
+      'Authorization': `Bearer ${userToken}`
     }
   });
   
