@@ -108,6 +108,34 @@ export class UserService {
     try {
       if (!data.username) throw new AppError('Username is required', 400);
 
+      // Check for existing username
+      const existingUserByUsername = await prisma.user.findFirst({
+        where: { username: data.username },
+      });
+      if (existingUserByUsername) {
+        throw new AppError('Username already exists', 409);
+      }
+
+      // Check for existing email if provided
+      if (data.email) {
+        const existingUserByEmail = await prisma.user.findUnique({
+          where: { email: data.email },
+        });
+        if (existingUserByEmail) {
+          throw new AppError('Email already exists', 409);
+        }
+      }
+
+      // Check for existing mobile number if provided
+      if (data.mobile_number) {
+        const existingUserByMobile = await prisma.user.findUnique({
+          where: { mobile_number: data.mobile_number },
+        });
+        if (existingUserByMobile) {
+          throw new AppError('Mobile number already exists', 409);
+        }
+      }
+
       let userData: Prisma.UserCreateInput = {
         user_type: data.user_type || 'INDIVIDUAL',
         username: data.username,
@@ -416,13 +444,10 @@ export class UserService {
       };
 
       if (user.status === 'PENDING') {
-        // 👉 Just activate, no last_login update
         updateData.status = 'ACTIVE';
       } else if (user.status === 'ACTIVE') {
-        // 👉 Only update last_login
         updateData.last_login = new Date();
       } else {
-        // 👉 Block other statuses
         throw new AppError(`User account is ${user.status}`, 403);
       }
 
@@ -450,17 +475,14 @@ export class UserService {
     }
   }
 
-  //* Refresh Token Method
   async refreshToken(refreshToken: string) {
     try {
-      // 1. Verify the refresh token
       const decoded = AuthTokens.verifyRefreshToken(refreshToken);
 
       if (typeof decoded === 'string') {
         throw new AppError('Invalid refresh token format', 401);
       }
 
-      // 2. Find user with this refresh token
       const user = await prisma.user.findFirst({
         where: {
           id: decoded.id,
@@ -473,20 +495,17 @@ export class UserService {
         throw new AppError('Invalid refresh token or user not found', 401);
       }
 
-      // 3. Generate new tokens
       const { accessToken, refreshToken: newRefreshToken } =
         await AuthTokens.generateAccessAndRefreshToken({
           id: user.id,
           role: user.user_type,
         });
 
-      // 4. Save new refresh token in DB (invalidate old one)
       await prisma.user.update({
         where: { id: user.id },
         data: { refresh_token: newRefreshToken },
       });
 
-      // 5. Return updated tokens
       return {
         access_token: accessToken,
         refresh_token: newRefreshToken,

@@ -8,13 +8,13 @@ const router = Router();
  * @swagger
  * tags:
  *   - name: Users
- *     description: Unified user management for both individual and business users
+ *     description: Unified user management for both individual and business users with OTP verification
  *
  * components:
  *   schemas:
  *     UserRegistration:
  *       type: object
- *       required: [device_id, username]
+ *       required: [username]
  *       properties:
  *         firebase_token:
  *           type: string
@@ -72,12 +72,6 @@ const router = Router();
  *         about:
  *           type: string
  *           description: About the business
- *         logo_url:
- *           type: string
- *           description: Business logo URL
- *         video_url:
- *           type: string
- *           description: Business video URL
  *         categories:
  *           type: array
  *           items:
@@ -95,12 +89,20 @@ const router = Router();
  * /api/users/register:
  *   post:
  *     summary: Register a new user (individual or business)
- *     description: For INDIVIDUAL users, mobile number is required. For BUSINESS users, either mobile number or email is required (but not both). OTP verification will be sent after registration.
+ *     description: |
+ *       Register a new user with OTP verification.
+ *       - **INDIVIDUAL users**: Mobile number is required
+ *       - **BUSINESS users**: Either mobile number OR email is required (not both)
+ *       - **File uploads**: Logo and video files can be uploaded for business users
+ *       - **OTP verification**: Will be sent via SMS (Twilio) or email after registration
  *     tags: [Users]
+ *     consumes:
+ *       - multipart/form-data
+ *       - application/json
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required: [username]
@@ -158,12 +160,14 @@ const router = Router();
  *               about:
  *                 type: string
  *                 description: About the business (for business users only)
- *               logo_url:
+ *               logo:
  *                 type: string
- *                 description: Business logo URL (for business users only)
- *               video_url:
+ *                 format: binary
+ *                 description: Business logo file (required for business users)
+ *               video:
  *                 type: string
- *                 description: Business video URL (for business users only)
+ *                 format: binary
+ *                 description: Business video file (optional for business users)
  *               categories:
  *                 type: array
  *                 items:
@@ -210,8 +214,8 @@ const router = Router();
  *                 country: "USA"
  *                 website: "https://mybusiness.com"
  *                 about: "We are a technology consulting company"
- *                 logo_url: "https://mybusiness.com/logo.png"
- *                 video_url: "https://youtube.com/watch?v=123"
+ *                 logo: "[FILE]"
+ *                 video: "[FILE]"
  *                 categories: ["category-id-1", "category-id-2"]
  *                 subcategories: ["Web Development", "Mobile Apps"]
  *     responses:
@@ -234,7 +238,7 @@ const router = Router();
  *       400:
  *         description: Missing required fields or validation errors
  *       409:
- *         description: User already exists
+ *         description: Username, email, or mobile number already exists
  */
 router.post(
   '/register',
@@ -247,7 +251,7 @@ router.post(
  * /api/users/login:
  *   post:
  *     summary: Login user
- *     description: Login with either mobile number or email. OTP will be sent for verification.
+ *     description: Login with either mobile number or email. OTP will be sent via SMS (Twilio) or email for verification.
  *     tags: [Users]
  *     requestBody:
  *       required: true
@@ -351,18 +355,48 @@ router.get('/:id', UserController.getById);
  *             properties:
  *               username:
  *                 type: string
+ *                 description: Unique username
+ *               name:
+ *                 type: string
+ *                 description: User's display name
  *               mobile_number:
  *                 type: string
+ *                 description: Mobile number
  *               email:
  *                 type: string
- *               business_name:
+ *                 description: Email address
+ *               firebase_token:
  *                 type: string
+ *                 description: Firebase messaging token
+ *               otp_verified:
+ *                 type: boolean
+ *                 description: OTP verification status
+ *               status:
+ *                 type: string
+ *                 enum: [ACTIVE, INACTIVE, PENDING, DELETED]
+ *                 description: User status
+ *               last_login:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Last login timestamp
  *               address:
  *                 type: string
+ *                 description: Street address
+ *               zip_code:
+ *                 type: string
+ *                 description: Postal/ZIP code
  *               website:
  *                 type: string
- *               bio:
+ *                 description: Website URL
+ *               about:
  *                 type: string
+ *                 description: About information
+ *               logo_url:
+ *                 type: string
+ *                 description: Logo URL
+ *               video_urls:
+ *                 type: string
+ *                 description: Video URLs
  *     responses:
  *       200:
  *         description: User updated successfully
@@ -440,7 +474,7 @@ router.get('/type/:user_type', UserController.getUsersByType);
  * /api/users/send-otp:
  *   post:
  *     summary: Send OTP to user
- *     description: Send OTP to user's email or mobile number for verification. Use this endpoint to resend OTP if needed.
+ *     description: Send OTP to user's email or mobile number for verification via SMS (Twilio) or email. Use this endpoint to resend OTP if needed.
  *     tags: [Users]
  *     requestBody:
  *       required: true
@@ -528,15 +562,56 @@ router.post('/send-otp', UserController.sendOtp);
  *             schema:
  *               type: object
  *               properties:
- *                 access_token:
+ *                 status:
  *                   type: string
- *                   description: JWT access token
- *                 refresh_token:
+ *                   example: "success"
+ *                 message:
  *                   type: string
- *                   description: JWT refresh token
- *                 user:
+ *                   example: "OTP verified successfully"
+ *                 data:
  *                   type: object
- *                   description: User information
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: User ID
+ *                     user_type:
+ *                       type: string
+ *                       enum: [INDIVIDUAL, BUSINESS]
+ *                     mobile_number:
+ *                       type: string
+ *                       nullable: true
+ *                     email:
+ *                       type: string
+ *                       nullable: true
+ *                     username:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                       nullable: true
+ *                     status:
+ *                       type: string
+ *                       example: "ACTIVE"
+ *                     verification_method:
+ *                       type: string
+ *                       enum: [EMAIL, MOBILE]
+ *                     website:
+ *                       type: string
+ *                       nullable: true
+ *                     about:
+ *                       type: string
+ *                       nullable: true
+ *                     logo_url:
+ *                       type: string
+ *                       nullable: true
+ *                     video_url:
+ *                       type: string
+ *                       nullable: true
+ *                     access_token:
+ *                       type: string
+ *                       description: JWT access token
+ *                     refresh_token:
+ *                       type: string
+ *                       description: JWT refresh token
  *       400:
  *         description: Invalid or expired OTP
  *       404:

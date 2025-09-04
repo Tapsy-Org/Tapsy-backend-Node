@@ -51,6 +51,11 @@ export default class UserController {
         video_url = await uploadToS3(videoFile, 'video', tempKey);
       }
 
+      // Validate username format
+      if (username && username.includes(' ')) {
+        throw new AppError('Username cannot contain spaces', 400);
+      }
+
       // INDIVIDUAL users must provide mobile number
       if (user_type === 'INDIVIDUAL' && !mobile_number) {
         throw new AppError('Mobile number is required for individual users', 400);
@@ -75,7 +80,7 @@ export default class UserController {
         try {
           categoriesParsed = JSON.parse(categories);
         } catch {
-          categoriesParsed = [categories]; // fallback if plain string
+          categoriesParsed = [categories];
         }
       }
       if (typeof subcategories === 'string') {
@@ -111,7 +116,14 @@ export default class UserController {
         country,
       });
 
-      return res.created({ user }, 'User registered successfully');
+      // Return simplified response with only essential fields
+      const simplifiedResponse = {
+        status: user.status,
+        verification_method: user.verification_method,
+        message: user.message,
+      };
+
+      return res.created(simplifiedResponse, 'User registered successfully');
     } catch (error) {
       next(error);
     }
@@ -176,7 +188,25 @@ export default class UserController {
         throw new AppError('Invalid or expired OTP', 400);
       }
 
-      return res.success(user, 'OTP verified successfully');
+      // Return simplified response with only essential fields
+      const simplifiedResponse = {
+        id: user.id,
+        user_type: user.user_type,
+        mobile_number: user.mobile_number,
+        email: user.email,
+        username: user.username,
+        name: user.name,
+        status: user.status,
+        verification_method: user.verification_method,
+        website: user.website,
+        about: user.about,
+        logo_url: user.logo_url,
+        video_url: user.video_url,
+        access_token: user.access_token,
+        refresh_token: user.refresh_token,
+      };
+
+      return res.success(simplifiedResponse, 'OTP verified successfully');
     } catch (error) {
       next(error);
     }
@@ -205,14 +235,13 @@ export default class UserController {
 
       const allowedFields = [
         'username',
+        'name',
         'mobile_number',
         'email',
         'firebase_token',
         'otp_verified',
-        'device_id',
         'status',
         'last_login',
-        // Removed business_name, bio, tags since they don't exist in schema
         'address',
         'zip_code',
         'website',
@@ -222,6 +251,11 @@ export default class UserController {
       ];
 
       const payload = req.body;
+
+      // Validate username format if being updated
+      if (payload.username && payload.username.includes(' ')) {
+        throw new AppError('Username cannot contain spaces', 400);
+      }
       const data = Object.keys(payload)
         .filter((key) => allowedFields.includes(key))
         .reduce((acc: Record<string, unknown>, key) => {
