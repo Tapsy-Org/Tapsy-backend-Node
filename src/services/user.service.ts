@@ -2,9 +2,9 @@ import type { Prisma, UserType } from '@prisma/client';
 import bcryptjs from 'bcryptjs';
 
 import prisma from '../config/db';
-import admin from '../config/firebase';
 import AppError from '../utils/AppError';
 import { sendOtpEmail } from '../utils/mailer';
+import { sendOtpSms } from '../utils/sms';
 import AuthTokens from '../utils/token';
 
 export class UserService {
@@ -82,10 +82,9 @@ export class UserService {
   }
 
   async register(data: {
-    idToken?: string;
     firebase_token?: string;
-    device_id: string;
     username: string;
+    name?: string;
     user_type?: UserType;
     mobile_number?: string;
     email?: string;
@@ -107,70 +106,110 @@ export class UserService {
     country?: string;
   }) {
     try {
-      if (!data.device_id) throw new AppError('Device ID is required', 400);
       if (!data.username) throw new AppError('Username is required', 400);
+
+      // Check for existing username
+      const existingUserByUsername = await prisma.user.findFirst({
+        where: { username: data.username },
+      });
+      if (existingUserByUsername) {
+        throw new AppError('Username already exists', 409);
+      }
+
+      // Check for existing email if provided
+      if (data.email) {
+        const existingUserByEmail = await prisma.user.findUnique({
+          where: { email: data.email },
+        });
+        if (existingUserByEmail) {
+          throw new AppError('Email already exists', 409);
+        }
+      }
+
+      // Check for existing mobile number if provided
+      if (data.mobile_number) {
+        const existingUserByMobile = await prisma.user.findUnique({
+          where: { mobile_number: data.mobile_number },
+        });
+        if (existingUserByMobile) {
+          throw new AppError('Mobile number already exists', 409);
+        }
+      }
 
       let userData: Prisma.UserCreateInput = {
         user_type: data.user_type || 'INDIVIDUAL',
-        device_id: data.device_id,
         username: data.username,
-        status: 'ACTIVE',
+        name: data.name,
+        status: 'PENDING',
         verification_method: 'MOBILE',
       };
 
       if (data.user_type === 'INDIVIDUAL') {
-        if (!data.idToken || !data.firebase_token) {
-          throw new AppError('idToken and firebase_token are required for individual users', 400);
+        if (!data.mobile_number) {
+          throw new AppError('Mobile number is required for individual users', 400);
         }
 
-        const decodedToken = await admin.auth().verifyIdToken(data.idToken);
-        const mobileFromToken = decodedToken.phone_number;
-        if (!mobileFromToken) throw new AppError('Phone number not found in Firebase token', 400);
-
-        userData.mobile_number = mobileFromToken;
+        userData.mobile_number = data.mobile_number;
         userData.firebase_token = data.firebase_token;
-        userData.otp_verified = true;
+        userData.otp_verified = false;
         userData.verification_method = 'MOBILE';
-        userData.status = 'ACTIVE';
+        userData.status = 'PENDING';
+
+        // Generate OTP and send SMS
+        // const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otp = '990123'; // Static OTP for testing - TODO: Replace with dynamic generation when Twilio is fixed
+        const hashedOtp = await bcryptjs.hash(otp, 10);
+        userData.otp = hashedOtp;
+        userData.otp_expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+        await sendOtpSms(data.mobile_number, otp);
       }
-      // BUSINESS USERS: can use mobile or email
+      // BUSINESS USERS: can use mobile or email (not both)
       else {
-        if (!data.address) throw new AppError('Address is required', 400);
-        if (!data.zip_code) throw new AppError('Zip code is required', 400);
-        if (!data.about) throw new AppError('About is required', 400);
-        if (!data.logo_url) throw new AppError('Logo URL is required', 400);
+        if (!data.address) throw new AppError('Address is required for business users', 400);
+        if (!data.zip_code) throw new AppError('Zip code is required for business users', 400);
+        if (!data.about) throw new AppError('About is required for business users', 400);
+        if (!data.logo_url) throw new AppError('Logo URL is required for business users', 400);
 
-        let mobileFromToken: string | undefined;
-
-        // MOBILE verification for business: idToken + firebase_token required
-        if (data.idToken && data.firebase_token) {
-          const decodedToken = await admin.auth().verifyIdToken(data.idToken);
-          mobileFromToken = decodedToken.phone_number;
-
-          if (!mobileFromToken) {
-            throw new AppError('Phone number not found in Firebase token', 400);
-          }
-
-          userData.mobile_number = mobileFromToken;
-          userData.firebase_token = data.firebase_token;
-          userData.otp_verified = true;
-          userData.verification_method = 'MOBILE';
-          userData.status = 'ACTIVE';
+        // Validate that only one contact method is provided
+        if (data.mobile_number && data.email) {
+          throw new AppError(
+            'Business users can register with either mobile number or email, not both',
+            400,
+          );
         }
-        // EMAIL verification for business: no Firebase needed
+        if (!data.mobile_number && !data.email) {
+          throw new AppError('Business users must provide either mobile number or email', 400);
+        }
+
+        // MOBILE verification for business
+        if (data.mobile_number) {
+          userData.mobile_number = data.mobile_number;
+          userData.firebase_token = data.firebase_token;
+          userData.otp_verified = false;
+          userData.verification_method = 'MOBILE';
+          userData.status = 'PENDING';
+
+          // Generate OTP and send SMS
+          // const otp = Math.floor(100000 + Math.random() * 900000).toString();
+          const otp = '990123'; // Static OTP for testing - TODO: Replace with dynamic generation when Twilio is fixed
+          const hashedOtp = await bcryptjs.hash(otp, 10);
+          userData.otp = hashedOtp;
+          userData.otp_expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+          await sendOtpSms(data.mobile_number, otp);
+        }
+        // EMAIL verification for business
         else if (data.email) {
           userData.email = data.email;
           userData.otp_verified = false;
           userData.verification_method = 'EMAIL';
           userData.status = 'PENDING';
+
           // Generate OTP and send email
           const otp = Math.floor(100000 + Math.random() * 900000).toString();
           const hashedOtp = await bcryptjs.hash(otp, 10);
           userData.otp = hashedOtp;
           userData.otp_expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
           await sendOtpEmail(data.email, otp);
-        } else {
-          throw new AppError('Business user must register with mobile (Firebase) or email', 400);
         }
 
         userData.website = data.website;
@@ -218,38 +257,25 @@ export class UserService {
           },
         });
       }
-      // GENERATE TOKENS ONLY IF VERIFIED
-      let tokens = null;
-      if (userData.otp_verified) {
-        // Cast user to proper type for token generation
-        const userWithId = user as { id: string; user_type: UserType };
-        tokens = await AuthTokens.generateAccessAndRefreshToken({
-          id: userWithId.id,
-          role: userWithId.user_type,
-        });
-        // Note: Only refresh token is stored in DB, access token is not stored
-      }
-
-      return this.cleanUserResponse({
-        ...user,
-        access_token: tokens?.accessToken || null,
-        refresh_token: tokens?.refreshToken || null,
-      });
+      // Return user without tokens (OTP verification required)
+      return {
+        ...this.cleanUserResponse(user),
+        message:
+          userData.verification_method === 'EMAIL'
+            ? 'Registration successful. Please check your email for OTP verification.'
+            : 'Registration successful. Please check your SMS for OTP verification.',
+        status: 'OTP_SENT',
+        verification_method: userData.verification_method,
+      };
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to register user', 500, { originalError: error });
     }
   }
 
-  async login(data: {
-    idToken?: string;
-    firebase_token?: string;
-    device_id?: string;
-    email?: string;
-  }) {
+  async login(data: { firebase_token?: string; mobile_number?: string; email?: string }) {
     try {
       let user = null;
-      let mobileFromToken: string | null = null;
 
       // 1. Try login with email
       if (data.email) {
@@ -258,17 +284,10 @@ export class UserService {
         });
       }
 
-      // 2. If not found, try Firebase token (mobile login)
-      if (!user && data.idToken) {
-        const decodedToken = await admin.auth().verifyIdToken(data.idToken);
-        mobileFromToken = decodedToken.phone_number ?? null;
-
-        if (!mobileFromToken) {
-          throw new AppError('Phone number not found in Firebase token', 400);
-        }
-
+      // 2. Try login with mobile number
+      if (!user && data.mobile_number) {
         user = await prisma.user.findUnique({
-          where: { mobile_number: mobileFromToken },
+          where: { mobile_number: data.mobile_number },
         });
       }
 
@@ -276,80 +295,52 @@ export class UserService {
         throw new AppError('User not found', 404);
       }
 
-      if (user.status !== 'ACTIVE') {
-        throw new AppError(
-          'User account is not active. Please register and verify your account first',
-          403,
-        );
+      if (user.status === 'DELETED') {
+        throw new AppError('User account has been deleted', 403);
       }
 
-      // 3. Handle EMAIL verification flow
-      if (user.verification_method === 'EMAIL') {
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const hashedOtp = await bcryptjs.hash(otp, 10);
-        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+      // Generate OTP for login verification
+      // const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = '990123'; // Static OTP for testing - TODO: Replace with dynamic generation when Twilio is fixed
+      const hashedOtp = await bcryptjs.hash(otp, 10);
+      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            otp: hashedOtp,
-            otp_expiry: otpExpiry,
-            otp_verified: false,
-          },
-        });
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otp: hashedOtp,
+          otp_expiry: otpExpiry,
+          otp_verified: false,
+          firebase_token: data.firebase_token, // Update firebase token for push notifications
+        },
+      });
 
-        // Send OTP to email
-        if (data.email) {
-          await sendOtpEmail(data.email, otp);
-        }
-
-        // 👉 Return minimal response
+      // Send OTP based on verification method
+      if (user.verification_method === 'EMAIL' && data.email) {
+        await sendOtpEmail(data.email, otp);
         return {
           status: 'OTP_SENT',
           message: 'OTP has been sent to your email',
           data: {
+            user_id: user.id,
             user_type: user.user_type,
+            verification_method: 'EMAIL',
           },
         };
-      }
-
-      // 4. Handle MOBILE (Firebase verified login)
-      if (user.verification_method === 'MOBILE') {
-        if (!data.idToken) {
-          throw new AppError('idToken is required for mobile login', 400);
-        }
-        if (mobileFromToken !== user.mobile_number) {
-          throw new AppError('Invalid Firebase token: mobile mismatch', 401);
-        }
-
-        // Generate tokens
-        const payload = { id: user.id, role: user.user_type };
-        const { accessToken, refreshToken } =
-          await AuthTokens.generateAccessAndRefreshToken(payload);
-
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            firebase_token: data.firebase_token,
-            device_id: data.device_id,
-            last_login: new Date(),
-            refresh_token: refreshToken,
-          },
-        });
-
+      } else if (user.verification_method === 'MOBILE' && data.mobile_number) {
+        await sendOtpSms(data.mobile_number, otp);
         return {
-          status: 'SUCCESS',
-          message: 'Login successful',
+          status: 'OTP_SENT',
+          message: 'OTP has been sent to your mobile number',
           data: {
-            userId: user.id,
-            mobile_number: user.mobile_number,
-            access_token: accessToken,
-            refresh_token: refreshToken,
+            user_id: user.id,
+            user_type: user.user_type,
+            verification_method: 'MOBILE',
           },
         };
       }
 
-      throw new AppError('Invalid verification method', 400);
+      throw new AppError('Invalid contact method for user verification', 400);
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to login user', 500, { originalError: error });
@@ -362,34 +353,45 @@ export class UserService {
         throw new AppError('Either email or mobile number is required', 400);
       }
 
-      if (data.email) {
-        // Generate OTP and send email
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const status = 'PENDING';
-        const hashedOtp = await bcryptjs.hash(otp, 10);
-        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+      let user = null;
 
-        // Find user by email
-        const user = await prisma.user.findUnique({
+      // Find user by email or mobile number
+      if (data.email) {
+        user = await prisma.user.findUnique({
           where: { email: data.email },
         });
-
-        if (!user) {
-          throw new AppError('User not found', 404);
-        }
-
-        // Update user with OTP
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { otp: hashedOtp, otp_expiry: otpExpiry, status },
+      } else if (data.mobile_number) {
+        user = await prisma.user.findUnique({
+          where: { mobile_number: data.mobile_number },
         });
-
-        await sendOtpEmail(data.email, otp);
-        return { message: 'OTP sent successfully', otp_expiry: otpExpiry };
       }
 
-      // For mobile_number, we would need Firebase SMS integration
-      throw new AppError('SMS OTP not implemented yet', 501);
+      if (!user) {
+        throw new AppError('User not found', 404);
+      }
+
+      // Generate OTP
+      // const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = '990123'; // Static OTP for testing - TODO: Replace with dynamic generation when Twilio is fixed
+      const hashedOtp = await bcryptjs.hash(otp, 10);
+      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+      // Update user with OTP
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { otp: hashedOtp, otp_expiry: otpExpiry },
+      });
+
+      // Send OTP
+      if (data.email) {
+        await sendOtpEmail(data.email, otp);
+        return { message: 'OTP sent to email successfully', otp_expiry: otpExpiry };
+      } else if (data.mobile_number) {
+        await sendOtpSms(data.mobile_number, otp);
+        return { message: 'OTP sent to mobile number successfully', otp_expiry: otpExpiry };
+      }
+
+      throw new AppError('Failed to send OTP', 500);
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to send OTP', 500, { originalError: error });
@@ -446,13 +448,10 @@ export class UserService {
       };
 
       if (user.status === 'PENDING') {
-        // 👉 Just activate, no last_login update
         updateData.status = 'ACTIVE';
       } else if (user.status === 'ACTIVE') {
-        // 👉 Only update last_login
         updateData.last_login = new Date();
       } else {
-        // 👉 Block other statuses
         throw new AppError(`User account is ${user.status}`, 403);
       }
 
@@ -480,17 +479,14 @@ export class UserService {
     }
   }
 
-  //* Refresh Token Method
   async refreshToken(refreshToken: string) {
     try {
-      // 1. Verify the refresh token
       const decoded = AuthTokens.verifyRefreshToken(refreshToken);
 
       if (typeof decoded === 'string') {
         throw new AppError('Invalid refresh token format', 401);
       }
 
-      // 2. Find user with this refresh token
       const user = await prisma.user.findFirst({
         where: {
           id: decoded.id,
@@ -503,20 +499,17 @@ export class UserService {
         throw new AppError('Invalid refresh token or user not found', 401);
       }
 
-      // 3. Generate new tokens
       const { accessToken, refreshToken: newRefreshToken } =
         await AuthTokens.generateAccessAndRefreshToken({
           id: user.id,
           role: user.user_type,
         });
 
-      // 4. Save new refresh token in DB (invalidate old one)
       await prisma.user.update({
         where: { id: user.id },
         data: { refresh_token: newRefreshToken },
       });
 
-      // 5. Return updated tokens
       return {
         access_token: accessToken,
         refresh_token: newRefreshToken,
