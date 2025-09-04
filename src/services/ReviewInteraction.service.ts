@@ -182,6 +182,11 @@ export class ReviewInteractionService {
         throw new AppError('User not found or inactive', 404);
       }
 
+      // Validate comment text
+      if (!comment || comment.trim().length === 0) {
+        throw new AppError('Comment text is required', 400);
+      }
+
       // If parent comment is provided, validate it exists and belongs to the same review
       if (parentCommentId) {
         const parentComment = await prisma.comment.findUnique({

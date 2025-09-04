@@ -313,6 +313,11 @@ export class FollowService {
     followStatus?: string,
   ) {
     try {
+      // Validate query length
+      if (query.length < 2) {
+        throw new AppError('Search query must be at least 2 characters long', 400);
+      }
+
       const skip = (page - 1) * limit;
 
       // Build base where conditions

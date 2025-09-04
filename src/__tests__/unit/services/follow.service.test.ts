@@ -6,6 +6,8 @@ import AppError from '../../../utils/AppError';
 jest.mock('../../../config/db', () => ({
   user: {
     findUnique: jest.fn(),
+    findMany: jest.fn(),
+    count: jest.fn(),
   },
   follow: {
     create: jest.fn(),
@@ -69,29 +71,15 @@ describe('FollowService', () => {
 
       const result = await followService.toggleFollow(mockFollowerId, mockFollowingUserId);
 
-      expect(result).toEqual(mockFollow);
+      expect(result).toEqual({
+        action: 'followed',
+        message: 'Successfully followed user',
+        isFollowing: true,
+      });
       expect(mockPrisma.follow.create).toHaveBeenCalledWith({
         data: {
           followerId: mockFollowerId,
           followingUserId: mockFollowingUserId,
-        },
-        include: {
-          follower: {
-            select: {
-              id: true,
-              username: true,
-              user_type: true,
-              logo_url: true,
-            },
-          },
-          following: {
-            select: {
-              id: true,
-              username: true,
-              user_type: true,
-              logo_url: true,
-            },
-          },
         },
       });
     });
@@ -123,7 +111,7 @@ describe('FollowService', () => {
       );
     });
 
-    it('should throw error if already following', async () => {
+    it('should unfollow when already following', async () => {
       mockPrisma.user.findUnique
         .mockResolvedValueOnce({
           id: mockFollowerId,
@@ -138,43 +126,13 @@ describe('FollowService', () => {
         id: 'existing-follow',
       } as any);
 
-      await expect(followService.toggleFollow(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
-        new AppError('Already following this user', 400),
-      );
-    });
-  });
-
-  describe('unfollowUser', () => {
-    const mockFollowerId = 'follower-123';
-    const mockFollowingUserId = 'following-123';
-
-    it('should unfollow user successfully', async () => {
-      // Mock follow relationship exists
-      const mockFollow = {
-        id: 'follow-123',
-        followerId: mockFollowerId,
-        followingUserId: mockFollowingUserId,
-        follower: {
-          id: mockFollowerId,
-          username: 'follower',
-          user_type: 'INDIVIDUAL',
-          logo_url: null,
-        },
-        following: {
-          id: mockFollowingUserId,
-          username: 'following',
-          user_type: 'BUSINESS',
-          logo_url: null,
-        },
-      };
-      mockPrisma.follow.findUnique.mockResolvedValue(mockFollow as any);
-
-      // Mock follow deletion
-      mockPrisma.follow.delete.mockResolvedValue(mockFollow as any);
-
       const result = await followService.toggleFollow(mockFollowerId, mockFollowingUserId);
 
-      expect(result).toEqual({ message: 'Successfully unfollowed user' });
+      expect(result).toEqual({
+        action: 'unfollowed',
+        message: 'Successfully unfollowed user',
+        isFollowing: false,
+      });
       expect(mockPrisma.follow.delete).toHaveBeenCalledWith({
         where: {
           followerId_followingUserId: {
@@ -183,27 +141,6 @@ describe('FollowService', () => {
           },
         },
       });
-    });
-
-    it('should throw error if follow relationship not found', async () => {
-      mockPrisma.follow.findUnique.mockResolvedValue(null);
-
-      await expect(followService.toggleFollow(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
-        new AppError('Follow relationship not found', 404),
-      );
-    });
-
-    it("should throw error if user tries to unfollow someone else's follow", async () => {
-      const mockFollow = {
-        id: 'follow-123',
-        followerId: 'different-user',
-        followingUserId: mockFollowingUserId,
-      };
-      mockPrisma.follow.findUnique.mockResolvedValue(mockFollow as any);
-
-      await expect(followService.toggleFollow(mockFollowerId, mockFollowingUserId)).rejects.toThrow(
-        new AppError('You can only unfollow your own follows', 403),
-      );
     });
   });
 
@@ -355,6 +292,7 @@ describe('FollowService', () => {
         {
           id: 'user-1',
           username: 'john_doe',
+          name: 'John Doe',
           user_type: 'INDIVIDUAL',
           logo_url: null,
           about: 'About John',
@@ -362,6 +300,7 @@ describe('FollowService', () => {
         },
       ];
       mockPrisma.user.findMany.mockResolvedValue(mockUsers as any);
+      mockPrisma.user.count.mockResolvedValue(1);
 
       // Mock follow status check
       jest.spyOn(followService, 'checkFollowStatus').mockResolvedValue({

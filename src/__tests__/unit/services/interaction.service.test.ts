@@ -177,13 +177,14 @@ describe('ReviewInteractionService', () => {
           reviewId: mockReviewId,
           userId: mockUserId,
           comment: mockComment,
-          parent_comment_id: null,
+          parent_comment_id: undefined,
         },
         include: {
           user: {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },
@@ -248,6 +249,7 @@ describe('ReviewInteractionService', () => {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },
@@ -330,7 +332,7 @@ describe('ReviewInteractionService', () => {
           reviewId: mockReviewId,
           userId: 'user-1',
           comment: 'Great review!',
-          parent_comment_id: null,
+          parent_comment_id: undefined,
           createdAt: new Date(),
           user: {
             id: 'user-1',
