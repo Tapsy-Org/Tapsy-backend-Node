@@ -110,10 +110,13 @@ export class ReviewService {
       status?: Status;
       page?: number;
       limit?: number;
+      sortBy?: 'createdAt' | 'views' | 'rating';
+      sortOrder?: 'asc' | 'desc';
+      search?: string;
     } = {},
   ) {
     try {
-      const { userId, businessId, rating, status, page = 1, limit = 10 } = filters;
+      const { userId, businessId, rating, status, page = 1, limit = 10, search } = filters;
       const skip = (page - 1) * limit;
 
       const where: Prisma.ReviewWhereInput = {};
@@ -135,6 +138,15 @@ export class ReviewService {
         where.status = status;
       } else {
         where.status = { in: ['ACTIVE', 'PENDING'] };
+      }
+
+      // Add search functionality
+      if (search) {
+        where.OR = [
+          { title: { contains: search, mode: 'insensitive' } },
+          { caption: { contains: search, mode: 'insensitive' } },
+          { hashtags: { has: search } },
+        ];
       }
 
       const [reviews, total] = await Promise.all([
@@ -370,6 +382,113 @@ export class ReviewService {
         throw error;
       }
       throw new AppError('Failed to update review status', 500, { originalError: error });
+    }
+  }
+
+  async getBusinessReviews(
+    businessId: string,
+    filters: {
+      page?: number;
+      limit?: number;
+      status?: Status;
+      sortBy?: 'createdAt' | 'views' | 'rating';
+      sortOrder?: 'asc' | 'desc';
+      search?: string;
+    } = {},
+  ) {
+    try {
+      const { page = 1, limit = 5, status, search } = filters;
+      const skip = (page - 1) * limit;
+
+      // Validate business exists
+      const business = await prisma.user.findUnique({
+        where: {
+          id: businessId,
+          status: 'ACTIVE',
+          user_type: 'BUSINESS',
+        },
+        select: { id: true },
+      });
+
+      if (!business) {
+        throw new AppError('Business not found or inactive', 404);
+      }
+
+      const where: Prisma.ReviewWhereInput = {
+        businessId,
+        status: status ? status : 'ACTIVE',
+      };
+
+      // Add search functionality
+      if (search) {
+        where.OR = [
+          { title: { contains: search, mode: 'insensitive' } },
+          { caption: { contains: search, mode: 'insensitive' } },
+          { hashtags: { has: search } },
+        ];
+      }
+
+      const [reviews, total] = await Promise.all([
+        prisma.review.findMany({
+          where,
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                user_type: true,
+              },
+            },
+            business: {
+              select: {
+                id: true,
+                username: true,
+                logo_url: true,
+                user_type: true,
+              },
+            },
+            likes: {
+              select: {
+                id: true,
+                userId: true,
+              },
+            },
+            comments: {
+              select: {
+                id: true,
+                comment: true,
+                createdAt: true,
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    logo_url: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.review.count({ where }),
+      ]);
+
+      return {
+        reviews,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch business reviews', 500, { originalError: error });
     }
   }
 }

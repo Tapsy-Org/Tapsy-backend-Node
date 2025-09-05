@@ -115,6 +115,7 @@ async function seedBusinessUsers() {
           mobile_number: faker.phone.number(),
           email: faker.internet.email(),
           username: faker.company.name(),
+          avatarUrl: faker.image.avatar(),
           name: faker.company.name(),
           status: faker.helpers.arrayElement(['ACTIVE', 'ACTIVE', 'ACTIVE', 'PENDING']), // Mostly active
           last_login: faker.date.recent({ days: 30 }),
@@ -151,6 +152,7 @@ async function seedIndividualUsers() {
           mobile_number: faker.phone.number(),
           email: faker.internet.email(),
           username: faker.internet.username(),
+          avatarUrl: faker.image.avatar(),
           name: faker.person.fullName(),
           status: faker.helpers.arrayElement(['ACTIVE', 'ACTIVE', 'ACTIVE', 'PENDING']), // Mostly active
           last_login: faker.date.recent({ days: 30 }),
@@ -668,11 +670,11 @@ async function seedNotifications(users: any[]) {
         await prisma.notification.create({
           data: {
             userId: user.id,
-            type: faker.helpers.arrayElement([NotificationType.SYSTEM, NotificationType.MARKETING, NotificationType.TRANSACTIONAL]),
+            type: faker.helpers.arrayElement([NotificationType.SYSTEM, NotificationType.LIKE, NotificationType.COMMENT, NotificationType.FOLLOW, NotificationType.MESSAGE, NotificationType.MENTION]),
             title: faker.lorem.words(3),
             content: faker.lorem.sentence(),
             image_url: faker.helpers.arrayElement([faker.image.urlLoremFlickr({ category: 'notification' }), null]),
-            status: faker.helpers.arrayElement([NotificationStatus.PENDING, NotificationStatus.SENT, NotificationStatus.READ, NotificationStatus.ARCHIVED]),
+            status: faker.helpers.arrayElement([NotificationStatus.ACTIVE, NotificationStatus.ARCHIVED]),
             is_read: faker.datatype.boolean()
           }
         });
