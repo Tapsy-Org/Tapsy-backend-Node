@@ -670,11 +670,11 @@ async function seedNotifications(users: any[]) {
         await prisma.notification.create({
           data: {
             userId: user.id,
-            type: faker.helpers.arrayElement([NotificationType.SYSTEM, NotificationType.MARKETING, NotificationType.TRANSACTIONAL]),
+            type: faker.helpers.arrayElement([NotificationType.SYSTEM, NotificationType.LIKE, NotificationType.COMMENT, NotificationType.FOLLOW, NotificationType.MESSAGE, NotificationType.MENTION]),
             title: faker.lorem.words(3),
             content: faker.lorem.sentence(),
             image_url: faker.helpers.arrayElement([faker.image.urlLoremFlickr({ category: 'notification' }), null]),
-            status: faker.helpers.arrayElement([NotificationStatus.PENDING, NotificationStatus.SENT, NotificationStatus.READ, NotificationStatus.ARCHIVED]),
+            status: faker.helpers.arrayElement([NotificationStatus.ACTIVE, NotificationStatus.ARCHIVED]),
             is_read: faker.datatype.boolean()
           }
         });
