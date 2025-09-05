@@ -701,4 +701,95 @@ router.post('/refresh-token', UserController.refreshToken);
  */
 router.post('/logout', UserController.logout);
 
+/**
+ * @swagger
+ * /api/users/check-username:
+ *   post:
+ *     summary: Check if username is available
+ *     description: Check if a username is available for registration. This endpoint helps validate usernames before user registration to provide immediate feedback.
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [username]
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Username to check for availability
+ *                 minLength: 3
+ *                 maxLength: 30
+ *                 pattern: '^[a-zA-Z0-9_]+$'
+ *                 example: "john_doe"
+ *           examples:
+ *             available_username:
+ *               summary: Check available username
+ *               value:
+ *                 username: "john_doe"
+ *             taken_username:
+ *               summary: Check taken username
+ *               value:
+ *                 username: "admin"
+ *     responses:
+ *       200:
+ *         description: Username availability checked successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 message:
+ *                   type: string
+ *                   example: "Username is available"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     username:
+ *                       type: string
+ *                       description: The checked username
+ *                       example: "john_doe"
+ *                     available:
+ *                       type: boolean
+ *                       description: Whether the username is available
+ *                       example: true
+ *             examples:
+ *               available:
+ *                 summary: Username is available
+ *                 value:
+ *                   status: "success"
+ *                   message: "Username is available"
+ *                   data:
+ *                     username: "john_doe"
+ *                     available: true
+ *               taken:
+ *                 summary: Username is already taken
+ *                 value:
+ *                   status: "success"
+ *                   message: "Username is already taken"
+ *                   data:
+ *                     username: "admin"
+ *                     available: false
+ *       400:
+ *         description: Invalid username format or missing username
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 message:
+ *                   type: string
+ *                   example: "Username is required and must be a string"
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/check-username', UserController.checkUsername);
+
 export default router;

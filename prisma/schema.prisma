@@ -102,8 +102,7 @@ model User {
   user_type           UserType
   mobile_number       String?            @unique
   email               String?            @unique 
-  username            String
-  avatarUrl           String?
+  username            String             @unique
   name                String?
   status              Status
   last_login          DateTime?
