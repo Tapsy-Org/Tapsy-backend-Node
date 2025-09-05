@@ -444,6 +444,25 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *           maximum: 100
  *           default: 10
  *         description: Number of items per page
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, views, rating]
+ *           default: createdAt
+ *         description: Field to sort by (createdAt, views, rating)
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order (asc for ascending, desc for descending)
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term to filter reviews by caption, title, or hashtags
  *     responses:
  *       200:
  *         description: Reviews retrieved successfully
