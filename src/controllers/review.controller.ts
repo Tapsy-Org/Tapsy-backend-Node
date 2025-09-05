@@ -285,4 +285,49 @@ export default class ReviewController {
       next(error);
     }
   }
+  static async getReviewFeed(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      const { page = '1', limit = '10', latitude, longitude } = req.query;
+
+      const options = {
+        page: parseInt(page as string, 10),
+        limit: parseInt(limit as string, 10),
+        latitude: latitude ? parseFloat(latitude as string) : undefined,
+        longitude: longitude ? parseFloat(longitude as string) : undefined,
+      };
+
+      // Validate pagination parameters
+      if (options.page < 1) {
+        throw new AppError('Page must be greater than 0', 400);
+      }
+
+      if (options.limit < 1 || options.limit > 50) {
+        throw new AppError('Limit must be between 1 and 50', 400);
+      }
+
+      // Validate location parameters if provided
+      if ((options.latitude && !options.longitude) || (!options.latitude && options.longitude)) {
+        throw new AppError('Both latitude and longitude must be provided together', 400);
+      }
+
+      if (options.latitude && (options.latitude < -90 || options.latitude > 90)) {
+        throw new AppError('Latitude must be between -90 and 90', 400);
+      }
+
+      if (options.longitude && (options.longitude < -180 || options.longitude > 180)) {
+        throw new AppError('Longitude must be between -180 and 180', 400);
+      }
+
+      const result = await reviewService.getReviewFeed(userId, options);
+
+      return res.success(result, 'Review feed fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
 }
