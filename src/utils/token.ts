@@ -11,6 +11,7 @@ export default class AuthTokens {
   //* Generate Access Token
   static generateAccessToken(payload: TokenPayload) {
     const options: SignOptions = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expiresIn: (process.env.JWT_ACCESS_EXPIRES || '15m') as any,
     };
 
@@ -22,6 +23,7 @@ export default class AuthTokens {
   //* Generate Refresh Token and Save in DB
   static async generateRefreshToken(payload: TokenPayload) {
     const options: SignOptions = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expiresIn: (process.env.JWT_REFRESH_EXPIRES || '7d') as any,
     };
 
