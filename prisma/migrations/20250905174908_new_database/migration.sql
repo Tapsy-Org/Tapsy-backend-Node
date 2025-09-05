@@ -29,10 +29,10 @@ CREATE TYPE "public"."SubscriptionStatus" AS ENUM ('TRIAL', 'ACTIVE', 'PAST_DUE'
 CREATE TYPE "public"."PaymentMethod" AS ENUM ('STRIPE', 'RAZORPAY', 'CARD', 'CASH', 'OTHER');
 
 -- CreateEnum
-CREATE TYPE "public"."NotificationType" AS ENUM ('SYSTEM', 'MARKETING', 'TRANSACTIONAL');
+CREATE TYPE "public"."NotificationType" AS ENUM ('LIKE', 'COMMENT', 'FOLLOW', 'MESSAGE', 'MENTION', 'SYSTEM');
 
 -- CreateEnum
-CREATE TYPE "public"."NotificationStatus" AS ENUM ('PENDING', 'SENT', 'READ', 'ARCHIVED');
+CREATE TYPE "public"."NotificationStatus" AS ENUM ('ACTIVE', 'ARCHIVED');
 
 -- CreateEnum
 CREATE TYPE "public"."SupportStatus" AS ENUM ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED');
@@ -44,7 +44,7 @@ CREATE TABLE "public"."User" (
     "mobile_number" TEXT,
     "email" TEXT,
     "username" TEXT NOT NULL,
-    "device_id" TEXT NOT NULL,
+    "name" TEXT,
     "status" "public"."Status" NOT NULL,
     "last_login" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -53,14 +53,13 @@ CREATE TABLE "public"."User" (
     "otp_verified" BOOLEAN NOT NULL DEFAULT false,
     "verification_method" "public"."VerificationMethod" NOT NULL,
     "otp" TEXT,
-    "access_token" TEXT,
+    "refresh_token" TEXT,
     "otp_expiry" TIMESTAMP(3),
-    "address" TEXT,
-    "zip_code" TEXT,
+    "password" TEXT,
     "website" TEXT,
     "about" TEXT,
     "logo_url" TEXT,
-    "video_urls" TEXT[],
+    "video_url" TEXT,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -84,6 +83,7 @@ CREATE TABLE "public"."UserCategory" (
     "id" UUID NOT NULL,
     "userId" UUID NOT NULL,
     "categoryId" UUID NOT NULL,
+    "categoriesName" TEXT[],
     "subcategories" TEXT[],
     "user_type" "public"."UserType" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -96,10 +96,15 @@ CREATE TABLE "public"."UserCategory" (
 CREATE TABLE "public"."Location" (
     "id" UUID NOT NULL,
     "userId" UUID NOT NULL,
+    "address" TEXT,
+    "zip_code" TEXT,
     "latitude" DOUBLE PRECISION NOT NULL,
     "longitude" DOUBLE PRECISION NOT NULL,
     "location" TEXT NOT NULL,
     "location_type" "public"."LocationType" NOT NULL,
+    "city" TEXT,
+    "state" TEXT,
+    "country" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -119,6 +124,7 @@ CREATE TABLE "public"."Review" (
     "businessId" UUID,
     "views" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" "public"."Status" NOT NULL DEFAULT 'ACTIVE',
 
     CONSTRAINT "Review_pkey" PRIMARY KEY ("id")
 );
@@ -138,7 +144,6 @@ CREATE TABLE "public"."Follow" (
     "id" UUID NOT NULL,
     "followerId" UUID NOT NULL,
     "followingUserId" UUID NOT NULL,
-    "followType" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Follow_pkey" PRIMARY KEY ("id")
@@ -183,7 +188,9 @@ CREATE TABLE "public"."BusinessVideo" (
 CREATE TABLE "public"."Notification" (
     "id" UUID NOT NULL,
     "userId" UUID NOT NULL,
+    "senderId" UUID,
     "type" "public"."NotificationType" NOT NULL,
+    "referenceId" UUID,
     "title" TEXT NOT NULL,
     "content" TEXT NOT NULL,
     "image_url" TEXT,
@@ -293,6 +300,9 @@ CREATE INDEX "UserCategory_categoryId_idx" ON "public"."UserCategory"("categoryI
 CREATE UNIQUE INDEX "UserCategory_userId_categoryId_key" ON "public"."UserCategory"("userId", "categoryId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Like_userId_reviewId_key" ON "public"."Like"("userId", "reviewId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Follow_followerId_followingUserId_key" ON "public"."Follow"("followerId", "followingUserId");
 
 -- CreateIndex
@@ -345,6 +355,9 @@ ALTER TABLE "public"."BusinessVideo" ADD CONSTRAINT "BusinessVideo_businessId_fk
 
 -- AddForeignKey
 ALTER TABLE "public"."Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Notification" ADD CONSTRAINT "Notification_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."SupportTicket" ADD CONSTRAINT "SupportTicket_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -647,6 +647,25 @@ router.get('/feed', requireAuth(), ReviewController.getReviewFeed);
  *           maximum: 100
  *           default: 10
  *         description: Number of items per page
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, views, rating]
+ *           default: createdAt
+ *         description: Field to sort by (createdAt, views, rating)
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order (asc for ascending, desc for descending)
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term to filter reviews by caption, title, or hashtags
  *     responses:
  *       200:
  *         description: Reviews retrieved successfully
@@ -900,6 +919,164 @@ router.get('/my/reviews', requireAuth(), ReviewController.getMyReviews);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewStatus);
+
+/**
+ * @swagger
+ * /api/reviews/my/business-reviews:
+ *   get:
+ *     summary: Get my business reviews
+ *     description: |
+ *       Retrieves reviews for the authenticated business user with pagination support.
+ *       Default limit is 5 reviews per page. Returns comprehensive review data
+ *       including user information, likes, and comments.
+ *       **Authentication:**
+ *       - Requires BUSINESS user type
+ *       - Uses authenticated user's ID as business ID
+ *       **Pagination:**
+ *       - Default: 5 reviews per page
+ *       - Configurable page and limit parameters
+ *       - Returns pagination metadata
+ *       **Status Filtering:**
+ *       - Default: Shows only non-deleted reviews
+ *       - Optional status filter for specific review states
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 5
+ *         description: Number of reviews per page (default 5)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [ACTIVE, PENDING, INACTIVE]
+ *         description: Filter reviews by status (optional)
+ *     responses:
+ *       200:
+ *         description: Business reviews retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Your business reviews fetched successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/ReviewsResponse'
+ *             examples:
+ *               success_response:
+ *                 summary: Business reviews with pagination
+ *                 value:
+ *                   status: "success"
+ *                   message: "Your business reviews fetched successfully"
+ *                   data:
+ *                     reviews:
+ *                       - id: "60cc2365-74ae-4b50-b7f7-a356c4a417ea"
+ *                         rating: "FIVE"
+ *                         caption: "Amazing service and great food!"
+ *                         hashtags: ["#great", "#food", "#service"]
+ *                         title: "Best Restaurant Experience"
+ *                         video_url: "https://s3.amazonaws.com/bucket/video.mp4"
+ *                         views: 150
+ *                         status: "ACTIVE"
+ *                         createdAt: "2024-01-15T10:30:00Z"
+ *                         user:
+ *                           id: "user-123"
+ *                           username: "john_doe"
+ *                           user_type: "INDIVIDUAL"
+ *                           logo_url: "https://example.com/avatar.jpg"
+ *                         business:
+ *                           id: "business-456"
+ *                           username: "restaurant_name"
+ *                           user_type: "BUSINESS"
+ *                           logo_url: "https://example.com/logo.jpg"
+ *                         likes:
+ *                           - id: "like-1"
+ *                             userId: "user-789"
+ *                         comments:
+ *                           - id: "comment-1"
+ *                             comment: "I agree, great place!"
+ *                             createdAt: "2024-01-15T11:00:00Z"
+ *                             user:
+ *                               id: "user-789"
+ *                               username: "jane_doe"
+ *                               logo_url: "https://example.com/avatar2.jpg"
+ *                     pagination:
+ *                       page: 1
+ *                       limit: 5
+ *                       total: 25
+ *                       totalPages: 5
+ *       400:
+ *         description: Bad request - invalid business ID or query parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalid_business_id:
+ *                 summary: Invalid business ID format
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Invalid business ID format. Must be a valid UUID"
+ *                   details: null
+ *               invalid_status:
+ *                 summary: Invalid status value
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Invalid status value. Must be ACTIVE, PENDING, or INACTIVE"
+ *                   details: null
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Business not found or inactive
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               business_not_found:
+ *                 summary: Business not found
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 404
+ *                   message: "Business not found or inactive"
+ *                   details: null
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get(
+  '/my/business-reviews',
+  dataFetchLimiter,
+  requireAuth('BUSINESS'),
+  ReviewController.getBusinessReviews,
+);
 
 /**
  * @swagger

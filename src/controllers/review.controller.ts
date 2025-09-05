@@ -1,4 +1,4 @@
-import { ReviewRating } from '@prisma/client';
+import { ReviewRating, Status } from '@prisma/client';
 import { NextFunction, Response } from 'express';
 
 import { RedisService } from '../services/redis.service';
@@ -14,22 +14,6 @@ export default class ReviewController {
   static async createReview(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { rating, badges, caption, hashtags, title, businessId } = req.body;
-
-      // Debug logging
-      console.log('Received form data:', {
-        rating,
-        badges,
-        caption,
-        hashtags,
-        title,
-        businessId,
-        hashtagsType: typeof hashtags,
-        hashtagsIsArray: Array.isArray(hashtags),
-        fileReceived: !!req.file,
-        fileSize: req.file?.size,
-        fileMimeType: req.file?.mimetype,
-      });
-
       // Get user ID from authenticated request
       const userId = req.user?.userId;
       if (!userId) {
@@ -175,7 +159,31 @@ export default class ReviewController {
 
   static async getReviews(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { userId, businessId, rating, page = '1', limit = '10' } = req.query;
+      const {
+        userId,
+        businessId,
+        rating,
+        page = '1',
+        limit = '10',
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        search,
+      } = req.query;
+
+      // Validate sortBy parameter
+      const validSortFields = ['createdAt', 'views', 'rating'];
+      const validSortOrder = ['asc', 'desc'];
+
+      if (sortBy && !validSortFields.includes(sortBy as string)) {
+        throw new AppError(
+          'Invalid sortBy parameter. Must be one of: createdAt, views, rating',
+          400,
+        );
+      }
+
+      if (sortOrder && !validSortOrder.includes(sortOrder as string)) {
+        throw new AppError('Invalid sortOrder parameter. Must be one of: asc, desc', 400);
+      }
 
       const filters = {
         userId: userId as string,
@@ -183,6 +191,9 @@ export default class ReviewController {
         rating: rating as ReviewRating,
         page: parseInt(page as string, 10),
         limit: parseInt(limit as string, 10),
+        sortBy: sortBy as 'createdAt' | 'views' | 'rating',
+        sortOrder: sortOrder as 'asc' | 'desc',
+        search: search as string,
       };
 
       const result = await reviewService.getReviews(filters);
@@ -283,6 +294,55 @@ export default class ReviewController {
       const updatedReview = await reviewService.updateReviewStatus(reviewId, status, adminUserId);
 
       return res.success(updatedReview, 'Review status updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getBusinessReviews(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const {
+        page = '1',
+        limit = '5',
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        search,
+        status,
+      } = req.query;
+
+      const businessId = req.user?.userId;
+
+      if (!businessId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      // Validate sortBy parameter
+      const validSortFields = ['createdAt', 'views', 'rating'];
+      const validSortOrder = ['asc', 'desc'];
+
+      if (sortBy && !validSortFields.includes(sortBy as string)) {
+        throw new AppError(
+          'Invalid sortBy parameter. Must be one of: createdAt, views, rating',
+          400,
+        );
+      }
+
+      if (sortOrder && !validSortOrder.includes(sortOrder as string)) {
+        throw new AppError('Invalid sortOrder parameter. Must be one of: asc, desc', 400);
+      }
+
+      const filters = {
+        page: parseInt(page as string, 10),
+        limit: parseInt(limit as string, 10),
+        sortBy: sortBy as 'createdAt' | 'views' | 'rating',
+        sortOrder: sortOrder as 'asc' | 'desc',
+        search: search as string,
+        status: status as Status,
+      };
+
+      const result = await reviewService.getBusinessReviews(businessId, filters);
+
+      return res.success(result, 'Your business reviews fetched successfully');
     } catch (error) {
       next(error);
     }

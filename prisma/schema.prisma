@@ -77,15 +77,15 @@ enum PaymentMethod {
 }
 
 enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  MESSAGE
+  MENTION
   SYSTEM
-  MARKETING
-  TRANSACTIONAL
 }
-
 enum NotificationStatus {
-  PENDING
-  SENT
-  READ
+  ACTIVE
   ARCHIVED
 }
 
@@ -102,7 +102,7 @@ model User {
   user_type           UserType
   mobile_number       String?            @unique
   email               String?            @unique 
-  username            String
+  username            String             @unique
   name                String?
   status              Status
   last_login          DateTime?
@@ -132,7 +132,8 @@ model User {
   messagesReceived Message[]       @relation("MessagesReceived")
   comments         Comment[]
   businessVideos   BusinessVideo[]
-  notifications    Notification[]
+  receivedNotifications Notification[] @relation("UserNotifications")
+  sentNotifications     Notification[] @relation("SenderNotifications")
   subscriptions    Subscription[]
   supportTickets   SupportTicket[]
   searches         RecentSearch[]
@@ -275,7 +276,9 @@ model BusinessVideo {
 model Notification {
   id        String             @id @default(uuid()) @db.Uuid
   userId    String             @db.Uuid
+  senderId  String?            @db.Uuid
   type      NotificationType
+  referenceId  String?            @db.Uuid         // likeId, commentId, followId, messageId, etc.
   title     String
   content   String
   image_url String?
@@ -283,7 +286,8 @@ model Notification {
   is_read   Boolean            @default(false)
   createdAt DateTime           @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation("UserNotifications", fields: [userId], references: [id])
+  sender User?  @relation("SenderNotifications", fields: [senderId], references: [id])
 }
 
 // ---------- Help & Support ----------

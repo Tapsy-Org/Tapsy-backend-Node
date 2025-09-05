@@ -686,4 +686,9 @@ export class UserService {
       });
     }
   }
+
+  async usernameExists(username: string) {
+    const user = await prisma.user.findUnique({ where: { username } });
+    return user !== null;
+  }
 }
