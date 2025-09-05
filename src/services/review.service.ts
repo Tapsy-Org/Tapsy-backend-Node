@@ -2,8 +2,14 @@ import type { Prisma, ReviewRating, Status } from '@prisma/client';
 
 import prisma from '../config/db';
 import AppError from '../utils/AppError';
+import { RedisService } from './redis.service';
 
 export class ReviewService {
+  private redisService: RedisService;
+
+  constructor() {
+    this.redisService = new RedisService();
+  }
   async createReview(data: {
     userId: string;
     rating: ReviewRating;
@@ -427,6 +433,9 @@ export class ReviewService {
       // Get followed users IDs
       const followingUserIds = user.following.map((f) => f.followingUserId);
 
+      // Get seen review IDs from Redis
+      const seenReviewIds = await this.redisService.getSeenReviewIds(userId);
+
       // Fast algorithm using Prisma with computed scoring
       // Step 1: Get base reviews with all needed data
       const baseReviews = await prisma.review.findMany({
@@ -434,6 +443,10 @@ export class ReviewService {
           status: 'ACTIVE',
           userId: { not: userId },
           video_url: { not: null },
+          // Exclude seen reviews
+          ...(seenReviewIds.length > 0 && {
+            id: { notIn: seenReviewIds },
+          }),
         },
         include: {
           user: {
@@ -587,8 +600,9 @@ export class ReviewService {
           user_following_count: followingUserIds.length,
           user_categories_count: userCategoryIds.length,
           location_based: !!(userLat && userLng),
-          algorithm_version: 'fast_prisma_v1',
-          note: 'TikTok-style personalized feed with full scoring algorithm',
+          seen_reviews_excluded: seenReviewIds.length,
+          algorithm_version: 'fast_prisma_v1_with_redis',
+          note: 'TikTok-style personalized feed with full scoring algorithm and seen reviews filtering',
         },
       };
     } catch (error) {

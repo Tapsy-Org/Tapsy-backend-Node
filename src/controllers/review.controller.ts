@@ -1,12 +1,14 @@
 import { ReviewRating } from '@prisma/client';
 import { NextFunction, Response } from 'express';
 
+import { RedisService } from '../services/redis.service';
 import { ReviewService } from '../services/review.service';
 import { AuthRequest } from '../types/express';
 import AppError from '../utils/AppError';
 import { uploadFileToS3 } from '../utils/s3';
 
 const reviewService = new ReviewService();
+const redisService = new RedisService();
 
 export default class ReviewController {
   static async createReview(req: AuthRequest, res: Response, next: NextFunction) {
@@ -326,6 +328,121 @@ export default class ReviewController {
       const result = await reviewService.getReviewFeed(userId, options);
 
       return res.success(result, 'Review feed fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async markReviewAsSeen(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      const { reviewId } = req.params;
+      if (!reviewId) {
+        throw new AppError('Review ID is required', 400);
+      }
+
+      // Validate review ID format (UUID)
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(reviewId)) {
+        throw new AppError('Invalid review ID format. Must be a valid UUID', 400);
+      }
+
+      // Check if review exists
+      const review = await reviewService.getReviewById(reviewId);
+      if (!review) {
+        throw new AppError('Review not found', 404);
+      }
+
+      // Mark review as seen
+      await redisService.markReviewAsSeen(userId, reviewId);
+
+      return res.success({ reviewId, userId }, 'Review marked as seen successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async markReviewsAsSeen(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      const { reviewIds } = req.body;
+      if (!reviewIds || !Array.isArray(reviewIds) || reviewIds.length === 0) {
+        throw new AppError('Review IDs array is required and must not be empty', 400);
+      }
+
+      // Validate all review IDs are valid UUIDs
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const invalidIds = reviewIds.filter((id) => !uuidRegex.test(id));
+      if (invalidIds.length > 0) {
+        throw new AppError(
+          `Invalid review ID format(s): ${invalidIds.join(', ')}. Must be valid UUIDs`,
+          400,
+        );
+      }
+
+      // Limit the number of reviews that can be marked as seen at once
+      if (reviewIds.length > 100) {
+        throw new AppError('Cannot mark more than 100 reviews as seen at once', 400);
+      }
+
+      // Mark reviews as seen
+      await redisService.markReviewsAsSeen(userId, reviewIds);
+
+      return res.success(
+        {
+          reviewIds,
+          userId,
+          count: reviewIds.length,
+        },
+        'Reviews marked as seen successfully',
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getSeenReviews(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      const seenReviewIds = await redisService.getSeenReviewIds(userId);
+      const count = await redisService.getSeenReviewsCount(userId);
+
+      return res.success(
+        {
+          seenReviewIds,
+          count,
+        },
+        'Seen reviews fetched successfully',
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async clearSeenReviews(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      await redisService.clearSeenReviews(userId);
+
+      return res.success({ userId }, 'All seen reviews cleared successfully');
     } catch (error) {
       next(error);
     }
