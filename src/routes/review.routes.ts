@@ -3,7 +3,7 @@ import multer from 'multer';
 
 import ReviewController from '../controllers/review.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
-import { Limiter } from '../middlewares/rateLimit';
+import { dataFetchLimiter } from '../middlewares/rateLimit.middleware';
 
 const router = express.Router();
 
@@ -29,6 +29,10 @@ const router = express.Router();
  *       type: string
  *       enum: [ONE, TWO, THREE, FOUR, FIVE]
  *       description: Rating value for the review
+ *     ReviewStatus:
+ *       type: string
+ *       enum: [ACTIVE, PENDING, INACTIVE, DELETED]
+ *       description: Status of the review
  *     Review:
  *       type: object
  *       properties:
@@ -80,14 +84,17 @@ const router = express.Router();
  *         business:
  *           $ref: '#/components/schemas/UserSummary'
  *           nullable: true
- *         likes:
- *           type: array
- *           items:
- *             $ref: '#/components/schemas/Like'
- *         comments:
- *           type: array
- *           items:
- *             $ref: '#/components/schemas/Comment'
+ *         _count:
+ *           type: object
+ *           properties:
+ *             likes:
+ *               type: integer
+ *               description: Total number of likes for the review
+ *               example: 42
+ *             comments:
+ *               type: integer
+ *               description: Total number of comments for the review (including replies)
+ *               example: 15
  *     UserSummary:
  *       type: object
  *       properties:
@@ -96,6 +103,9 @@ const router = express.Router();
  *           format: uuid
  *         username:
  *           type: string
+ *         name:
+ *           type: string
+ *           nullable: true
  *         user_type:
  *           type: string
  *           enum: [INDIVIDUAL, BUSINESS, ADMIN]
@@ -122,6 +132,11 @@ const router = express.Router();
  *         createdAt:
  *           type: string
  *           format: date-time
+ *         parent_comment_id:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *           description: ID of parent comment if this is a reply
  *         user:
  *           $ref: '#/components/schemas/UserSummary'
  *     ReviewFilters:
@@ -389,6 +404,8 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *       - `INACTIVE`: Available for future use
  *       - `DELETED`: Soft-deleted reviews (hidden from queries)
  *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: userId
@@ -448,7 +465,7 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *       500:
  *         description: Internal server error
  */
-router.get('/', ReviewController.getReviews);
+router.get('/', dataFetchLimiter, requireAuth(), ReviewController.getReviews);
 
 /**
  * @swagger
@@ -459,6 +476,8 @@ router.get('/', ReviewController.getReviews);
  *       Retrieves a specific review by its ID and automatically increments the view count.
  *       Returns complete review data including user, business, likes, and comments.
  *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: reviewId
@@ -493,7 +512,7 @@ router.get('/', ReviewController.getReviews);
  *       500:
  *         description: Internal server error
  */
-router.get('/:reviewId', ReviewController.getReviewById);
+router.get('/:reviewId', dataFetchLimiter, requireAuth(), ReviewController.getReviewById);
 
 /**
  * @swagger
@@ -574,30 +593,31 @@ router.get('/my/reviews', requireAuth(), ReviewController.getMyReviews);
  *           format: uuid
  *         required: true
  *         description: The review ID to update
- *       - in: body
- *         name: status
- *         required: true
- *         schema:
- *           type: object
- *           required:
- *             - status
- *           properties:
- *             status:
- *               $ref: '#/components/schemas/ReviewStatus'
- *               description: New status for the review
- *         examples:
- *           approve_review:
- *             summary: Approve a pending review
- *             value:
- *               status: "ACTIVE"
- *           deactivate_review:
- *             summary: Deactivate an active review
- *             value:
- *               status: "INACTIVE"
- *           reactivate_review:
- *             summary: Reactivate an inactive review
- *             value:
- *               status: "ACTIVE"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 $ref: '#/components/schemas/ReviewStatus'
+ *                 description: New status for the review
+ *           examples:
+ *             approve_review:
+ *               summary: Approve a pending review
+ *               value:
+ *                 status: "ACTIVE"
+ *             deactivate_review:
+ *               summary: Deactivate an active review
+ *               value:
+ *                 status: "INACTIVE"
+ *             reactivate_review:
+ *               summary: Reactivate an inactive review
+ *               value:
+ *                 status: "ACTIVE"
  *     responses:
  *       200:
  *         description: Review status updated successfully
@@ -831,7 +851,7 @@ router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewSt
  */
 router.get(
   '/my/business-reviews',
-  Limiter,
+  dataFetchLimiter,
   requireAuth('BUSINESS'),
   ReviewController.getBusinessReviews,
 );

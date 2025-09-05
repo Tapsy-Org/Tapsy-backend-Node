@@ -1,11 +1,11 @@
 import cors from 'cors';
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import swaggerUi from 'swagger-ui-express';
 
 import globalErrorHandler from './middlewares/globalErrorHandler';
 import responseMiddleware from './middlewares/response.middleware';
 import mainRouter from './routes/index.routes';
-import swaggerSpec from './utils/swagger';
+import swaggerSpec, { getSwaggerSpec } from './utils/swagger';
 
 const app = express();
 
@@ -24,7 +24,14 @@ app.get('/health', (_req, res) => {
   });
 });
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+if (process.env.NODE_ENV === 'development') {
+  app.use('/api-docs', swaggerUi.serve, (req: Request, res: Response, next: NextFunction) => {
+    const freshSpec = getSwaggerSpec();
+    swaggerUi.setup(freshSpec)(req, res, next);
+  });
+} else {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 app.use('/api', mainRouter);
 app.get('/', (_req, res) => {
   res.json({

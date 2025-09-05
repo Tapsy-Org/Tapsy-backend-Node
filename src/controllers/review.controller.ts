@@ -1,5 +1,5 @@
 import { ReviewRating, Status } from '@prisma/client';
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
 
 import { ReviewService } from '../services/review.service';
 import { AuthRequest } from '../types/express';
@@ -12,22 +12,6 @@ export default class ReviewController {
   static async createReview(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { rating, badges, caption, hashtags, title, businessId } = req.body;
-
-      // Debug logging
-      console.log('Received form data:', {
-        rating,
-        badges,
-        caption,
-        hashtags,
-        title,
-        businessId,
-        hashtagsType: typeof hashtags,
-        hashtagsIsArray: Array.isArray(hashtags),
-        fileReceived: !!req.file,
-        fileSize: req.file?.size,
-        fileMimeType: req.file?.mimetype,
-      });
-
       // Get user ID from authenticated request
       const userId = req.user?.userId;
       if (!userId) {
@@ -171,7 +155,7 @@ export default class ReviewController {
     }
   }
 
-  static async getReviews(req: Request, res: Response, next: NextFunction) {
+  static async getReviews(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const {
         userId,
@@ -218,7 +202,7 @@ export default class ReviewController {
     }
   }
 
-  static async getReviewById(req: Request, res: Response, next: NextFunction) {
+  static async getReviewById(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { reviewId } = req.params;
 
@@ -351,7 +335,7 @@ export default class ReviewController {
         sortBy: sortBy as 'createdAt' | 'views' | 'rating',
         sortOrder: sortOrder as 'asc' | 'desc',
         search: search as string,
-        status: status as Status, // Will be validated in service
+        status: status as Status,
       };
 
       const result = await reviewService.getBusinessReviews(businessId, filters);

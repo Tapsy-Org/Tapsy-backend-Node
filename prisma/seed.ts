@@ -1,4 +1,4 @@
-import { PrismaClient, UserType, Status, VerificationMethod, CategoryAudience } from '@prisma/client';
+import { PrismaClient, CategoryAudience, NotificationType, NotificationStatus, SupportStatus, BillingCycle, SubscriptionStatus, PaymentMethod } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 
 // Node.js globals for seeding
@@ -52,33 +52,24 @@ const bothCategories = [
 async function clearDatabase() {
   console.log('🧹 Clearing existing data...');
   
-  try {
-    // Disable foreign key checks temporarily
-    await prisma.$executeRaw`SET session_replication_role = replica;`;
-    
-    // Delete all data
-    await prisma.review.deleteMany();
-    await prisma.userCategory.deleteMany();
-    await prisma.location.deleteMany();
-    await prisma.follow.deleteMany();
-    await prisma.notification.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.category.deleteMany();
-    
-    // Re-enable foreign key checks
-    await prisma.$executeRaw`SET session_replication_role = DEFAULT;`;
-    
-    console.log('✅ Database cleared successfully');
-  } catch (error) {
-    console.log('⚠️ Error clearing database:', error);
-    // Try to re-enable foreign key checks even if clearing failed
-    try {
-      await prisma.$executeRaw`SET session_replication_role = DEFAULT;`;
-    } catch (e) {
-      console.log('⚠️ Could not re-enable foreign key checks');
-    }
-    throw error;
-  }
+  // Delete in reverse order of dependencies
+  await prisma.like.deleteMany();
+  await prisma.comment.deleteMany();
+  await prisma.review.deleteMany();
+  await prisma.businessVideo.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.supportTicket.deleteMany();
+  await prisma.recentSearch.deleteMany();
+  await prisma.subscription.deleteMany();
+  await prisma.plan.deleteMany();
+  await prisma.userCategory.deleteMany();
+  await prisma.location.deleteMany();
+  await prisma.follow.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.category.deleteMany();
+  
+  console.log('✅ Database cleared successfully');
 }
 
 async function seedCategories() {
@@ -116,7 +107,7 @@ async function seedBusinessUsers() {
   
   const businessUsers: any[] = [];
   
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < 5; i++) {
     try {
       const businessUser = await prisma.user.create({
         data: {
@@ -153,7 +144,7 @@ async function seedIndividualUsers() {
   
   const individualUsers: any[] = [];
   
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 5; i++) {
     try {
       const individualUser = await prisma.user.create({
         data: {
@@ -191,7 +182,7 @@ async function assignCategoriesToUsers(businessUsers: any[], individualUsers: an
     
     const selectedCategories = faker.helpers.arrayElements(
       businessCategories, 
-      faker.number.int({ min: 1, max: 4 })
+      faker.number.int({ min: 1, max: 2 })
     );
     
     for (const category of selectedCategories) {
@@ -221,7 +212,7 @@ async function assignCategoriesToUsers(businessUsers: any[], individualUsers: an
     
     const selectedCategories = faker.helpers.arrayElements(
       individualCategories, 
-      faker.number.int({ min: 1, max: 3 })
+      faker.number.int({ min: 1, max: 2 })
     );
     
     for (const category of selectedCategories) {
@@ -250,7 +241,7 @@ async function seedLocations(users: any[]) {
   console.log('Seeding user locations...');
   
   for (const user of users) {
-    const locationCount = faker.number.int({ min: 1, max: 3 });
+    const locationCount = faker.number.int({ min: 1, max: 2 });
     
     for (let i = 0; i < locationCount; i++) {
       try {
@@ -277,21 +268,22 @@ async function seedReviews(users: any[]) {
   
   const businessUsers = users.filter(user => user.user_type === 'BUSINESS');
   const individualUsers = users.filter(user => user.user_type === 'INDIVIDUAL');
+  const allReviews: any[] = [];
   
   if (businessUsers.length === 0 || individualUsers.length === 0) {
     console.log('⚠️ Skipping reviews - need both business and individual users');
-    return;
+    return allReviews;
   }
   
   // Individual users review businesses
   for (const businessUser of businessUsers) {
-    const reviewCount = faker.number.int({ min: 3, max: 15 });
+    const reviewCount = faker.number.int({ min: 2, max: 5 });
     
     for (let i = 0; i < reviewCount; i++) {
       const reviewer = faker.helpers.arrayElement(individualUsers);
       
       try {
-        await prisma.review.create({
+        const review = await prisma.review.create({
           data: {
             userId: reviewer.id, // This is the user who CREATED the review
             rating: faker.helpers.arrayElement(['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE']),
@@ -306,13 +298,15 @@ async function seedReviews(users: any[]) {
             views: faker.number.int({ min: 0, max: 1000 })
           }
         });
+        allReviews.push(review);
       } catch (error) {
         console.log(`⚠️ Skipping review creation: ${error}`);
       }
     }
   }
   
-  console.log('✅ Reviews created successfully');
+  console.log(`✅ Created ${allReviews.length} reviews successfully`);
+  return allReviews;
 }
 
 async function seedFollows(users: any[]) {
@@ -320,10 +314,12 @@ async function seedFollows(users: any[]) {
   
   const individualUsers = users.filter(user => user.user_type === 'INDIVIDUAL');
   const businessUsers = users.filter(user => user.user_type === 'BUSINESS');
+  let totalFollows = 0;
+  const followData: { followerId: string; followingUserId: string }[] = [];
   
-  // Individual users follow other individual users
+  // Pre-generate all potential follows for individual users following other individuals
   for (const user of individualUsers) {
-    const followCount = faker.number.int({ min: 0, max: 8 });
+    const followCount = faker.number.int({ min: 0, max: 3 });
     const availableUsers = individualUsers.filter(u => u.id !== user.id);
     
     if (availableUsers.length === 0) continue;
@@ -334,24 +330,16 @@ async function seedFollows(users: any[]) {
     );
     
     for (const userToFollow of usersToFollow) {
-      try {
-        await prisma.follow.create({
-          data: {
-            followerId: user.id,
-            followingUserId: userToFollow.id,
-            followType: 'INDIVIDUAL'
-          }
-        });
-      } catch (error) {
-        // Skip if follow already exists (due to unique constraint)
-        console.log(`⚠️ Skipping duplicate follow: ${user.id} -> ${userToFollow.id}`);
-      }
+      followData.push({
+        followerId: user.id,
+        followingUserId: userToFollow.id
+      });
     }
   }
   
-  // Individual users follow businesses
+  // Pre-generate all potential follows for individual users following businesses
   for (const user of individualUsers) {
-    const businessFollowCount = faker.number.int({ min: 0, max: 5 });
+    const businessFollowCount = faker.number.int({ min: 0, max: 3 });
     const availableBusinesses = businessUsers.filter(b => b.id !== user.id);
     
     if (availableBusinesses.length === 0) continue;
@@ -362,22 +350,403 @@ async function seedFollows(users: any[]) {
     );
     
     for (const business of businessesToFollow) {
-      try {
-        await prisma.follow.create({
+      followData.push({
+        followerId: user.id,
+        followingUserId: business.id
+      });
+    }
+  }
+  
+  // Create follows in batches, handling unique constraint violations
+  for (const follow of followData) {
+    try {
+      await prisma.follow.create({
+        data: follow
+      });
+      totalFollows++;
+    } catch (error) {
+      // Skip if follow already exists (due to unique constraint)
+      // This is expected behavior, so we don't log it as an error
+    }
+  }
+  
+  console.log(`✅ Created ${totalFollows} follows successfully`);
+}
+
+async function seedPlans() {
+  console.log('💳 Seeding subscription plans...');
+  
+  const plansData = [
+    {
+      name: 'Basic',
+      price: 999, // $9.99 in cents
+      billingCycle: BillingCycle.MONTHLY,
+      features: ['Basic listing', 'Up to 5 reviews', 'Standard support'],
+      limits: ['5 reviews per month', 'Basic analytics'],
+      status: true,
+      sort_order: 1,
+      stripe_price_id: 'price_basic_monthly',
+      is_popular: false,
+      trial_days: 7
+    },
+    {
+      name: 'Professional',
+      price: 1999, // $19.99 in cents
+      billingCycle: BillingCycle.MONTHLY,
+      features: ['Enhanced listing', 'Unlimited reviews', 'Priority support', 'Advanced analytics'],
+      limits: ['Unlimited reviews', 'Advanced analytics', 'Priority support'],
+      status: true,
+      sort_order: 2,
+      stripe_price_id: 'price_professional_monthly',
+      is_popular: true,
+      trial_days: 14
+    },
+    {
+      name: 'Enterprise',
+      price: 4999, // $49.99 in cents
+      billingCycle: BillingCycle.MONTHLY,
+      features: ['Premium listing', 'Unlimited everything', '24/7 support', 'Custom integrations'],
+      limits: ['Unlimited everything', 'Custom integrations', '24/7 support'],
+      status: true,
+      sort_order: 3,
+      stripe_price_id: 'price_enterprise_monthly',
+      is_popular: false,
+      trial_days: 30
+    }
+  ];
+
+  const createdPlans: any[] = [];
+  for (const plan of plansData) {
+    try {
+      const createdPlan = await prisma.plan.create({
+        data: plan
+      });
+      createdPlans.push(createdPlan);
+    } catch (error) {
+      console.log(`⚠️ Skipping plan creation: ${error}`);
+    }
+  }
+  
+  console.log(`✅ Created ${createdPlans.length} subscription plans`);
+  return createdPlans;
+}
+
+async function seedSubscriptions(businessUsers: any[], plans: any[]) {
+  console.log('📋 Seeding subscriptions...');
+  
+  for (const businessUser of businessUsers) {
+    const plan = faker.helpers.arrayElement(plans);
+    const startDate = faker.date.recent({ days: 30 });
+    const endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + 1);
+    
+    try {
+              await prisma.subscription.create({
           data: {
-            followerId: user.id,
-            followingUserId: business.id,
-            followType: 'BUSINESS'
+            businessId: businessUser.id,
+            planId: plan.id,
+            status: faker.helpers.arrayElement([SubscriptionStatus.ACTIVE, SubscriptionStatus.ACTIVE, SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL, SubscriptionStatus.PAST_DUE]),
+            starts_at: startDate,
+            ends_at: endDate,
+            trial_ends_at: plan.trial_days > 0 ? new Date(startDate.getTime() + plan.trial_days * 24 * 60 * 60 * 1000) : null,
+            cancelled_at: faker.helpers.arrayElement([null, null, null, faker.date.recent({ days: 10 })]),
+            payment_method: faker.helpers.arrayElement([PaymentMethod.STRIPE, PaymentMethod.RAZORPAY, PaymentMethod.CARD])
           }
         });
+    } catch (error) {
+      console.log(`⚠️ Skipping subscription creation for business ${businessUser.id}: ${error}`);
+    }
+  }
+  
+  console.log('✅ Subscriptions created successfully');
+}
+
+async function seedLikes(users: any[], reviews: any[]) {
+  console.log('❤️ Seeding likes...');
+  
+  let totalLikes = 0;
+  const likeData: { userId: string; reviewId: string }[] = [];
+  
+  // Pre-generate all potential likes
+  for (const review of reviews) {
+    const likeCount = faker.number.int({ min: 0, max: 5 });
+    const availableUsers = users.filter(u => u.id !== review.userId);
+    
+    if (availableUsers.length === 0) continue;
+    
+    // Randomly select users to like this review
+    const usersToLike = faker.helpers.arrayElements(
+      availableUsers,
+      Math.min(likeCount, availableUsers.length)
+    );
+    
+    for (const user of usersToLike) {
+      likeData.push({
+        userId: user.id,
+        reviewId: review.id
+      });
+    }
+  }
+  
+  // Create likes in batches, handling unique constraint violations
+  for (const like of likeData) {
+    try {
+      await prisma.like.create({
+        data: like
+      });
+      totalLikes++;
+    } catch (error) {
+      // Skip if like already exists (due to unique constraint)
+      // This is expected behavior, so we don't log it as an error
+    }
+  }
+  
+  console.log(`✅ Created ${totalLikes} likes successfully`);
+}
+
+async function seedComments(users: any[], reviews: any[]) {
+  console.log('💬 Seeding comments...');
+  
+  const allComments: any[] = [];
+  
+  // Create top-level comments
+  for (const review of reviews) {
+    const commentCount = faker.number.int({ min: 0, max: 3 });
+    const availableUsers = users.filter(u => u.id !== review.userId);
+    
+    if (availableUsers.length === 0) continue;
+    
+    const usersToComment = faker.helpers.arrayElements(
+      availableUsers,
+      Math.min(commentCount, availableUsers.length)
+    );
+    
+    for (const user of usersToComment) {
+      try {
+        const comment = await prisma.comment.create({
+          data: {
+            reviewId: review.id,
+            userId: user.id,
+            comment: faker.lorem.sentence(),
+            parent_comment_id: null
+          }
+        });
+        allComments.push(comment);
       } catch (error) {
-        // Skip if follow already exists (due to unique constraint)
-        console.log(`⚠️ Skipping duplicate follow: ${user.id} -> ${business.id}`);
+        console.log(`⚠️ Skipping comment creation: ${error}`);
       }
     }
   }
   
-  console.log('✅ Follows created successfully');
+  // Create replies to comments
+  for (const comment of allComments) {
+    const replyCount = faker.number.int({ min: 0, max: 2 });
+    const availableUsers = users.filter(u => u.id !== comment.userId);
+    
+    if (availableUsers.length === 0) continue;
+    
+    const usersToReply = faker.helpers.arrayElements(
+      availableUsers,
+      Math.min(replyCount, availableUsers.length)
+    );
+    
+    for (const user of usersToReply) {
+      try {
+        await prisma.comment.create({
+          data: {
+            reviewId: comment.reviewId,
+            userId: user.id,
+            comment: faker.lorem.sentence(),
+            parent_comment_id: comment.id
+          }
+        });
+      } catch (error) {
+        console.log(`⚠️ Skipping reply creation: ${error}`);
+      }
+    }
+  }
+  
+  console.log('✅ Comments and replies created successfully');
+}
+
+async function seedMessages(users: any[]) {
+  console.log('💌 Seeding messages...');
+  
+  const individualUsers = users.filter(user => user.user_type === 'INDIVIDUAL');
+  const businessUsers = users.filter(user => user.user_type === 'BUSINESS');
+  
+  // Individual to individual messages
+  for (const user of individualUsers) {
+    const messageCount = faker.number.int({ min: 0, max: 3 });
+    const availableUsers = individualUsers.filter(u => u.id !== user.id);
+    
+    if (availableUsers.length === 0) continue;
+    
+    const usersToMessage = faker.helpers.arrayElements(
+      availableUsers,
+      Math.min(messageCount, availableUsers.length)
+    );
+    
+    for (const recipient of usersToMessage) {
+      try {
+        await prisma.message.create({
+          data: {
+            senderId: user.id,
+            receiverId: recipient.id,
+            sender_type: 'INDIVIDUAL',
+            text: faker.lorem.sentence(),
+            is_read: faker.datatype.boolean()
+          }
+        });
+      } catch (error) {
+        console.log(`⚠️ Skipping message creation: ${error}`);
+      }
+    }
+  }
+  
+  // Individual to business messages
+  for (const user of individualUsers) {
+    const messageCount = faker.number.int({ min: 0, max: 2 });
+    const availableBusinesses = businessUsers;
+    
+    if (availableBusinesses.length === 0) continue;
+    
+    const businessesToMessage = faker.helpers.arrayElements(
+      availableBusinesses,
+      Math.min(messageCount, availableBusinesses.length)
+    );
+    
+    for (const business of businessesToMessage) {
+      try {
+        await prisma.message.create({
+          data: {
+            senderId: user.id,
+            receiverId: business.id,
+            sender_type: 'INDIVIDUAL',
+            text: faker.lorem.sentence(),
+            is_read: faker.datatype.boolean()
+          }
+        });
+      } catch (error) {
+        console.log(`⚠️ Skipping message creation: ${error}`);
+      }
+    }
+  }
+  
+  console.log('✅ Messages created successfully');
+}
+
+async function seedBusinessVideos(businessUsers: any[]) {
+  console.log('🎥 Seeding business videos...');
+  
+  for (const business of businessUsers) {
+    const videoCount = faker.number.int({ min: 0, max: 2 });
+    
+    for (let i = 0; i < videoCount; i++) {
+      try {
+        await prisma.businessVideo.create({
+          data: {
+            businessId: business.id,
+            video_url: faker.image.urlLoremFlickr({ category: 'video' })
+          }
+        });
+      } catch (error) {
+        console.log(`⚠️ Skipping business video creation: ${error}`);
+      }
+    }
+  }
+  
+  console.log('✅ Business videos created successfully');
+}
+
+async function seedNotifications(users: any[]) {
+  console.log('🔔 Seeding notifications...');
+  
+  for (const user of users) {
+    const notificationCount = faker.number.int({ min: 2, max: 5 });
+    
+    for (let i = 0; i < notificationCount; i++) {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: user.id,
+            type: faker.helpers.arrayElement([NotificationType.SYSTEM, NotificationType.MARKETING, NotificationType.TRANSACTIONAL]),
+            title: faker.lorem.words(3),
+            content: faker.lorem.sentence(),
+            image_url: faker.helpers.arrayElement([faker.image.urlLoremFlickr({ category: 'notification' }), null]),
+            status: faker.helpers.arrayElement([NotificationStatus.PENDING, NotificationStatus.SENT, NotificationStatus.READ, NotificationStatus.ARCHIVED]),
+            is_read: faker.datatype.boolean()
+          }
+        });
+      } catch (error) {
+        console.log(`⚠️ Skipping notification creation: ${error}`);
+      }
+    }
+  }
+  
+  console.log('✅ Notifications created successfully');
+}
+
+async function seedSupportTickets(users: any[]) {
+  console.log('🎫 Seeding support tickets...');
+  
+  for (const user of users) {
+    const ticketCount = faker.number.int({ min: 0, max: 1 });
+    
+    for (let i = 0; i < ticketCount; i++) {
+      try {
+        await prisma.supportTicket.create({
+          data: {
+            userId: user.id,
+            user_type: user.user_type,
+            title: faker.lorem.words(4),
+            email: user.email || faker.internet.email(),
+            description: faker.lorem.paragraph(),
+            status: faker.helpers.arrayElement([SupportStatus.OPEN, SupportStatus.IN_PROGRESS, SupportStatus.RESOLVED, SupportStatus.CLOSED])
+          }
+        });
+      } catch (error) {
+        console.log(`⚠️ Skipping support ticket creation: ${error}`);
+      }
+    }
+  }
+  
+  console.log('✅ Support tickets created successfully');
+}
+
+async function seedRecentSearches(users: any[]) {
+  console.log('🔍 Seeding recent searches...');
+  
+  for (const user of users) {
+    const searchCount = faker.number.int({ min: 2, max: 5 });
+    
+    for (let i = 0; i < searchCount; i++) {
+      try {
+        await prisma.recentSearch.create({
+          data: {
+            userId: user.id,
+            status: faker.helpers.arrayElement(['ACTIVE', 'INACTIVE']),
+            searchText: faker.helpers.arrayElement([
+              'restaurants near me',
+              'best coffee shops',
+              'hair salons',
+              'gym membership',
+              'car repair',
+              'dentist',
+              'photography services',
+              'event planning',
+              'home cleaning',
+              'pet grooming'
+            ])
+          }
+        });
+      } catch (error) {
+        console.log(`⚠️ Skipping recent search creation: ${error}`);
+      }
+    }
+  }
+  
+  console.log('✅ Recent searches created successfully');
 }
 
 async function main() {
@@ -392,17 +761,44 @@ async function main() {
     const individualUsers = await seedIndividualUsers();
     const allUsers = [...businessUsers, ...individualUsers];
     
+    // Seed plans first (needed for subscriptions)
+    const plans = await seedPlans();
+    
     // Assign categories to users
     await assignCategoriesToUsers(businessUsers, individualUsers, categories);
     
     // Seed locations
     await seedLocations(allUsers);
     
-    // Seed reviews
-    await seedReviews(allUsers);
+    // Seed reviews (returns reviews for likes and comments)
+    const reviews = await seedReviews(allUsers);
     
     // Seed follows
     await seedFollows(allUsers);
+    
+    // Seed subscriptions (business users only)
+    await seedSubscriptions(businessUsers, plans);
+    
+    // Seed likes for reviews
+    await seedLikes(allUsers, reviews);
+    
+    // Seed comments and replies for reviews
+    await seedComments(allUsers, reviews);
+    
+    // Seed messages between users
+    await seedMessages(allUsers);
+    
+    // Seed business videos
+    await seedBusinessVideos(businessUsers);
+    
+    // Seed notifications
+    await seedNotifications(allUsers);
+    
+    // Seed support tickets
+    await seedSupportTickets(allUsers);
+    
+    // Seed recent searches
+    await seedRecentSearches(allUsers);
     
     console.log('All seeding completed successfully!');
     console.log(`Summary:`);
@@ -413,6 +809,15 @@ async function main() {
     console.log(`   - Locations: ${await prisma.location.count()}`);
     console.log(`   - Reviews: ${await prisma.review.count()}`);
     console.log(`   - Follows: ${await prisma.follow.count()}`);
+    console.log(`   - Plans: ${await prisma.plan.count()}`);
+    console.log(`   - Subscriptions: ${await prisma.subscription.count()}`);
+    console.log(`   - Likes: ${await prisma.like.count()}`);
+    console.log(`   - Comments: ${await prisma.comment.count()}`);
+    console.log(`   - Messages: ${await prisma.message.count()}`);
+    console.log(`   - Business Videos: ${await prisma.businessVideo.count()}`);
+    console.log(`   - Notifications: ${await prisma.notification.count()}`);
+    console.log(`   - Support Tickets: ${await prisma.supportTicket.count()}`);
+    console.log(`   - Recent Searches: ${await prisma.recentSearch.count()}`);
     
   } catch (error) {
     console.error('❌ Error during seeding:', error);
