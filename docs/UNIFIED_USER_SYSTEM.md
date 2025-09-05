@@ -106,6 +106,7 @@ GET    /api/users/type/{user_type}      # Get users by type (INDIVIDUAL/BUSINESS
 GET    /api/users                       # Get all users
 POST   /api/users/send-otp             # Send OTP for verification
 POST   /api/users/verify-otp           # Verify OTP
+POST   /api/users/check-username       # Check username availability
 POST   /api/users/refresh-token        # Refresh access token
 POST   /api/users/logout               # Logout user
 ```
@@ -320,7 +321,51 @@ GET    /api/user-subcategories/user/{id}  # Get user's subcategories
 }
 ```
 
-### **5. Get User by ID**
+### **5. Check Username Availability**
+
+**POST** `/api/users/check-username`
+
+```json
+{
+  "username": "john_doe"
+}
+```
+
+**Response (200 OK) - Username Available:**
+```json
+{
+  "status": "success",
+  "message": "Username is available",
+  "data": {
+    "username": "john_doe",
+    "available": true
+  }
+}
+```
+
+**Response (200 OK) - Username Taken:**
+```json
+{
+  "status": "success",
+  "message": "Username is already taken",
+  "data": {
+    "username": "admin",
+    "available": false
+  }
+}
+```
+
+**Response (400 Bad Request) - Invalid Username:**
+```json
+{
+  "status": "fail",
+  "statusCode": 400,
+  "message": "Username is required and must be a string",
+  "details": null
+}
+```
+
+### **6. Get User by ID**
 
 **GET** `/api/users/{id}`
 
@@ -377,7 +422,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### **6. Update User**
+### **7. Update User**
 
 **PUT** `/api/users/{id}`
 
@@ -410,7 +455,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### **7. Get Users by Type**
+### **8. Get Users by Type**
 
 **GET** `/api/users/type/{user_type}`
 
@@ -443,7 +488,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### **8. Refresh Token**
+### **9. Refresh Token**
 
 **POST** `/api/users/refresh-token`
 
@@ -461,7 +506,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### **9. Logout**
+### **10. Logout**
 
 **POST** `/api/users/logout`
 
@@ -478,7 +523,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### **10. Deactivate User**
+### **11. Deactivate User**
 
 **POST** `/api/users/{id}/deactivate`
 
@@ -500,7 +545,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### **11. Restore User**
+### **12. Restore User**
 
 **POST** `/api/users/{id}/restore`
 
@@ -612,7 +657,17 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ## 🎯 **Frontend Integration Workflow**
 
-### **Step 2: User Login**
+### **Step 2: Check Username Availability (Optional)**
+```javascript
+POST /api/users/check-username
+{
+  "username": "john_doe"
+}
+
+// Response: { "status": "success", "message": "Username is available", "data": { "username": "john_doe", "available": true } }
+```
+
+### **Step 3: User Login**
 ```javascript
 POST /api/users/login
 {
@@ -623,7 +678,7 @@ POST /api/users/login
 }
 ```
 
-### **Step 3: OTP Verification**
+### **Step 4: OTP Verification**
 ```javascript
 POST /api/users/{userId}/verify
 {
@@ -631,7 +686,7 @@ POST /api/users/{userId}/verify
 }
 ```
 
-### **Step 4: Category Selection**
+### **Step 5: Category Selection**
 ```javascript
 // Get available categories
 GET /api/categories/active
@@ -644,7 +699,7 @@ POST /api/ -user-categories/assign
 }
 ```
 
-### **Step 5: Subcategory Selection (AI-generated)**
+### **Step 6: Subcategory Selection (AI-generated)**
 ```javascript
 // Assign AI-generated subcategories
 POST /api/ -user-subcategories/assign

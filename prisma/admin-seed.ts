@@ -29,7 +29,6 @@ async function seedAdmin() {
         user_type: 'ADMIN',
         status: 'ACTIVE',
         verification_method: 'EMAIL',
-        avatarUrl: null, // Admin doesn't need avatar
       },
     });
 

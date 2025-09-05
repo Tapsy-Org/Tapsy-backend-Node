@@ -115,7 +115,6 @@ async function seedBusinessUsers() {
           mobile_number: faker.phone.number(),
           email: faker.internet.email(),
           username: faker.company.name(),
-          avatarUrl: faker.image.avatar(),
           name: faker.company.name(),
           status: faker.helpers.arrayElement(['ACTIVE', 'ACTIVE', 'ACTIVE', 'PENDING']), // Mostly active
           last_login: faker.date.recent({ days: 30 }),
@@ -152,7 +151,6 @@ async function seedIndividualUsers() {
           mobile_number: faker.phone.number(),
           email: faker.internet.email(),
           username: faker.internet.username(),
-          avatarUrl: faker.image.avatar(),
           name: faker.person.fullName(),
           status: faker.helpers.arrayElement(['ACTIVE', 'ACTIVE', 'ACTIVE', 'PENDING']), // Mostly active
           last_login: faker.date.recent({ days: 30 }),

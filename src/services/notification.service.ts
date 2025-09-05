@@ -14,15 +14,15 @@ export async function createNotification(data: {
 }) {
   // 1️⃣ Get sender username
   let senderUsername = 'Someone';
-  let senderAvatarUrl: string | null = null;
+  let senderLogoUrl: string | null = null;
   if (data.senderId) {
     const sender = await prisma.user.findUnique({
       where: { id: data.senderId },
-      select: { username: true, avatarUrl: true },
+      select: { username: true, logo_url: true },
     });
     if (sender) {
       senderUsername = sender.username;
-      senderAvatarUrl = sender.avatarUrl || null;
+      senderLogoUrl = sender.logo_url || null;
     }
   }
 
@@ -37,7 +37,7 @@ export async function createNotification(data: {
     referenceId: data.referenceId,
     title,
     content,
-    image_url: senderAvatarUrl || data.image_url,
+    image_url: senderLogoUrl || data.image_url,
     status: data.status ?? NotificationStatus.ACTIVE,
   };
 

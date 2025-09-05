@@ -358,4 +358,26 @@ export default class UserController {
       next(error);
     }
   }
+
+  static async checkUsername(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { username } = req.body;
+
+      if (!username || typeof username !== 'string') {
+        throw new AppError('Username is required and must be a string', 400);
+      }
+
+      const exists = await userService.usernameExists(username);
+
+      return res.success(
+        {
+          username,
+          available: !exists,
+        },
+        exists ? 'Username is already taken' : 'Username is available',
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
 }
