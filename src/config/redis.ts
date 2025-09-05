@@ -24,7 +24,6 @@ class RedisConfig {
         password: process.env.REDIS_PASSWORD,
         socket: {
           connectTimeout: 10000,
-          lazyConnect: true,
         },
       });
 
@@ -50,7 +49,7 @@ class RedisConfig {
 
   public async disconnect(): Promise<void> {
     if (this.client && this.client.isOpen) {
-      await this.client.disconnect();
+      await this.client.destroy();
       this.client = null;
     }
   }

@@ -112,7 +112,7 @@ async function seedBusinessUsers() {
       const businessUser = await prisma.user.create({
         data: {
           user_type: 'BUSINESS',
-          mobile_number: faker.phone.number(),
+          mobile_number: `+1${faker.string.numeric(10)}`,
           email: faker.internet.email(),
           username: faker.company.name(),
           name: faker.company.name(),
@@ -148,7 +148,7 @@ async function seedIndividualUsers() {
       const individualUser = await prisma.user.create({
         data: {
           user_type: 'INDIVIDUAL',
-          mobile_number: faker.phone.number(),
+          mobile_number: `+1${faker.string.numeric(10)}`,
           email: faker.internet.email(),
           username: faker.internet.username(),
           name: faker.person.fullName(),
