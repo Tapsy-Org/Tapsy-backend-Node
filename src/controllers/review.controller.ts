@@ -1,5 +1,5 @@
 import { ReviewRating } from '@prisma/client';
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
 
 import { ReviewService } from '../services/review.service';
 import { AuthRequest } from '../types/express';
@@ -171,7 +171,7 @@ export default class ReviewController {
     }
   }
 
-  static async getReviews(req: Request, res: Response, next: NextFunction) {
+  static async getReviews(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { userId, businessId, rating, page = '1', limit = '10' } = req.query;
 
@@ -191,7 +191,7 @@ export default class ReviewController {
     }
   }
 
-  static async getReviewById(req: Request, res: Response, next: NextFunction) {
+  static async getReviewById(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { reviewId } = req.params;
 

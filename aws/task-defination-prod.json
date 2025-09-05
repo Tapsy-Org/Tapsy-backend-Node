@@ -39,7 +39,7 @@
           "secrets": [
               {
                   "name": "DATABASE_URL",
-                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/prod/datbase-p43HhH"
+                  "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/prod/database_url-jmfP42"
               },
               {
                   "name": "PORT",

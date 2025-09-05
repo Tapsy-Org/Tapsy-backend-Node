@@ -74,6 +74,7 @@ export class ReviewService {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },
@@ -83,6 +84,7 @@ export class ReviewService {
                 select: {
                   id: true,
                   username: true,
+                  name: true,
                   user_type: true,
                   logo_url: true,
                 },
@@ -155,24 +157,10 @@ export class ReviewService {
                 logo_url: true,
               },
             },
-            likes: {
+            _count: {
               select: {
-                id: true,
-                userId: true,
-              },
-            },
-            comments: {
-              select: {
-                id: true,
-                comment: true,
-                createdAt: true,
-                user: {
-                  select: {
-                    id: true,
-                    username: true,
-                    logo_url: true,
-                  },
-                },
+                likes: true,
+                comments: true,
               },
             },
           },
@@ -212,6 +200,7 @@ export class ReviewService {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },
@@ -220,6 +209,7 @@ export class ReviewService {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },
@@ -235,6 +225,7 @@ export class ReviewService {
               id: true,
               comment: true,
               createdAt: true,
+              parent_comment_id: true,
               user: {
                 select: {
                   id: true,
@@ -356,6 +347,7 @@ export class ReviewService {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },
@@ -364,6 +356,7 @@ export class ReviewService {
             select: {
               id: true,
               username: true,
+              name: true,
               user_type: true,
               logo_url: true,
             },

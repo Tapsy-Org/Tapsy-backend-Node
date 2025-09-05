@@ -216,6 +216,8 @@ model Like {
 
   user   User   @relation(fields: [userId], references: [id])
   review Review @relation(fields: [reviewId], references: [id])
+
+  @@unique([userId, reviewId])
 }
 
 // ---------- Social / Follows ----------
@@ -223,7 +225,6 @@ model Follow {
   id              String   @id @default(uuid()) @db.Uuid
   followerId      String   @db.Uuid
   followingUserId String   @db.Uuid
-  followType      String
   createdAt       DateTime @default(now())
 
   follower  User @relation("UserFollowers", fields: [followerId], references: [id])
