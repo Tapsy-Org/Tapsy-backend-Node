@@ -427,142 +427,13 @@ export class ReviewService {
       // Get followed users IDs
       const followingUserIds = user.following.map((f) => f.followingUserId);
 
-      // Build the complex query to get feed reviews
-      const feedQuery = `
-        WITH review_scores AS (
-          SELECT 
-            r.id,
-            r."userId",
-            r.rating,
-            r.badges,
-            r.caption,
-            r.hashtags,
-            r.title,
-            r.video_url,
-            r."businessId",
-            r.views,
-            r."createdAt",
-            r.status,
-            
-            -- Social signals score (30% weight)
-            CASE 
-              WHEN r."userId" = ANY($1::uuid[]) THEN 100  -- From followed users
-              ELSE 0 
-            END as social_score,
-            
-            -- Category relevance score (25% weight)
-            CASE 
-              WHEN r."businessId" IS NOT NULL AND EXISTS (
-                SELECT 1 FROM "UserCategory" uc 
-                WHERE uc."userId" = r."businessId" 
-                AND uc."categoryId" = ANY($2::uuid[])
-              ) THEN 80
-              ELSE 10
-            END as category_score,
-            
-            -- Location proximity score (20% weight) - only if user location available
-            CASE 
-              WHEN $3::float IS NOT NULL AND $4::float IS NOT NULL AND r."businessId" IS NOT NULL THEN
-                GREATEST(0, 100 - (
-                  SELECT MIN(
-                    SQRT(
-                      POW(69.1 * (l.latitude - $3::float), 2) + 
-                      POW(69.1 * ($4::float - l.longitude) * COS(l.latitude / 57.3), 2)
-                    ) * 1.60934  -- Convert to km
-                  ) 
-                  FROM "Location" l 
-                  WHERE l."userId" = r."businessId"
-                ) * 2)  -- Scale distance impact
-              ELSE 30  -- Default score when no location data
-            END as location_score,
-            
-            -- Popularity/engagement score (15% weight)
-            LEAST(100, (
-              COALESCE(r.views, 0) * 0.1 + 
-              COALESCE(like_count.count, 0) * 2 + 
-              COALESCE(comment_count.count, 0) * 3
-            )) as engagement_score,
-            
-            -- Freshness score (10% weight)
-            CASE 
-              WHEN r."createdAt" >= NOW() - INTERVAL '1 day' THEN 100
-              WHEN r."createdAt" >= NOW() - INTERVAL '3 days' THEN 80
-              WHEN r."createdAt" >= NOW() - INTERVAL '7 days' THEN 60
-              WHEN r."createdAt" >= NOW() - INTERVAL '30 days' THEN 40
-              ELSE 20
-            END as freshness_score,
-            
-            like_count.count as likes_count,
-            comment_count.count as comments_count
-            
-          FROM "Review" r
-          LEFT JOIN (
-            SELECT "reviewId", COUNT(*) as count 
-            FROM "Like" 
-            GROUP BY "reviewId"
-          ) like_count ON r.id = like_count."reviewId"
-          LEFT JOIN (
-            SELECT "reviewId", COUNT(*) as count 
-            FROM "Comment" 
-            GROUP BY "reviewId"
-          ) comment_count ON r.id = comment_count."reviewId"
-          
-          WHERE r.status = 'ACTIVE'
-          AND r."userId" != $5::uuid  -- Exclude user's own reviews
-          AND r.video_url IS NOT NULL  -- Only reviews with videos for TikTok-like experience
-        ),
-        scored_reviews AS (
-          SELECT 
-            *,
-            -- Calculate final weighted score
-            (
-              social_score * 0.30 +
-              category_score * 0.25 +
-              location_score * 0.20 +
-              engagement_score * 0.15 +
-              freshness_score * 0.10
-            ) as final_score
-          FROM review_scores
-        )
-        SELECT * FROM scored_reviews
-        ORDER BY 
-          final_score DESC,
-          "createdAt" DESC
-        LIMIT $6 OFFSET $7
-      `;
-
-      // Execute the complex feed query
-      const reviewsData = (await prisma.$queryRawUnsafe(
-        feedQuery,
-        followingUserIds,
-        userCategoryIds,
-        userLat,
-        userLng,
-        userId,
-        limit,
-        skip,
-      )) as Array<{
-        id: string;
-        userId: string;
-        rating: string;
-        badges: string | null;
-        caption: string | null;
-        hashtags: string[];
-        title: string | null;
-        video_url: string | null;
-        businessId: string | null;
-        views: number;
-        createdAt: Date;
-        status: string;
-        final_score: number;
-      }>;
-
-      // Get detailed review information with relations
-      const reviewIds = reviewsData.map((r) => r.id);
-
-      const detailedReviews = await prisma.review.findMany({
+      // Fast algorithm using Prisma with computed scoring
+      // Step 1: Get base reviews with all needed data
+      const baseReviews = await prisma.review.findMany({
         where: {
-          id: { in: reviewIds },
+          status: 'ACTIVE',
+          userId: { not: userId },
+          video_url: { not: null },
         },
         include: {
           user: {
@@ -581,6 +452,18 @@ export class ReviewService {
               name: true,
               user_type: true,
               logo_url: true,
+              categories: {
+                select: {
+                  categoryId: true,
+                },
+              },
+              locations: {
+                select: {
+                  latitude: true,
+                  longitude: true,
+                },
+                take: 1,
+              },
             },
           },
           _count: {
@@ -590,29 +473,110 @@ export class ReviewService {
             },
           },
         },
+        take: limit * 3, // Get more than needed for better algorithm results
+        orderBy: [
+          { createdAt: 'desc' }, // Start with recent content
+          { views: 'desc' }, // Then by popularity
+        ],
       });
 
-      // Preserve the order from our scoring algorithm
-      const orderedReviews = reviewIds
-        .map((id) => detailedReviews.find((review) => review.id === id))
-        .filter(Boolean);
+      // Filter out any reviews with invalid IDs to prevent UUID errors (defensive programming)
+      const validReviews = baseReviews.filter((review) => {
+        const hasValidId = review.id && typeof review.id === 'string' && review.id.length === 36;
+        const hasValidUserId =
+          review.userId && typeof review.userId === 'string' && review.userId.length === 36;
+        return hasValidId && hasValidUserId;
+      });
 
-      // Get total count for pagination
-      const totalCountQuery = `
-        SELECT COUNT(*) as total
-        FROM "Review" r
-        WHERE r.status = 'ACTIVE'
-        AND r."userId" != $1::uuid
-        AND r.video_url IS NOT NULL
-      `;
+      // Step 2: Calculate scores for each review
+      const scoredReviews = validReviews.map((review) => {
+        // Social signals score (30% weight)
+        const socialScore = followingUserIds.includes(review.userId) ? 100 : 0;
 
-      const totalResult = (await prisma.$queryRawUnsafe(totalCountQuery, userId)) as Array<{
-        total: string;
-      }>;
-      const total = parseInt(totalResult[0]?.total || '0');
+        // Category relevance score (25% weight)
+        let categoryScore = 10; // default
+        if (review.business?.categories) {
+          const businessCategoryIds = review.business.categories.map((cat) => cat.categoryId);
+          const hasMatchingCategory = businessCategoryIds.some((catId) =>
+            userCategoryIds.includes(catId),
+          );
+          if (hasMatchingCategory) {
+            categoryScore = 80;
+          }
+        }
+
+        // Location proximity score (20% weight)
+        let locationScore = 30; // default
+        if (userLat && userLng && review.business?.locations?.[0]) {
+          const businessLat = review.business.locations[0].latitude;
+          const businessLng = review.business.locations[0].longitude;
+
+          // Calculate distance using Haversine formula (in km)
+          const distance =
+            Math.sqrt(
+              Math.pow(69.1 * (businessLat - userLat), 2) +
+                Math.pow(69.1 * (userLng - businessLng) * Math.cos(businessLat / 57.3), 2),
+            ) * 1.60934;
+
+          locationScore = Math.max(0, 100 - distance * 2);
+        }
+
+        // Popularity/engagement score (15% weight)
+        const engagementScore = Math.min(
+          100,
+          (review.views || 0) * 0.1 + review._count.likes * 2 + review._count.comments * 3,
+        );
+
+        // Freshness score (10% weight)
+        const now = new Date();
+        const reviewDate = new Date(review.createdAt);
+        const hoursSinceCreation = (now.getTime() - reviewDate.getTime()) / (1000 * 60 * 60);
+
+        let freshnessScore = 20; // default for old content
+        if (hoursSinceCreation <= 24) freshnessScore = 100;
+        else if (hoursSinceCreation <= 72) freshnessScore = 80;
+        else if (hoursSinceCreation <= 168) freshnessScore = 60;
+        else if (hoursSinceCreation <= 720) freshnessScore = 40;
+
+        // Calculate final weighted score
+        const finalScore =
+          socialScore * 0.3 +
+          categoryScore * 0.25 +
+          locationScore * 0.2 +
+          engagementScore * 0.15 +
+          freshnessScore * 0.1;
+
+        return {
+          ...review,
+          finalScore,
+        };
+      });
+
+      // Step 3: Sort by final score and apply pagination
+      const sortedReviews = scoredReviews
+        .sort((a, b) => {
+          if (b.finalScore !== a.finalScore) {
+            return b.finalScore - a.finalScore;
+          }
+          // Tie-breaker: more recent content wins
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        })
+        .slice(skip, skip + limit);
+
+      // Step 4: Clean up the response (remove scoring metadata)
+      const reviews = sortedReviews.map(({ finalScore: _finalScore, ...review }) => review);
+
+      // Step 5: Get total count for pagination
+      const total = await prisma.review.count({
+        where: {
+          status: 'ACTIVE',
+          userId: { not: userId },
+          video_url: { not: null },
+        },
+      });
 
       return {
-        reviews: orderedReviews,
+        reviews,
         pagination: {
           page,
           limit,
@@ -623,6 +587,8 @@ export class ReviewService {
           user_following_count: followingUserIds.length,
           user_categories_count: userCategoryIds.length,
           location_based: !!(userLat && userLng),
+          algorithm_version: 'fast_prisma_v1',
+          note: 'TikTok-style personalized feed with full scoring algorithm',
         },
       };
     } catch (error) {

@@ -388,6 +388,209 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
 
 /**
  * @swagger
+ * /api/reviews/feed:
+ *   get:
+ *     summary: Get personalized review feed
+ *     description: Get a TikTok-style feed of reviews based on user preferences, location, following, and engagement
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 10
+ *         description: Number of reviews per page
+ *       - in: query
+ *         name: latitude
+ *         schema:
+ *           type: number
+ *           minimum: -90
+ *           maximum: 90
+ *         description: User's current latitude for location-based recommendations
+ *       - in: query
+ *         name: longitude
+ *         schema:
+ *           type: number
+ *           minimum: -180
+ *           maximum: 180
+ *         description: User's current longitude for location-based recommendations
+ *     responses:
+ *       200:
+ *         description: Review feed fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Review feed fetched successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     reviews:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           userId:
+ *                             type: string
+ *                             format: uuid
+ *                           rating:
+ *                             type: string
+ *                             enum: [ONE, TWO, THREE, FOUR, FIVE]
+ *                           badges:
+ *                             type: string
+ *                             nullable: true
+ *                           caption:
+ *                             type: string
+ *                             nullable: true
+ *                           hashtags:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                           title:
+ *                             type: string
+ *                             nullable: true
+ *                           video_url:
+ *                             type: string
+ *                             nullable: true
+ *                           businessId:
+ *                             type: string
+ *                             format: uuid
+ *                             nullable: true
+ *                           views:
+ *                             type: integer
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           status:
+ *                             type: string
+ *                             enum: [ACTIVE, INACTIVE, PENDING, DELETED]
+ *                           user:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                                 format: uuid
+ *                               username:
+ *                                 type: string
+ *                               name:
+ *                                 type: string
+ *                                 nullable: true
+ *                               user_type:
+ *                                 type: string
+ *                                 enum: [INDIVIDUAL, BUSINESS, ADMIN]
+ *                               logo_url:
+ *                                 type: string
+ *                                 nullable: true
+ *                           business:
+ *                             type: object
+ *                             nullable: true
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                                 format: uuid
+ *                               username:
+ *                                 type: string
+ *                               name:
+ *                                 type: string
+ *                                 nullable: true
+ *                               user_type:
+ *                                 type: string
+ *                                 enum: [BUSINESS]
+ *                               logo_url:
+ *                                 type: string
+ *                                 nullable: true
+ *                           _count:
+ *                             type: object
+ *                             properties:
+ *                               likes:
+ *                                 type: integer
+ *                               comments:
+ *                                 type: integer
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                     algorithm_info:
+ *                       type: object
+ *                       properties:
+ *                         user_following_count:
+ *                           type: integer
+ *                           description: Number of users being followed
+ *                         user_categories_count:
+ *                           type: integer
+ *                           description: Number of categories user is interested in
+ *                         location_based:
+ *                           type: boolean
+ *                           description: Whether location-based scoring was applied
+ *       400:
+ *         description: Bad request - Invalid parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 400
+ *                 message:
+ *                   type: string
+ *                   example: "Limit must be between 1 and 50"
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 401
+ *                 message:
+ *                   type: string
+ *                   example: "User not authenticated"
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/feed', requireAuth(), ReviewController.getReviewFeed);
+
+/**
+ * @swagger
  * /api/reviews:
  *   get:
  *     summary: Get all reviews with optional filtering and pagination
@@ -768,208 +971,5 @@ router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewSt
  *         description: Internal server error
  */
 router.delete('/:reviewId', requireAuth(), ReviewController.deleteReview);
-
-/**
- * @swagger
- * /api/reviews/feed:
- *   get:
- *     summary: Get personalized review feed
- *     description: Get a TikTok-style feed of reviews based on user preferences, location, following, and engagement
- *     tags: [Reviews]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *         description: Page number for pagination
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 50
- *           default: 10
- *         description: Number of reviews per page
- *       - in: query
- *         name: latitude
- *         schema:
- *           type: number
- *           minimum: -90
- *           maximum: 90
- *         description: User's current latitude for location-based recommendations
- *       - in: query
- *         name: longitude
- *         schema:
- *           type: number
- *           minimum: -180
- *           maximum: 180
- *         description: User's current longitude for location-based recommendations
- *     responses:
- *       200:
- *         description: Review feed fetched successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: "success"
- *                 statusCode:
- *                   type: integer
- *                   example: 200
- *                 message:
- *                   type: string
- *                   example: "Review feed fetched successfully"
- *                 data:
- *                   type: object
- *                   properties:
- *                     reviews:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           id:
- *                             type: string
- *                             format: uuid
- *                           userId:
- *                             type: string
- *                             format: uuid
- *                           rating:
- *                             type: string
- *                             enum: [ONE, TWO, THREE, FOUR, FIVE]
- *                           badges:
- *                             type: string
- *                             nullable: true
- *                           caption:
- *                             type: string
- *                             nullable: true
- *                           hashtags:
- *                             type: array
- *                             items:
- *                               type: string
- *                           title:
- *                             type: string
- *                             nullable: true
- *                           video_url:
- *                             type: string
- *                             nullable: true
- *                           businessId:
- *                             type: string
- *                             format: uuid
- *                             nullable: true
- *                           views:
- *                             type: integer
- *                           createdAt:
- *                             type: string
- *                             format: date-time
- *                           status:
- *                             type: string
- *                             enum: [ACTIVE, INACTIVE, PENDING, DELETED]
- *                           user:
- *                             type: object
- *                             properties:
- *                               id:
- *                                 type: string
- *                                 format: uuid
- *                               username:
- *                                 type: string
- *                               name:
- *                                 type: string
- *                                 nullable: true
- *                               user_type:
- *                                 type: string
- *                                 enum: [INDIVIDUAL, BUSINESS, ADMIN]
- *                               logo_url:
- *                                 type: string
- *                                 nullable: true
- *                           business:
- *                             type: object
- *                             nullable: true
- *                             properties:
- *                               id:
- *                                 type: string
- *                                 format: uuid
- *                               username:
- *                                 type: string
- *                               name:
- *                                 type: string
- *                                 nullable: true
- *                               user_type:
- *                                 type: string
- *                                 enum: [BUSINESS]
- *                               logo_url:
- *                                 type: string
- *                                 nullable: true
- *                           _count:
- *                             type: object
- *                             properties:
- *                               likes:
- *                                 type: integer
- *                               comments:
- *                                 type: integer
- *                     pagination:
- *                       type: object
- *                       properties:
- *                         page:
- *                           type: integer
- *                         limit:
- *                           type: integer
- *                         total:
- *                           type: integer
- *                         totalPages:
- *                           type: integer
- *                     algorithm_info:
- *                       type: object
- *                       properties:
- *                         user_following_count:
- *                           type: integer
- *                           description: Number of users being followed
- *                         user_categories_count:
- *                           type: integer
- *                           description: Number of categories user is interested in
- *                         location_based:
- *                           type: boolean
- *                           description: Whether location-based scoring was applied
- *       400:
- *         description: Bad request - Invalid parameters
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: "fail"
- *                 statusCode:
- *                   type: integer
- *                   example: 400
- *                 message:
- *                   type: string
- *                   example: "Limit must be between 1 and 50"
- *       401:
- *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: "fail"
- *                 statusCode:
- *                   type: integer
- *                   example: 401
- *                 message:
- *                   type: string
- *                   example: "User not authenticated"
- *       500:
- *         description: Internal server error
- */
-router.get('/feed', requireAuth(), ReviewController.getReviewFeed);
 
 export default router;
