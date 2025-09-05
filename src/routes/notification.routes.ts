@@ -2,7 +2,8 @@ import { Router } from 'express';
 
 import * as notificationController from '../controllers/notification.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
-import { Limiter } from '../middlewares/rateLimit';
+import { dataFetchLimiter } from '../middlewares/rateLimit.middleware';
+
 const router = Router();
 
 /**
@@ -81,7 +82,7 @@ const router = Router();
  *       500:
  *         description: Internal server error
  */
-router.post('/', Limiter, requireAuth('ADMIN'), notificationController.createNotification);
+router.post('/', dataFetchLimiter, requireAuth('ADMIN'), notificationController.createNotification);
 
 /**
  * @swagger
@@ -144,7 +145,7 @@ router.post('/', Limiter, requireAuth('ADMIN'), notificationController.createNot
  *       500:
  *         description: Internal server error
  */
-router.get('/my', Limiter, requireAuth(), notificationController.getMyNotifications);
+router.get('/my', dataFetchLimiter, requireAuth(), notificationController.getMyNotifications);
 /**
  * @swagger
  * /notifications/my/unread-count:
@@ -179,7 +180,7 @@ router.get('/my', Limiter, requireAuth(), notificationController.getMyNotificati
 
 router.get(
   '/my/unread-count',
-  Limiter,
+  dataFetchLimiter,
   requireAuth(),
   notificationController.getUsersUnreadNotificationCount,
 );
@@ -226,7 +227,7 @@ router.get(
 // User route - mark own notification as read
 router.patch(
   '/my/:id/mark-read',
-  Limiter,
+  dataFetchLimiter,
   requireAuth(),
   notificationController.markMyNotificationAsRead,
 );
@@ -268,7 +269,7 @@ router.patch(
 // User route - mark all own notifications as read
 router.patch(
   '/my/mark-all-read',
-  Limiter,
+  dataFetchLimiter,
   requireAuth(),
   notificationController.markAllMyNotificationsAsRead,
 );
