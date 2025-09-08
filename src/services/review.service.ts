@@ -665,7 +665,7 @@ export class ReviewService {
           user_categories_count: userCategoryIds.length,
           location_based: !!(userLat && userLng),
           seen_reviews_excluded: seenReviewIds.length,
-          algorithm_version: 'complete_cursor_v1.1',
+          algorithm_version: 'Tapsy-Algorithm-V1.0',
         },
       };
     } catch (error) {
