@@ -501,81 +501,48 @@ export class ReviewService {
   async getReviewFeed(
     userId: string,
     options: {
-      page?: number;
+      cursor?: string;
       limit?: number;
       latitude?: number;
       longitude?: number;
     } = {},
   ) {
     try {
-      const { page = 1, limit = 10, latitude, longitude } = options;
-      const skip = (page - 1) * limit;
+      const { cursor, limit = 10, latitude, longitude } = options;
 
-      // Get user's profile and preferences
+      // --- User and Preference fetching ---
       const user = await prisma.user.findUnique({
         where: { id: userId, status: 'ACTIVE' },
         include: {
-          categories: {
-            include: {
-              category: true,
-            },
-          },
-          following: {
-            select: {
-              followingUserId: true,
-            },
-          },
+          categories: { include: { category: true } },
+          following: { select: { followingUserId: true } },
           locations: {
-            select: {
-              latitude: true,
-              longitude: true,
-            },
-            orderBy: {
-              updatedAt: 'desc',
-            },
+            select: { latitude: true, longitude: true },
+            orderBy: { updatedAt: 'desc' },
             take: 1,
           },
         },
       });
 
-      if (!user) {
-        throw new AppError('User not found', 404);
-      }
+      if (!user) throw new AppError('User not found', 404);
 
-      // Use provided coordinates or user's saved location
       const userLat = latitude || user.locations[0]?.latitude;
       const userLng = longitude || user.locations[0]?.longitude;
-
-      // Get user's interested category IDs
       const userCategoryIds = user.categories.map((uc) => uc.categoryId);
-
-      // Get followed users IDs
       const followingUserIds = user.following.map((f) => f.followingUserId);
-
-      // Get seen review IDs from Redis
       const seenReviewIds = await this.redisService.getSeenReviewIds(userId);
 
-      // Fast algorithm using Prisma with computed scoring
-      // Step 1: Get base reviews with all needed data
+      // --- Database Query (No changes needed here) ---
       const baseReviews = await prisma.review.findMany({
         where: {
           status: 'ACTIVE',
           userId: { not: userId },
           video_url: { not: null },
-          // Exclude seen reviews
-          ...(seenReviewIds.length > 0 && {
-            id: { notIn: seenReviewIds },
-          }),
+          id: { notIn: seenReviewIds.length > 0 ? seenReviewIds : [] },
         },
         include: {
           user: {
-            select: {
-              id: true,
-              username: true,
-              name: true,
-              user_type: true,
-              logo_url: true,
-            },
+            select: { id: true, username: true, name: true, user_type: true, logo_url: true },
           },
           business: {
             select: {
@@ -584,49 +551,23 @@ export class ReviewService {
               name: true,
               user_type: true,
               logo_url: true,
-              categories: {
-                select: {
-                  categoryId: true,
-                },
-              },
-              locations: {
-                select: {
-                  latitude: true,
-                  longitude: true,
-                },
-                take: 1,
-              },
+              categories: { select: { categoryId: true } },
+              locations: { select: { latitude: true, longitude: true }, take: 1 },
             },
           },
-          _count: {
-            select: {
-              likes: true,
-              comments: true,
-            },
-          },
+          _count: { select: { likes: true, comments: true } },
         },
-        take: limit * 3, // Get more than needed for better algorithm results
-        orderBy: [
-          { createdAt: 'desc' }, // Start with recent content
-          { views: 'desc' }, // Then by popularity
-        ],
+        take: 100, // Fetch a larger candidate pool for better scoring
+        orderBy: [{ createdAt: 'desc' }],
       });
 
-      // Filter out any reviews with invalid IDs to prevent UUID errors (defensive programming)
-      const validReviews = baseReviews.filter((review) => {
-        const hasValidId = review.id && typeof review.id === 'string' && review.id.length === 36;
-        const hasValidUserId =
-          review.userId && typeof review.userId === 'string' && review.userId.length === 36;
-        return hasValidId && hasValidUserId;
-      });
-
-      // Step 2: Calculate scores for each review
-      const scoredReviews = validReviews.map((review) => {
+      // --- Full Scoring Logic ---
+      const scoredReviews = baseReviews.map((review) => {
         // Social signals score (30% weight)
         const socialScore = followingUserIds.includes(review.userId) ? 100 : 0;
 
         // Category relevance score (25% weight)
-        let categoryScore = 10; // default
+        let categoryScore = 10;
         if (review.business?.categories) {
           const businessCategoryIds = review.business.categories.map((cat) => cat.categoryId);
           const hasMatchingCategory = businessCategoryIds.some((catId) =>
@@ -637,40 +578,39 @@ export class ReviewService {
           }
         }
 
-        // Location proximity score (20% weight)
-        let locationScore = 30; // default
+        // --- ADDED BACK: Location Proximity Score (20% weight) ---
+        let locationScore = 30; // Default score
         if (userLat && userLng && review.business?.locations?.[0]) {
           const businessLat = review.business.locations[0].latitude;
           const businessLng = review.business.locations[0].longitude;
-
-          // Calculate distance using Haversine formula (in km)
           const distance =
             Math.sqrt(
               Math.pow(69.1 * (businessLat - userLat), 2) +
                 Math.pow(69.1 * (userLng - businessLng) * Math.cos(businessLat / 57.3), 2),
             ) * 1.60934;
-
           locationScore = Math.max(0, 100 - distance * 2);
         }
+        // --- END OF ADDED SECTION ---
 
-        // Popularity/engagement score (15% weight)
+        // --- ADDED BACK: Popularity/Engagement Score (15% weight) ---
         const engagementScore = Math.min(
           100,
           (review.views || 0) * 0.1 + review._count.likes * 2 + review._count.comments * 3,
         );
+        // --- END OF ADDED SECTION ---
 
-        // Freshness score (10% weight)
+        // --- ADDED BACK: Freshness Score (10% weight) ---
         const now = new Date();
         const reviewDate = new Date(review.createdAt);
         const hoursSinceCreation = (now.getTime() - reviewDate.getTime()) / (1000 * 60 * 60);
-
-        let freshnessScore = 20; // default for old content
+        let freshnessScore = 20; // Default for old content
         if (hoursSinceCreation <= 24) freshnessScore = 100;
         else if (hoursSinceCreation <= 72) freshnessScore = 80;
         else if (hoursSinceCreation <= 168) freshnessScore = 60;
         else if (hoursSinceCreation <= 720) freshnessScore = 40;
+        // --- END OF ADDED SECTION ---
 
-        // Calculate final weighted score
+        // Calculate final weighted score with ALL components
         const finalScore =
           socialScore * 0.3 +
           categoryScore * 0.25 +
@@ -678,50 +618,54 @@ export class ReviewService {
           engagementScore * 0.15 +
           freshnessScore * 0.1;
 
-        return {
-          ...review,
-          finalScore,
-        };
+        return { ...review, finalScore };
       });
 
-      // Step 3: Sort by final score and apply pagination
-      const sortedReviews = scoredReviews
-        .sort((a, b) => {
-          if (b.finalScore !== a.finalScore) {
-            return b.finalScore - a.finalScore;
-          }
-          // Tie-breaker: more recent content wins
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        })
-        .slice(skip, skip + limit);
-
-      // Step 4: Clean up the response (remove scoring metadata)
-      const reviews = sortedReviews.map(({ finalScore: _finalScore, ...review }) => review);
-
-      // Step 5: Get total count for pagination
-      const total = await prisma.review.count({
-        where: {
-          status: 'ACTIVE',
-          userId: { not: userId },
-          video_url: { not: null },
-        },
+      // --- Sorting and Cursor Logic (Using the more efficient findIndex/slice method) ---
+      const sortedReviews = scoredReviews.sort((a, b) => {
+        if (b.finalScore !== a.finalScore) {
+          return b.finalScore - a.finalScore;
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
+
+      let startIndex = 0;
+      if (cursor) {
+        const decodedCursor = Buffer.from(cursor, 'base64').toString('ascii');
+        const [cursorScore, cursorCreatedAt] = decodedCursor.split('_');
+        const score = parseFloat(cursorScore);
+        const date = new Date(cursorCreatedAt);
+        const cursorIndex = sortedReviews.findIndex(
+          (review) => review.finalScore === score && review.createdAt.getTime() === date.getTime(),
+        );
+        if (cursorIndex !== -1) {
+          startIndex = cursorIndex + 1;
+        }
+      }
+
+      const reviews = sortedReviews.slice(startIndex, startIndex + limit);
+
+      let nextCursor: string | null = null;
+      if (reviews.length === limit) {
+        const lastReview = reviews[reviews.length - 1];
+        if (lastReview) {
+          const cursorPayload = `${lastReview.finalScore}_${lastReview.createdAt.toISOString()}`;
+          nextCursor = Buffer.from(cursorPayload).toString('base64');
+        }
+      }
 
       return {
         reviews,
         pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
+          nextCursor,
+          hasNextPage: !!nextCursor,
         },
         algorithm_info: {
           user_following_count: followingUserIds.length,
           user_categories_count: userCategoryIds.length,
           location_based: !!(userLat && userLng),
           seen_reviews_excluded: seenReviewIds.length,
-          algorithm_version: 'fast_prisma_v1_with_redis',
-          note: 'TikTok-style personalized feed with full scoring algorithm and seen reviews filtering',
+          algorithm_version: 'complete_cursor_v1.1',
         },
       };
     } catch (error) {

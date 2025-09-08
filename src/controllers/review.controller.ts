@@ -354,19 +354,14 @@ export default class ReviewController {
         throw new AppError('User not authenticated', 401);
       }
 
-      const { page = '1', limit = '10', latitude, longitude } = req.query;
+      const { cursor, limit = '10', latitude, longitude } = req.query;
 
       const options = {
-        page: parseInt(page as string, 10),
+        cursor: cursor as string | undefined,
         limit: parseInt(limit as string, 10),
         latitude: latitude ? parseFloat(latitude as string) : undefined,
         longitude: longitude ? parseFloat(longitude as string) : undefined,
       };
-
-      // Validate pagination parameters
-      if (options.page < 1) {
-        throw new AppError('Page must be greater than 0', 400);
-      }
 
       if (options.limit < 1 || options.limit > 50) {
         throw new AppError('Limit must be between 1 and 50', 400);
