@@ -391,18 +391,16 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  * /api/reviews/feed:
  *   get:
  *     summary: Get personalized review feed
- *     description: Get a TikTok-style feed of reviews based on user preferences, location, following, and engagement
+ *     description: Get a TikTok-style feed of reviews based on user preferences, location, following, and engagement with cursor-based pagination and seen/unseen logic
  *     tags: [Reviews]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: page
+ *         name: cursor
  *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *         description: Page number for pagination
+ *           type: string
+ *         description: Cursor for pagination (base64 encoded). Use this to get the next set of reviews
  *       - in: query
  *         name: limit
  *         schema:
@@ -487,6 +485,9 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *                           status:
  *                             type: string
  *                             enum: [ACTIVE, INACTIVE, PENDING, DELETED]
+ *                           finalScore:
+ *                             type: number
+ *                             description: Algorithmic score used for ranking (included for debugging)
  *                           user:
  *                             type: object
  *                             properties:
@@ -532,14 +533,13 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *                     pagination:
  *                       type: object
  *                       properties:
- *                         page:
- *                           type: integer
- *                         limit:
- *                           type: integer
- *                         total:
- *                           type: integer
- *                         totalPages:
- *                           type: integer
+ *                         nextCursor:
+ *                           type: string
+ *                           nullable: true
+ *                           description: Cursor for the next page (base64 encoded)
+ *                         hasNextPage:
+ *                           type: boolean
+ *                           description: Whether there are more reviews available
  *                     algorithm_info:
  *                       type: object
  *                       properties:
@@ -552,6 +552,13 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *                         location_based:
  *                           type: boolean
  *                           description: Whether location-based scoring was applied
+ *                         seen_reviews_excluded:
+ *                           type: integer
+ *                           description: Number of previously seen reviews excluded from this feed
+ *                         algorithm_version:
+ *                           type: string
+ *                           description: Version of the algorithm used for ranking
+ *                           example: "complete_cursor_v1.1"
  *       400:
  *         description: Bad request - Invalid parameters
  *         content:
