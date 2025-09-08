@@ -691,6 +691,91 @@ router.get('/', dataFetchLimiter, requireAuth(), ReviewController.getReviews);
 
 /**
  * @swagger
+ * /api/reviews/seen:
+ *   get:
+ *     summary: Get seen reviews
+ *     description: Get all review IDs that have been marked as seen by the authenticated user.
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Seen reviews fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 statusCode:
+ *                   type: number
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Seen reviews fetched successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     seenReviewIds:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                         format: uuid
+ *                       example: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
+ *                     count:
+ *                       type: number
+ *                       example: 2
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/seen', requireAuth(), ReviewController.getSeenReviews);
+
+/**
+ * @swagger
+ * /api/reviews/seen:
+ *   delete:
+ *     summary: Clear all seen reviews
+ *     description: Clear all seen reviews for the authenticated user. This will make all previously seen reviews appear in the feed again.
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All seen reviews cleared successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 statusCode:
+ *                   type: number
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "All seen reviews cleared successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                       format: uuid
+ *                       example: "123e4567-e89b-12d3-a456-426614174001"
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *       500:
+ *         description: Internal server error
+ */
+router.delete('/seen', requireAuth(), ReviewController.clearSeenReviews);
+
+/**
+ * @swagger
  * /api/reviews/{reviewId}:
  *   get:
  *     summary: Get a specific review by ID
@@ -1210,7 +1295,13 @@ router.post('/:reviewId/seen', requireAuth(), ReviewController.markReviewAsSeen)
  * /api/reviews/seen:
  *   post:
  *     summary: Mark multiple reviews as seen
- *     description: Mark multiple reviews as seen by the authenticated user in a single request.
+ *     description: |
+ *       Mark multiple reviews as seen by the authenticated user in a single request.
+ *       This prevents the specified reviews from appearing in future feed requests.
+ *       **Use Cases:**
+ *       - Mark multiple reviews as seen after viewing them
+ *       - Batch operation for better performance
+ *       - Clear seen status for specific reviews
  *     tags: [Reviews]
  *     security:
  *       - bearerAuth: []
@@ -1230,7 +1321,17 @@ router.post('/:reviewId/seen', requireAuth(), ReviewController.markReviewAsSeen)
  *                   format: uuid
  *                 minItems: 1
  *                 maxItems: 100
+ *                 description: Array of review IDs to mark as seen
  *                 example: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
+ *           examples:
+ *             mark_multiple_seen:
+ *               summary: Mark multiple reviews as seen
+ *               value:
+ *                 reviewIds: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
+ *             mark_single_seen:
+ *               summary: Mark single review as seen
+ *               value:
+ *                 reviewIds: ["123e4567-e89b-12d3-a456-426614174000"]
  *     responses:
  *       200:
  *         description: Reviews marked as seen successfully
@@ -1256,104 +1357,67 @@ router.post('/:reviewId/seen', requireAuth(), ReviewController.markReviewAsSeen)
  *                       items:
  *                         type: string
  *                         format: uuid
+ *                       description: Array of review IDs that were marked as seen
  *                     userId:
  *                       type: string
  *                       format: uuid
+ *                       description: ID of the user who marked the reviews as seen
  *                     count:
  *                       type: number
+ *                       description: Number of reviews marked as seen
  *                       example: 2
+ *             examples:
+ *               success_response:
+ *                 summary: Successfully marked reviews as seen
+ *                 value:
+ *                   status: "success"
+ *                   statusCode: 200
+ *                   message: "Reviews marked as seen successfully"
+ *                   data:
+ *                     reviewIds: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
+ *                     userId: "123e4567-e89b-12d3-a456-426614174002"
+ *                     count: 2
  *       400:
  *         description: Bad request - invalid review IDs or too many reviews
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalid_review_ids:
+ *                 summary: Invalid review ID format
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Invalid review ID format(s): invalid-id. Must be valid UUIDs"
+ *                   details: null
+ *               too_many_reviews:
+ *                 summary: Too many reviews in single request
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Cannot mark more than 100 reviews as seen at once"
+ *                   details: null
+ *               no_valid_ids:
+ *                 summary: No valid review IDs provided
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "No valid review IDs provided"
+ *                   details: null
  *       401:
  *         description: Unauthorized - missing or invalid access token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
  *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/seen', requireAuth(), ReviewController.markReviewsAsSeen);
-
-/**
- * @swagger
- * /api/reviews/seen:
- *   get:
- *     summary: Get seen reviews
- *     description: Get all review IDs that have been marked as seen by the authenticated user.
- *     tags: [Reviews]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Seen reviews fetched successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: "success"
- *                 statusCode:
- *                   type: number
- *                   example: 200
- *                 message:
- *                   type: string
- *                   example: "Seen reviews fetched successfully"
- *                 data:
- *                   type: object
- *                   properties:
- *                     seenReviewIds:
- *                       type: array
- *                       items:
- *                         type: string
- *                         format: uuid
- *                       example: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
- *                     count:
- *                       type: number
- *                       example: 2
- *       401:
- *         description: Unauthorized - missing or invalid access token
- *       500:
- *         description: Internal server error
- */
-router.get('/seen', requireAuth(), ReviewController.getSeenReviews);
-
-/**
- * @swagger
- * /api/reviews/seen:
- *   delete:
- *     summary: Clear all seen reviews
- *     description: Clear all seen reviews for the authenticated user. This will make all previously seen reviews appear in the feed again.
- *     tags: [Reviews]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: All seen reviews cleared successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: "success"
- *                 statusCode:
- *                   type: number
- *                   example: 200
- *                 message:
- *                   type: string
- *                   example: "All seen reviews cleared successfully"
- *                 data:
- *                   type: object
- *                   properties:
- *                     userId:
- *                       type: string
- *                       format: uuid
- *                       example: "123e4567-e89b-12d3-a456-426614174001"
- *       401:
- *         description: Unauthorized - missing or invalid access token
- *       500:
- *         description: Internal server error
- */
-router.delete('/seen', requireAuth(), ReviewController.clearSeenReviews);
 
 export default router;

@@ -405,13 +405,6 @@ export default class ReviewController {
         throw new AppError('Review ID is required', 400);
       }
 
-      // Validate review ID format (UUID)
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(reviewId)) {
-        throw new AppError('Invalid review ID format. Must be a valid UUID', 400);
-      }
-
       // Check if review exists
       const review = await reviewService.getReviewById(reviewId);
       if (!review) {
@@ -437,17 +430,6 @@ export default class ReviewController {
       const { reviewIds } = req.body;
       if (!reviewIds || !Array.isArray(reviewIds) || reviewIds.length === 0) {
         throw new AppError('Review IDs array is required and must not be empty', 400);
-      }
-
-      // Validate all review IDs are valid UUIDs
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      const invalidIds = reviewIds.filter((id) => !uuidRegex.test(id));
-      if (invalidIds.length > 0) {
-        throw new AppError(
-          `Invalid review ID format(s): ${invalidIds.join(', ')}. Must be valid UUIDs`,
-          400,
-        );
       }
 
       // Limit the number of reviews that can be marked as seen at once

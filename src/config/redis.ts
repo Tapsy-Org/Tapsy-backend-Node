@@ -21,7 +21,6 @@ class RedisConfig {
     try {
       this.client = createClient({
         url: process.env.REDIS_URL || 'redis://localhost:6379',
-        password: process.env.REDIS_PASSWORD,
         socket: {
           connectTimeout: 10000,
         },
