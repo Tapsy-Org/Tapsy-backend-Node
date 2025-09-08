@@ -528,11 +528,12 @@ export class ReviewService {
 
       const userLat = latitude || user.locations[0]?.latitude;
       const userLng = longitude || user.locations[0]?.longitude;
+
       const userCategoryIds = user.categories.map((uc) => uc.categoryId);
       const followingUserIds = user.following.map((f) => f.followingUserId);
+
       const seenReviewIds = await this.redisService.getSeenReviewIds(userId);
 
-      // --- Database Query (No changes needed here) ---
       const baseReviews = await prisma.review.findMany({
         where: {
           status: 'ACTIVE',
@@ -578,7 +579,7 @@ export class ReviewService {
           }
         }
 
-        // --- ADDED BACK: Location Proximity Score (20% weight) ---
+        // Location Proximity Score (20% weight) ---
         let locationScore = 30; // Default score
         if (userLat && userLng && review.business?.locations?.[0]) {
           const businessLat = review.business.locations[0].latitude;
@@ -592,14 +593,14 @@ export class ReviewService {
         }
         // --- END OF ADDED SECTION ---
 
-        // --- ADDED BACK: Popularity/Engagement Score (15% weight) ---
+        // Popularity/Engagement Score (15% weight) ---
         const engagementScore = Math.min(
           100,
           (review.views || 0) * 0.1 + review._count.likes * 2 + review._count.comments * 3,
         );
         // --- END OF ADDED SECTION ---
 
-        // --- ADDED BACK: Freshness Score (10% weight) ---
+        // Freshness Score (10% weight) ---
         const now = new Date();
         const reviewDate = new Date(review.createdAt);
         const hoursSinceCreation = (now.getTime() - reviewDate.getTime()) / (1000 * 60 * 60);

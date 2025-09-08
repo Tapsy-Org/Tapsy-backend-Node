@@ -389,40 +389,106 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
 /**
  * @swagger
  * /api/reviews/feed:
- *   get:
+ *   post:
  *     summary: Get personalized review feed
- *     description: Get a TikTok-style feed of reviews based on user preferences, location, following, and engagement with cursor-based pagination and seen/unseen logic
+ *     description: |
+ *       Get a personalized TikTok-style feed of reviews based on user preferences, location, following, and engagement
+ *       with cursor-based pagination and seen/unseen logic.
+ *
+ *       ## Features:
+ *       - **Personalized Algorithm**: Uses social signals, category preferences, location proximity, engagement, and freshness
+ *       - **Cursor-based Pagination**: Efficient pagination using base64-encoded cursors
+ *       - **Seen/Unseen Logic**: Excludes previously viewed reviews using Redis
+ *       - **Location-based Recommendations**: Prioritizes nearby businesses when coordinates provided
+ *       - **Real-time Scoring**: Dynamic scoring based on user behavior and preferences
+ *
+ *       ## Algorithm Scoring (Weighted):
+ *       - **Social Signals (30%)**: Reviews from followed users get higher priority
+ *       - **Category Relevance (25%)**: Matches user's interested categories
+ *       - **Location Proximity (20%)**: Closer businesses get higher scores
+ *       - **Engagement Score (15%)**: Based on views, likes, and comments
+ *       - **Freshness Score (10%)**: Newer content gets higher priority
+ *
+ *       ## Security Note:
+ *       This endpoint uses POST instead of GET to protect sensitive location data
+ *       (latitude/longitude) from being exposed in URL query parameters.
+ *
+ *       ## Usage Patterns:
+ *       - **First Load**: Send request with `limit` only
+ *       - **With Location**: Include `latitude` and `longitude` for proximity-based recommendations
+ *       - **Pagination**: Use `cursor` from previous response to get next page
+ *       - **Combined**: Use both location data and cursor for location-aware pagination
  *     tags: [Reviews]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: cursor
- *         schema:
- *           type: string
- *         description: Cursor for pagination (base64 encoded). Use this to get the next set of reviews
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 50
- *           default: 10
- *         description: Number of reviews per page
- *       - in: query
- *         name: latitude
- *         schema:
- *           type: number
- *           minimum: -90
- *           maximum: 90
- *         description: User's current latitude for location-based recommendations
- *       - in: query
- *         name: longitude
- *         schema:
- *           type: number
- *           minimum: -180
- *           maximum: 180
- *         description: User's current longitude for location-based recommendations
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cursor:
+ *                 type: string
+ *                 description: Cursor for pagination (base64 encoded). Use this to get the next set of reviews
+ *                 example: "eyJzY29yZSI6ODUuNSwiY3JlYXRlZEF0IjoiMjAyNC0wMS0xNVQxMDozMDowMFoifQ=="
+ *               limit:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 50
+ *                 default: 10
+ *                 description: Number of reviews per page
+ *                 example: 10
+ *               latitude:
+ *                 type: number
+ *                 minimum: -90
+ *                 maximum: 90
+ *                 description: User's current latitude for location-based recommendations
+ *                 example: 40.7128
+ *               longitude:
+ *                 type: number
+ *                 minimum: -180
+ *                 maximum: 180
+ *                 description: User's current longitude for location-based recommendations
+ *                 example: -74.0060
+ *           examples:
+ *             basic_request:
+ *               summary: Basic feed request (no location data)
+ *               description: Get the first page of personalized reviews without location-based recommendations
+ *               value:
+ *                 limit: 10
+ *             with_location:
+ *               summary: Request with location data for proximity-based recommendations
+ *               description: Get personalized reviews with location-based scoring for nearby businesses
+ *               value:
+ *                 limit: 15
+ *                 latitude: 40.7128
+ *                 longitude: -74.0060
+ *             with_cursor:
+ *               summary: Request with pagination cursor (no location)
+ *               description: Get next page of reviews using cursor from previous response
+ *               value:
+ *                 cursor: "eyJzY29yZSI6ODUuNSwiY3JlYXRlZEF0IjoiMjAyNC0wMS0xNVQxMDozMDowMFoifQ=="
+ *                 limit: 20
+ *             with_cursor_and_location:
+ *               summary: Request with both cursor and location data
+ *               description: Get next page of reviews with location-based recommendations using pagination cursor
+ *               value:
+ *                 cursor: "eyJzY29yZSI6ODUuNSwiY3JlYXRlZEF0IjoiMjAyNC0wMS0xNVQxMDozMDowMFoifQ=="
+ *                 limit: 25
+ *                 latitude: 37.7749
+ *                 longitude: -122.4194
+ *             max_limit:
+ *               summary: Maximum limit request
+ *               description: Get maximum number of reviews per page (50)
+ *               value:
+ *                 limit: 50
+ *                 latitude: 34.0522
+ *                 longitude: -118.2437
+ *             minimal_request:
+ *               summary: Minimal request (default values)
+ *               description: Get default number of reviews with default settings
+ *               value: {}
  *     responses:
  *       200:
  *         description: Review feed fetched successfully
@@ -558,7 +624,100 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *                         algorithm_version:
  *                           type: string
  *                           description: Version of the algorithm used for ranking
- *                           example: "complete_cursor_v1.1"
+ *                           example: "Tapsy-Algorithm-V1.0"
+ *             examples:
+ *               success_with_reviews:
+ *                 summary: Successful response with reviews
+ *                 description: Feed with multiple reviews including location-based recommendations
+ *                 value:
+ *                   status: "success"
+ *                   statusCode: 200
+ *                   message: "Review feed fetched successfully"
+ *                   data:
+ *                     reviews:
+ *                       - id: "123e4567-e89b-12d3-a456-426614174000"
+ *                         userId: "456e7890-e89b-12d3-a456-426614174001"
+ *                         rating: "FIVE"
+ *                         badges: "Verified Customer"
+ *                         caption: "Amazing coffee and great atmosphere! ☕️"
+ *                         hashtags: ["coffee", "downtown", "cozy"]
+ *                         title: "Best Coffee in Downtown"
+ *                         video_url: "https://s3.amazonaws.com/bucket/video1.mp4"
+ *                         businessId: "789e0123-e89b-12d3-a456-426614174002"
+ *                         views: 1250
+ *                         createdAt: "2024-01-15T10:30:00Z"
+ *                         status: "ACTIVE"
+ *                         finalScore: 85.5
+ *                         user:
+ *                           id: "456e7890-e89b-12d3-a456-426614174001"
+ *                           username: "coffee_lover_23"
+ *                           name: "Sarah Johnson"
+ *                           user_type: "INDIVIDUAL"
+ *                           logo_url: "https://s3.amazonaws.com/bucket/user1.jpg"
+ *                         business:
+ *                           id: "789e0123-e89b-12d3-a456-426614174002"
+ *                           username: "downtown_coffee"
+ *                           name: "Downtown Coffee Co."
+ *                           user_type: "BUSINESS"
+ *                           logo_url: "https://s3.amazonaws.com/bucket/business1.jpg"
+ *                         _count:
+ *                           likes: 45
+ *                           comments: 12
+ *                       - id: "234e5678-e89b-12d3-a456-426614174003"
+ *                         userId: "567e8901-e89b-12d3-a456-426614174004"
+ *                         rating: "FOUR"
+ *                         badges: null
+ *                         caption: "Good food, friendly staff"
+ *                         hashtags: ["restaurant", "lunch", "family"]
+ *                         title: "Great Lunch Spot"
+ *                         video_url: "https://s3.amazonaws.com/bucket/video2.mp4"
+ *                         businessId: "890e1234-e89b-12d3-a456-426614174005"
+ *                         views: 890
+ *                         createdAt: "2024-01-14T14:20:00Z"
+ *                         status: "ACTIVE"
+ *                         finalScore: 72.3
+ *                         user:
+ *                           id: "567e8901-e89b-12d3-a456-426614174004"
+ *                           username: "foodie_mike"
+ *                           name: "Mike Chen"
+ *                           user_type: "INDIVIDUAL"
+ *                           logo_url: "https://s3.amazonaws.com/bucket/user2.jpg"
+ *                         business:
+ *                           id: "890e1234-e89b-12d3-a456-426614174005"
+ *                           username: "family_restaurant"
+ *                           name: "Family Restaurant"
+ *                           user_type: "BUSINESS"
+ *                           logo_url: "https://s3.amazonaws.com/bucket/business2.jpg"
+ *                         _count:
+ *                           likes: 23
+ *                           comments: 8
+ *                     pagination:
+ *                       nextCursor: "eyJzY29yZSI6NzIuMywiY3JlYXRlZEF0IjoiMjAyNC0wMS0xNFQxNDoyMDowMFoifQ=="
+ *                       hasNextPage: true
+ *                     algorithm_info:
+ *                       user_following_count: 15
+ *                       user_categories_count: 3
+ *                       location_based: true
+ *                       seen_reviews_excluded: 5
+ *                       algorithm_version: "Tapsy-Algorithm-V1.0"
+ *               success_empty_feed:
+ *                 summary: Empty feed response
+ *                 description: Response when no more reviews are available
+ *                 value:
+ *                   status: "success"
+ *                   statusCode: 200
+ *                   message: "Review feed fetched successfully"
+ *                   data:
+ *                     reviews: []
+ *                     pagination:
+ *                       nextCursor: null
+ *                       hasNextPage: false
+ *                     algorithm_info:
+ *                       user_following_count: 15
+ *                       user_categories_count: 3
+ *                       location_based: true
+ *                       seen_reviews_excluded: 5
+ *                       algorithm_version: "Tapsy-Algorithm-V1.0"
  *       400:
  *         description: Bad request - Invalid parameters
  *         content:
@@ -575,8 +734,33 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *                 message:
  *                   type: string
  *                   example: "Limit must be between 1 and 50"
+ *             examples:
+ *               invalid_limit:
+ *                 summary: Invalid limit parameter
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Limit must be between 1 and 50"
+ *               invalid_coordinates:
+ *                 summary: Invalid latitude/longitude
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Latitude must be between -90 and 90"
+ *               missing_coordinates:
+ *                 summary: Incomplete location data
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Both latitude and longitude must be provided together"
+ *               invalid_cursor:
+ *                 summary: Invalid cursor format
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Invalid cursor format"
  *       401:
- *         description: Unauthorized
+ *         description: Unauthorized - Missing or invalid authentication
  *         content:
  *           application/json:
  *             schema:
@@ -591,10 +775,79 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *                 message:
  *                   type: string
  *                   example: "User not authenticated"
+ *             examples:
+ *               no_token:
+ *                 summary: No authentication token provided
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 401
+ *                   message: "User not authenticated"
+ *               invalid_token:
+ *                 summary: Invalid or expired token
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 401
+ *                   message: "Invalid or expired authentication token"
+ *       404:
+ *         description: User not found or inactive
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 404
+ *                 message:
+ *                   type: string
+ *                   example: "User not found"
+ *             examples:
+ *               user_not_found:
+ *                 summary: User not found
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 404
+ *                   message: "User not found"
+ *               user_inactive:
+ *                 summary: User account inactive
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 404
+ *                   message: "User account is inactive"
  *       500:
  *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 500
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to fetch review feed"
+ *             examples:
+ *               database_error:
+ *                 summary: Database connection error
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 500
+ *                   message: "Failed to fetch review feed"
+ *               redis_error:
+ *                 summary: Redis service error
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 500
+ *                   message: "Failed to fetch review feed"
  */
-router.get('/feed', requireAuth(), ReviewController.getReviewFeed);
+router.post('/feed', requireAuth(), ReviewController.getReviewFeed);
 
 /**
  * @swagger

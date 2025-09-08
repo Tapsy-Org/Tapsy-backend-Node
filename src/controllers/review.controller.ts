@@ -354,11 +354,12 @@ export default class ReviewController {
         throw new AppError('User not authenticated', 401);
       }
 
-      const { cursor, limit = '10', latitude, longitude } = req.query;
+      // Read sensitive location data from request body instead of query parameters
+      const { cursor, limit = 10, latitude, longitude } = req.body;
 
       const options = {
         cursor: cursor as string | undefined,
-        limit: parseInt(limit as string, 10),
+        limit: typeof limit === 'string' ? parseInt(limit, 10) : limit,
         latitude: latitude ? parseFloat(latitude as string) : undefined,
         longitude: longitude ? parseFloat(longitude as string) : undefined,
       };
