@@ -380,4 +380,17 @@ export default class UserController {
       next(error);
     }
   }
+
+  static async getBusinessById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return res.fail('User id is required', 400);
+      }
+      const business = await userService.findBusinessById(id);
+      return res.success({ business }, 'Business fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
 }

@@ -388,6 +388,469 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
 
 /**
  * @swagger
+ * /api/reviews/feed:
+ *   post:
+ *     summary: Get personalized review feed
+ *     description: |
+ *       Get a personalized TikTok-style feed of reviews based on user preferences, location, following, and engagement
+ *       with cursor-based pagination and seen/unseen logic.
+ *
+ *       ## Features:
+ *       - **Personalized Algorithm**: Uses social signals, category preferences, location proximity, engagement, and freshness
+ *       - **Cursor-based Pagination**: Efficient pagination using base64-encoded cursors
+ *       - **Seen/Unseen Logic**: Excludes previously viewed reviews using Redis
+ *       - **Location-based Recommendations**: Prioritizes nearby businesses when coordinates provided
+ *       - **Real-time Scoring**: Dynamic scoring based on user behavior and preferences
+ *
+ *       ## Algorithm Scoring (Weighted):
+ *       - **Social Signals (30%)**: Reviews from followed users get higher priority
+ *       - **Category Relevance (25%)**: Matches user's interested categories
+ *       - **Location Proximity (20%)**: Closer businesses get higher scores
+ *       - **Engagement Score (15%)**: Based on views, likes, and comments
+ *       - **Freshness Score (10%)**: Newer content gets higher priority
+ *
+ *       ## Security Note:
+ *       This endpoint uses POST instead of GET to protect sensitive location data
+ *       (latitude/longitude) from being exposed in URL query parameters.
+ *
+ *       ## Usage Patterns:
+ *       - **First Load**: Send request with `limit` only
+ *       - **With Location**: Include `latitude` and `longitude` for proximity-based recommendations
+ *       - **Pagination**: Use `cursor` from previous response to get next page
+ *       - **Combined**: Use both location data and cursor for location-aware pagination
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cursor:
+ *                 type: string
+ *                 description: Cursor for pagination (base64 encoded). Use this to get the next set of reviews
+ *                 example: "eyJzY29yZSI6ODUuNSwiY3JlYXRlZEF0IjoiMjAyNC0wMS0xNVQxMDozMDowMFoifQ=="
+ *               limit:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 50
+ *                 default: 10
+ *                 description: Number of reviews per page
+ *                 example: 10
+ *               latitude:
+ *                 type: number
+ *                 minimum: -90
+ *                 maximum: 90
+ *                 description: User's current latitude for location-based recommendations
+ *                 example: 40.7128
+ *               longitude:
+ *                 type: number
+ *                 minimum: -180
+ *                 maximum: 180
+ *                 description: User's current longitude for location-based recommendations
+ *                 example: -74.0060
+ *           examples:
+ *             basic_request:
+ *               summary: Basic feed request (no location data)
+ *               description: Get the first page of personalized reviews without location-based recommendations
+ *               value:
+ *                 limit: 10
+ *             with_location:
+ *               summary: Request with location data for proximity-based recommendations
+ *               description: Get personalized reviews with location-based scoring for nearby businesses
+ *               value:
+ *                 limit: 15
+ *                 latitude: 40.7128
+ *                 longitude: -74.0060
+ *             with_cursor:
+ *               summary: Request with pagination cursor (no location)
+ *               description: Get next page of reviews using cursor from previous response
+ *               value:
+ *                 cursor: "eyJzY29yZSI6ODUuNSwiY3JlYXRlZEF0IjoiMjAyNC0wMS0xNVQxMDozMDowMFoifQ=="
+ *                 limit: 20
+ *             with_cursor_and_location:
+ *               summary: Request with both cursor and location data
+ *               description: Get next page of reviews with location-based recommendations using pagination cursor
+ *               value:
+ *                 cursor: "eyJzY29yZSI6ODUuNSwiY3JlYXRlZEF0IjoiMjAyNC0wMS0xNVQxMDozMDowMFoifQ=="
+ *                 limit: 25
+ *                 latitude: 37.7749
+ *                 longitude: -122.4194
+ *             max_limit:
+ *               summary: Maximum limit request
+ *               description: Get maximum number of reviews per page (50)
+ *               value:
+ *                 limit: 50
+ *                 latitude: 34.0522
+ *                 longitude: -118.2437
+ *             minimal_request:
+ *               summary: Minimal request (default values)
+ *               description: Get default number of reviews with default settings
+ *               value: {}
+ *     responses:
+ *       200:
+ *         description: Review feed fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Review feed fetched successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     reviews:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           userId:
+ *                             type: string
+ *                             format: uuid
+ *                           rating:
+ *                             type: string
+ *                             enum: [ONE, TWO, THREE, FOUR, FIVE]
+ *                           badges:
+ *                             type: string
+ *                             nullable: true
+ *                           caption:
+ *                             type: string
+ *                             nullable: true
+ *                           hashtags:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                           title:
+ *                             type: string
+ *                             nullable: true
+ *                           video_url:
+ *                             type: string
+ *                             nullable: true
+ *                           businessId:
+ *                             type: string
+ *                             format: uuid
+ *                             nullable: true
+ *                           views:
+ *                             type: integer
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           status:
+ *                             type: string
+ *                             enum: [ACTIVE, INACTIVE, PENDING, DELETED]
+ *                           finalScore:
+ *                             type: number
+ *                             description: Algorithmic score used for ranking (included for debugging)
+ *                           user:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                                 format: uuid
+ *                               username:
+ *                                 type: string
+ *                               name:
+ *                                 type: string
+ *                                 nullable: true
+ *                               user_type:
+ *                                 type: string
+ *                                 enum: [INDIVIDUAL, BUSINESS, ADMIN]
+ *                               logo_url:
+ *                                 type: string
+ *                                 nullable: true
+ *                           business:
+ *                             type: object
+ *                             nullable: true
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                                 format: uuid
+ *                               username:
+ *                                 type: string
+ *                               name:
+ *                                 type: string
+ *                                 nullable: true
+ *                               user_type:
+ *                                 type: string
+ *                                 enum: [BUSINESS]
+ *                               logo_url:
+ *                                 type: string
+ *                                 nullable: true
+ *                           _count:
+ *                             type: object
+ *                             properties:
+ *                               likes:
+ *                                 type: integer
+ *                               comments:
+ *                                 type: integer
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         nextCursor:
+ *                           type: string
+ *                           nullable: true
+ *                           description: Cursor for the next page (base64 encoded)
+ *                         hasNextPage:
+ *                           type: boolean
+ *                           description: Whether there are more reviews available
+ *                     algorithm_info:
+ *                       type: object
+ *                       properties:
+ *                         user_following_count:
+ *                           type: integer
+ *                           description: Number of users being followed
+ *                         user_categories_count:
+ *                           type: integer
+ *                           description: Number of categories user is interested in
+ *                         location_based:
+ *                           type: boolean
+ *                           description: Whether location-based scoring was applied
+ *                         seen_reviews_excluded:
+ *                           type: integer
+ *                           description: Number of previously seen reviews excluded from this feed
+ *                         algorithm_version:
+ *                           type: string
+ *                           description: Version of the algorithm used for ranking
+ *                           example: "Tapsy-Algorithm-V1.0"
+ *             examples:
+ *               success_with_reviews:
+ *                 summary: Successful response with reviews
+ *                 description: Feed with multiple reviews including location-based recommendations
+ *                 value:
+ *                   status: "success"
+ *                   statusCode: 200
+ *                   message: "Review feed fetched successfully"
+ *                   data:
+ *                     reviews:
+ *                       - id: "123e4567-e89b-12d3-a456-426614174000"
+ *                         userId: "456e7890-e89b-12d3-a456-426614174001"
+ *                         rating: "FIVE"
+ *                         badges: "Verified Customer"
+ *                         caption: "Amazing coffee and great atmosphere! ☕️"
+ *                         hashtags: ["coffee", "downtown", "cozy"]
+ *                         title: "Best Coffee in Downtown"
+ *                         video_url: "https://s3.amazonaws.com/bucket/video1.mp4"
+ *                         businessId: "789e0123-e89b-12d3-a456-426614174002"
+ *                         views: 1250
+ *                         createdAt: "2024-01-15T10:30:00Z"
+ *                         status: "ACTIVE"
+ *                         finalScore: 85.5
+ *                         user:
+ *                           id: "456e7890-e89b-12d3-a456-426614174001"
+ *                           username: "coffee_lover_23"
+ *                           name: "Sarah Johnson"
+ *                           user_type: "INDIVIDUAL"
+ *                           logo_url: "https://s3.amazonaws.com/bucket/user1.jpg"
+ *                         business:
+ *                           id: "789e0123-e89b-12d3-a456-426614174002"
+ *                           username: "downtown_coffee"
+ *                           name: "Downtown Coffee Co."
+ *                           user_type: "BUSINESS"
+ *                           logo_url: "https://s3.amazonaws.com/bucket/business1.jpg"
+ *                         _count:
+ *                           likes: 45
+ *                           comments: 12
+ *                       - id: "234e5678-e89b-12d3-a456-426614174003"
+ *                         userId: "567e8901-e89b-12d3-a456-426614174004"
+ *                         rating: "FOUR"
+ *                         badges: null
+ *                         caption: "Good food, friendly staff"
+ *                         hashtags: ["restaurant", "lunch", "family"]
+ *                         title: "Great Lunch Spot"
+ *                         video_url: "https://s3.amazonaws.com/bucket/video2.mp4"
+ *                         businessId: "890e1234-e89b-12d3-a456-426614174005"
+ *                         views: 890
+ *                         createdAt: "2024-01-14T14:20:00Z"
+ *                         status: "ACTIVE"
+ *                         finalScore: 72.3
+ *                         user:
+ *                           id: "567e8901-e89b-12d3-a456-426614174004"
+ *                           username: "foodie_mike"
+ *                           name: "Mike Chen"
+ *                           user_type: "INDIVIDUAL"
+ *                           logo_url: "https://s3.amazonaws.com/bucket/user2.jpg"
+ *                         business:
+ *                           id: "890e1234-e89b-12d3-a456-426614174005"
+ *                           username: "family_restaurant"
+ *                           name: "Family Restaurant"
+ *                           user_type: "BUSINESS"
+ *                           logo_url: "https://s3.amazonaws.com/bucket/business2.jpg"
+ *                         _count:
+ *                           likes: 23
+ *                           comments: 8
+ *                     pagination:
+ *                       nextCursor: "eyJzY29yZSI6NzIuMywiY3JlYXRlZEF0IjoiMjAyNC0wMS0xNFQxNDoyMDowMFoifQ=="
+ *                       hasNextPage: true
+ *                     algorithm_info:
+ *                       user_following_count: 15
+ *                       user_categories_count: 3
+ *                       location_based: true
+ *                       seen_reviews_excluded: 5
+ *                       algorithm_version: "Tapsy-Algorithm-V1.0"
+ *               success_empty_feed:
+ *                 summary: Empty feed response
+ *                 description: Response when no more reviews are available
+ *                 value:
+ *                   status: "success"
+ *                   statusCode: 200
+ *                   message: "Review feed fetched successfully"
+ *                   data:
+ *                     reviews: []
+ *                     pagination:
+ *                       nextCursor: null
+ *                       hasNextPage: false
+ *                     algorithm_info:
+ *                       user_following_count: 15
+ *                       user_categories_count: 3
+ *                       location_based: true
+ *                       seen_reviews_excluded: 5
+ *                       algorithm_version: "Tapsy-Algorithm-V1.0"
+ *       400:
+ *         description: Bad request - Invalid parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 400
+ *                 message:
+ *                   type: string
+ *                   example: "Limit must be between 1 and 50"
+ *             examples:
+ *               invalid_limit:
+ *                 summary: Invalid limit parameter
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Limit must be between 1 and 50"
+ *               invalid_coordinates:
+ *                 summary: Invalid latitude/longitude
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Latitude must be between -90 and 90"
+ *               missing_coordinates:
+ *                 summary: Incomplete location data
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Both latitude and longitude must be provided together"
+ *               invalid_cursor:
+ *                 summary: Invalid cursor format
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Invalid cursor format"
+ *       401:
+ *         description: Unauthorized - Missing or invalid authentication
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 401
+ *                 message:
+ *                   type: string
+ *                   example: "User not authenticated"
+ *             examples:
+ *               no_token:
+ *                 summary: No authentication token provided
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 401
+ *                   message: "User not authenticated"
+ *               invalid_token:
+ *                 summary: Invalid or expired token
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 401
+ *                   message: "Invalid or expired authentication token"
+ *       404:
+ *         description: User not found or inactive
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 404
+ *                 message:
+ *                   type: string
+ *                   example: "User not found"
+ *             examples:
+ *               user_not_found:
+ *                 summary: User not found
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 404
+ *                   message: "User not found"
+ *               user_inactive:
+ *                 summary: User account inactive
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 404
+ *                   message: "User account is inactive"
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 500
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to fetch review feed"
+ *             examples:
+ *               database_error:
+ *                 summary: Database connection error
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 500
+ *                   message: "Failed to fetch review feed"
+ *               redis_error:
+ *                 summary: Redis service error
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 500
+ *                   message: "Failed to fetch review feed"
+ */
+router.post('/feed', requireAuth(), ReviewController.getReviewFeed);
+
+/**
+ * @swagger
  * /api/reviews:
  *   get:
  *     summary: Get all reviews with optional filtering and pagination
@@ -485,6 +948,91 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *         description: Internal server error
  */
 router.get('/', dataFetchLimiter, requireAuth(), ReviewController.getReviews);
+
+/**
+ * @swagger
+ * /api/reviews/seen:
+ *   get:
+ *     summary: Get seen reviews
+ *     description: Get all review IDs that have been marked as seen by the authenticated user.
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Seen reviews fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 statusCode:
+ *                   type: number
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Seen reviews fetched successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     seenReviewIds:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                         format: uuid
+ *                       example: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
+ *                     count:
+ *                       type: number
+ *                       example: 2
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/seen', requireAuth(), ReviewController.getSeenReviews);
+
+/**
+ * @swagger
+ * /api/reviews/seen:
+ *   delete:
+ *     summary: Clear all seen reviews
+ *     description: Clear all seen reviews for the authenticated user. This will make all previously seen reviews appear in the feed again.
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All seen reviews cleared successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 statusCode:
+ *                   type: number
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "All seen reviews cleared successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                       format: uuid
+ *                       example: "123e4567-e89b-12d3-a456-426614174001"
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *       500:
+ *         description: Internal server error
+ */
+router.delete('/seen', requireAuth(), ReviewController.clearSeenReviews);
 
 /**
  * @swagger
@@ -945,5 +1493,191 @@ router.get(
  *         description: Internal server error
  */
 router.delete('/:reviewId', requireAuth(), ReviewController.deleteReview);
+
+/**
+ * @swagger
+ * /api/reviews/{reviewId}/seen:
+ *   post:
+ *     summary: Mark a review as seen
+ *     description: Mark a specific review as seen by the authenticated user. This will prevent the review from appearing in future feed requests.
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: reviewId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: The ID of the review to mark as seen
+ *     responses:
+ *       200:
+ *         description: Review marked as seen successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 statusCode:
+ *                   type: number
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Review marked as seen successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     reviewId:
+ *                       type: string
+ *                       format: uuid
+ *                       example: "123e4567-e89b-12d3-a456-426614174000"
+ *                     userId:
+ *                       type: string
+ *                       format: uuid
+ *                       example: "123e4567-e89b-12d3-a456-426614174001"
+ *       400:
+ *         description: Bad request - invalid review ID format
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *       404:
+ *         description: Review not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/:reviewId/seen', requireAuth(), ReviewController.markReviewAsSeen);
+
+/**
+ * @swagger
+ * /api/reviews/seen:
+ *   post:
+ *     summary: Mark multiple reviews as seen
+ *     description: |
+ *       Mark multiple reviews as seen by the authenticated user in a single request.
+ *       This prevents the specified reviews from appearing in future feed requests.
+ *       **Use Cases:**
+ *       - Mark multiple reviews as seen after viewing them
+ *       - Batch operation for better performance
+ *       - Clear seen status for specific reviews
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reviewIds
+ *             properties:
+ *               reviewIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 minItems: 1
+ *                 maxItems: 100
+ *                 description: Array of review IDs to mark as seen
+ *                 example: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
+ *           examples:
+ *             mark_multiple_seen:
+ *               summary: Mark multiple reviews as seen
+ *               value:
+ *                 reviewIds: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
+ *             mark_single_seen:
+ *               summary: Mark single review as seen
+ *               value:
+ *                 reviewIds: ["123e4567-e89b-12d3-a456-426614174000"]
+ *     responses:
+ *       200:
+ *         description: Reviews marked as seen successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 statusCode:
+ *                   type: number
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Reviews marked as seen successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     reviewIds:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                         format: uuid
+ *                       description: Array of review IDs that were marked as seen
+ *                     userId:
+ *                       type: string
+ *                       format: uuid
+ *                       description: ID of the user who marked the reviews as seen
+ *                     count:
+ *                       type: number
+ *                       description: Number of reviews marked as seen
+ *                       example: 2
+ *             examples:
+ *               success_response:
+ *                 summary: Successfully marked reviews as seen
+ *                 value:
+ *                   status: "success"
+ *                   statusCode: 200
+ *                   message: "Reviews marked as seen successfully"
+ *                   data:
+ *                     reviewIds: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
+ *                     userId: "123e4567-e89b-12d3-a456-426614174002"
+ *                     count: 2
+ *       400:
+ *         description: Bad request - invalid review IDs or too many reviews
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalid_review_ids:
+ *                 summary: Invalid review ID format
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Invalid review ID format(s): invalid-id. Must be valid UUIDs"
+ *                   details: null
+ *               too_many_reviews:
+ *                 summary: Too many reviews in single request
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Cannot mark more than 100 reviews as seen at once"
+ *                   details: null
+ *               no_valid_ids:
+ *                 summary: No valid review IDs provided
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "No valid review IDs provided"
+ *                   details: null
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/seen', requireAuth(), ReviewController.markReviewsAsSeen);
 
 export default router;

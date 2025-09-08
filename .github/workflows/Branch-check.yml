@@ -22,9 +22,9 @@ jobs:
             exit 0
           fi
           # Validate feature branch naming
-          if [[ ! "$LOWER" =~ ^(feature|bugfix|hotfix|fix)\/[a-z0-9._-]+$ ]]; then
+          if [[ ! "$LOWER" =~ ^(feature|bugfix|hotfix|fix|chore|docs|feat|test)\/[a-z0-9._-]+$ ]]; then
             echo "Invalid branch name: $BRANCH_NAME"
-            echo "Branch names must follow: feature/<name>, bugfix/<name>, hotfix/<name>, fix/<name> (lowercase)"
+            echo "Branch names must follow: feature/<name>, bugfix/<name>, hotfix/<name>, fix/<name>, chore/<name>, docs/<name>, feat/<name>, test/<name> (lowercase)"
             exit 1
           fi
           echo "Branch name validation passed for: $BRANCH_NAME"

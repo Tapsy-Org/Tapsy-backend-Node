@@ -792,4 +792,221 @@ router.post('/logout', UserController.logout);
  */
 router.post('/check-username', UserController.checkUsername);
 
+/**
+ * @swagger
+ * /api/users/business/{id}:
+ *   get:
+ *     summary: Get business information by ID for QR code
+ *     description: |
+ *       Retrieve detailed business information for an active business user.
+ *       Only returns data for users with:
+ *       - user_type: 'BUSINESS'
+ *       - status: 'ACTIVE'
+ *       - only returns data for users with ACTIVE status
+ *       Returns business-specific data including:
+ *       - Basic info (username, name, website, logo)
+ *       - Location details (address, coordinates, city, state, country)
+ *       - Multiple location support (ordered by most recent update)
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Business user ID (UUID format)
+ *         example: "123e4567-e89b-12d3-a456-426614174000"
+ *     responses:
+ *       200:
+ *         description: Business information retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Business information retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     business:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                           description: Business user ID
+ *                           example: "123e4567-e89b-12d3-a456-426614174000"
+ *                         username:
+ *                           type: string
+ *                           description: Unique business username
+ *                           example: "coffee_shop_downtown"
+ *                         name:
+ *                           type: string
+ *                           nullable: true
+ *                           description: Business display name
+ *                           example: "Downtown Coffee Shop"
+ *                         website:
+ *                           type: string
+ *                           nullable: true
+ *                           description: Business website URL
+ *                           example: "https://downtowncoffee.com"
+ *                         logo_url:
+ *                           type: string
+ *                           nullable: true
+ *                           description: Business logo image URL
+ *                           example: "https://s3.amazonaws.com/bucket/logo.jpg"
+ *                         locations:
+ *                           type: array
+ *                           description: Business locations (ordered by most recent update)
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                                 format: uuid
+ *                                 description: Location ID
+ *                                 example: "456e7890-e89b-12d3-a456-426614174001"
+ *                               latitude:
+ *                                 type: number
+ *                                 nullable: true
+ *                                 description: GPS latitude coordinate
+ *                                 example: 40.7128
+ *                               longitude:
+ *                                 type: number
+ *                                 nullable: true
+ *                                 description: GPS longitude coordinate
+ *                                 example: -74.0060
+ *                               address:
+ *                                 type: string
+ *                                 nullable: true
+ *                                 description: Street address
+ *                                 example: "123 Main Street"
+ *                               zip_code:
+ *                                 type: string
+ *                                 nullable: true
+ *                                 description: Postal/ZIP code
+ *                                 example: "10001"
+ *                               location:
+ *                                 type: string
+ *                                 nullable: true
+ *                                 description: General location description
+ *                                 example: "Downtown Business District"
+ *                               location_type:
+ *                                 type: string
+ *                                 enum: [HOME, WORK, OTHER]
+ *                                 nullable: true
+ *                                 description: Type of location
+ *                                 example: "WORK"
+ *                               city:
+ *                                 type: string
+ *                                 nullable: true
+ *                                 description: City name
+ *                                 example: "New York"
+ *                               state:
+ *                                 type: string
+ *                                 nullable: true
+ *                                 description: State/Province
+ *                                 example: "NY"
+ *                               country:
+ *                                 type: string
+ *                                 nullable: true
+ *                                 description: Country name
+ *                                 example: "USA"
+ *                               createdAt:
+ *                                 type: string
+ *                                 format: date-time
+ *                                 description: Location creation timestamp
+ *                                 example: "2024-01-15T10:30:00Z"
+ *                               updatedAt:
+ *                                 type: string
+ *                                 format: date-time
+ *                                 description: Location last update timestamp
+ *                                 example: "2024-01-20T14:45:00Z"
+ *             examples:
+ *               success:
+ *                 summary: Successful business retrieval
+ *                 value:
+ *                   status: "success"
+ *                   statusCode: 200
+ *                   message: "Business information retrieved successfully"
+ *                   data:
+ *                     business:
+ *                       id: "123e4567-e89b-12d3-a456-426614174000"
+ *                       username: "coffee_shop_downtown"
+ *                       name: "Downtown Coffee Shop"
+ *                       website: "https://downtowncoffee.com"
+ *                       logo_url: "https://s3.amazonaws.com/bucket/logo.jpg"
+ *                       locations:
+ *                         - id: "456e7890-e89b-12d3-a456-426614174001"
+ *                           latitude: 40.7128
+ *                           longitude: -74.0060
+ *                           address: "123 Main Street"
+ *                           zip_code: "10001"
+ *                           location: "Downtown Business District"
+ *                           location_type: "WORK"
+ *                           city: "New York"
+ *                           state: "NY"
+ *                           country: "USA"
+ *                           createdAt: "2024-01-15T10:30:00Z"
+ *                           updatedAt: "2024-01-20T14:45:00Z"
+ *       400:
+ *         description: Bad request - Invalid business ID format or missing ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 400
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid business ID format"
+ *       404:
+ *         description: Business not found or inactive
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 404
+ *                 message:
+ *                   type: string
+ *                   example: "Business not found or inactive"
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 500
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to fetch business"
+ */
+router.get('/business/:id', UserController.getBusinessById);
+
 export default router;

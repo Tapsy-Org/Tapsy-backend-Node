@@ -691,4 +691,53 @@ export class UserService {
     const user = await prisma.user.findUnique({ where: { username } });
     return user !== null;
   }
+  async findBusinessById(id: string) {
+    try {
+      // Find business user with ACTIVE status only
+      const business = await prisma.user.findUnique({
+        where: {
+          id,
+          user_type: 'BUSINESS',
+          status: 'ACTIVE',
+        },
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          website: true,
+          logo_url: true,
+          locations: {
+            select: {
+              id: true,
+              latitude: true,
+              longitude: true,
+              address: true,
+              zip_code: true,
+              location: true,
+              location_type: true,
+              city: true,
+              state: true,
+              country: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+            orderBy: {
+              updatedAt: 'desc',
+            },
+          },
+        },
+      });
+
+      if (!business) {
+        throw new AppError('Business not found or inactive', 404);
+      }
+
+      return business;
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch business', 500, { originalError: error });
+    }
+  }
 }
