@@ -1498,8 +1498,16 @@ router.delete('/:reviewId', requireAuth(), ReviewController.deleteReview);
  * @swagger
  * /api/reviews/{reviewId}/seen:
  *   post:
- *     summary: Mark a review as seen
- *     description: Mark a specific review as seen by the authenticated user. This will prevent the review from appearing in future feed requests.
+ *     summary: Mark a review as seen and increment view count
+ *     description: |
+ *       Mark a specific review as seen by the authenticated user and increment its view count.
+ *       This endpoint performs two actions in a single call:
+ *       1. Marks the review as seen in Redis (prevents it from appearing in future feed requests)
+ *       2. Increments the view count in the database
+ *       **Use Cases:**
+ *       - Track user engagement when viewing reviews
+ *       - Prevent duplicate content in feeds
+ *       - Maintain accurate view statistics
  *     tags: [Reviews]
  *     security:
  *       - bearerAuth: []
@@ -1510,10 +1518,10 @@ router.delete('/:reviewId', requireAuth(), ReviewController.deleteReview);
  *         schema:
  *           type: string
  *           format: uuid
- *         description: The ID of the review to mark as seen
+ *         description: The ID of the review to mark as seen and increment view count
  *     responses:
  *       200:
- *         description: Review marked as seen successfully
+ *         description: Review marked as seen and view count incremented successfully
  *         content:
  *           application/json:
  *             schema:
@@ -1527,7 +1535,7 @@ router.delete('/:reviewId', requireAuth(), ReviewController.deleteReview);
  *                   example: 200
  *                 message:
  *                   type: string
- *                   example: "Review marked as seen successfully"
+ *                   example: "Review marked as seen and view count incremented successfully"
  *                 data:
  *                   type: object
  *                   properties:
@@ -1535,10 +1543,19 @@ router.delete('/:reviewId', requireAuth(), ReviewController.deleteReview);
  *                       type: string
  *                       format: uuid
  *                       example: "123e4567-e89b-12d3-a456-426614174000"
+ *                       description: The ID of the review
+ *                     viewCount:
+ *                       type: integer
+ *                       example: 150
+ *                       description: Updated view count for the review
  *                     userId:
  *                       type: string
  *                       format: uuid
  *                       example: "123e4567-e89b-12d3-a456-426614174001"
+ *                       description: The ID of the user who viewed the review
+ *                     message:
+ *                       type: string
+ *                       example: "Review marked as seen and view count incremented successfully"
  *       400:
  *         description: Bad request - invalid review ID format
  *       401:
