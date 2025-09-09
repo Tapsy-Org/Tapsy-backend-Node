@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import UserController from '../controllers/user.controller';
 import { requireAuth } from '../middlewares/auth.middleware';
+import { dataFetchLimiter } from '../middlewares/rateLimit.middleware';
 import { upload } from '../middlewares/upload.middleware';
 const router = Router();
 
@@ -554,6 +555,7 @@ router.get('/:id', UserController.getById);
 // User self-update route (with file uploads)
 router.put(
   '/update',
+  dataFetchLimiter,
   requireAuth(),
   upload.fields([{ name: 'logo_url' }, { name: 'video_url' }]),
   UserController.update,
@@ -562,6 +564,7 @@ router.put(
 // Admin update route (can update any user, with file uploads)
 router.put(
   '/:id',
+  dataFetchLimiter,
   requireAuth('ADMIN'),
   upload.fields([{ name: 'logo_url' }, { name: 'video_url' }]),
   UserController.update,
@@ -792,7 +795,7 @@ router.post('/verify-otp', UserController.verifyOtp);
  *       404:
  *         description: No users found
  */
-router.get('/', requireAuth('ADMIN'), UserController.getAllUsers);
+router.get('/', dataFetchLimiter, requireAuth('ADMIN'), UserController.getAllUsers);
 
 // Note: Refresh token and logout are now handled by unified /auth endpoints
 // Use /auth/refresh-token and /auth/logout for all user types
