@@ -202,9 +202,10 @@ describe('ReviewService', () => {
         rating: 'ONE' as const,
         feedbackText: 'Terrible service, very disappointed',
       };
+      const { feedbackText, ...reviewDataWithoutFeedback } = badReviewData;
       const mockCreatedReview = {
         id: 'review-123',
-        ...badReviewData,
+        ...reviewDataWithoutFeedback,
         status: 'PENDING',
         views: 0,
         createdAt: new Date(),
@@ -223,7 +224,7 @@ describe('ReviewService', () => {
 
       expect(mockPrisma.review.create).toHaveBeenCalledWith({
         data: {
-          ...badReviewData,
+          ...reviewDataWithoutFeedback,
           status: 'PENDING',
           views: 0,
         },
