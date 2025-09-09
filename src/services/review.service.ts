@@ -19,6 +19,7 @@ export class ReviewService {
     title?: string;
     video_url?: string;
     businessId?: string;
+    feedbackText?: string;
   }) {
     try {
       // Validate required fields
@@ -33,12 +34,8 @@ export class ReviewService {
       }
 
       // Determine status based on rating
-      let status: Status;
-      if (data.rating === 'ONE' || data.rating === 'TWO') {
-        status = 'PENDING';
-      } else {
-        status = 'ACTIVE';
-      }
+      const isBadReview = data.rating === 'ONE' || data.rating === 'TWO';
+      const status: Status = isBadReview ? 'PENDING' : 'ACTIVE';
 
       // Check if user exists and is active
       const user = await prisma.user.findUnique({
@@ -98,6 +95,15 @@ export class ReviewService {
             : undefined,
         },
       });
+
+      if (isBadReview && data.feedbackText) {
+        await prisma.reviewFeedback.create({
+          data: {
+            reviewId: review.id,
+            feedback: data.feedbackText,
+          },
+        });
+      }
 
       return review;
     } catch (error) {

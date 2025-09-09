@@ -231,6 +231,8 @@ model Review {
   views      Int          @default(0)
   createdAt  DateTime     @default(now())
   status     Status       @default(ACTIVE)
+  
+  feedback   ReviewFeedback?
   user       User      @relation("UserReviews", fields: [userId], references: [id])
   business User?     @relation("BusinessReviews", fields: [businessId], references: [id])
   likes    Like[]
@@ -239,6 +241,20 @@ model Review {
   @@index([userId])
   @@index([businessId])
   @@index([status])
+}
+
+model ReviewFeedback {
+  id          String   @id @default(uuid()) @db.Uuid
+  reviewId    String   @unique @db.Uuid
+  feedback    String   
+  is_resolved Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@index([is_resolved])
 }
 
 model Like {

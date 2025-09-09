@@ -84,6 +84,10 @@ const router = express.Router();
  *         business:
  *           $ref: '#/components/schemas/UserSummary'
  *           nullable: true
+ *         feedback:
+ *           $ref: '#/components/schemas/ReviewFeedback'
+ *           nullable: true
+ *           description: Feedback for bad reviews (only present for ONE/TWO ratings)
  *         _count:
  *           type: object
  *           properties:
@@ -216,6 +220,9 @@ const router = express.Router();
  *           type: string
  *           format: uuid
  *           description: ID of the business being reviewed
+ *         feedbackText:
+ *           type: string
+ *           description: Feedback text for bad reviews (required when rating is ONE or TWO)
  *     CreateReviewResponse:
  *       type: object
  *       properties:
@@ -240,6 +247,31 @@ const router = express.Router();
  *         details:
  *           type: object
  *           nullable: true
+ *     ReviewFeedback:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *           description: Unique feedback identifier
+ *         reviewId:
+ *           type: string
+ *           format: uuid
+ *           description: ID of the review this feedback is for
+ *         feedback:
+ *           type: string
+ *           description: Feedback text for bad reviews
+ *         is_resolved:
+ *           type: boolean
+ *           description: Whether the feedback has been resolved
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the feedback was created
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the feedback was last updated
  */
 
 // Configure multer for video uploads
@@ -266,6 +298,10 @@ const upload = multer({
  *     description: |
  *       Creates a new review with rating, caption, hashtags, and optional video upload to S3.
  *       The video file will be uploaded to AWS S3 and the URL will be stored in the database.
+ *       **Bad Review Feedback:**
+ *       - Reviews with rating ONE or TWO are automatically set to PENDING status
+ *       - If feedbackText is provided for bad reviews, it will be stored as ReviewFeedback
+ *       - This allows businesses to understand and address negative feedback
  *       **File Requirements:**
  *       - Maximum size: 100MB
  *       - Supported formats: All video/* MIME types
@@ -310,6 +346,22 @@ const upload = multer({
  *                 caption: "Excellent service!"
  *                 hashtags: "#excellent"
  *                 title: "Great Service"
+ *             bad_review_with_feedback:
+ *               summary: Create bad review with feedback
+ *               value:
+ *                 rating: "ONE"
+ *                 caption: "Terrible experience, very disappointed"
+ *                 hashtags: '["#bad", "#terrible", "#disappointed"]'
+ *                 title: "Worst Experience Ever"
+ *                 businessId: "550e8400-e29b-41d4-a716-446655440000"
+ *                 feedbackText: "The service was extremely slow, staff was rude, and the food was cold. I waited 45 minutes for a simple order and when it arrived, it was completely wrong. The manager was unhelpful and dismissive. This was supposed to be a special occasion dinner but it turned into a nightmare."
+ *             bad_review_without_feedback:
+ *               summary: Create bad review without feedback
+ *               value:
+ *                 rating: "TWO"
+ *                 caption: "Not good, would not recommend"
+ *                 hashtags: '["#notgood", "#disappointed"]'
+ *                 title: "Below Expectations"
  *     responses:
  *       201:
  *         description: Review created successfully
@@ -343,6 +395,22 @@ const upload = multer({
  *                   data:
  *                     id: "60cc2365-74ae-4b50-b7f7-a356c4a417ea"
  *                     video_url: null
+ *               bad_review_with_feedback:
+ *                 summary: "Bad review with feedback created (status: PENDING)"
+ *                 value:
+ *                   status: "success"
+ *                   message: "Review created successfully"
+ *                   data:
+ *                     id: "60cc2365-74ae-4b50-b7f7-a356c4a417ea"
+ *                     video_url: null
+ *               bad_review_without_feedback:
+ *                 summary: "Bad review without feedback created (status: PENDING)"
+ *                 value:
+ *                   status: "success"
+ *                   message: "Review created successfully"
+ *                   data:
+ *                     id: "60cc2365-74ae-4b50-b7f7-a356c4a417ea"
+ *                     video_url: null
  *       400:
  *         description: Bad request - validation error
  *         content:
@@ -370,6 +438,13 @@ const upload = multer({
  *                   status: "fail"
  *                   statusCode: 400
  *                   message: "Hashtags must be an array"
+ *                   details: null
+ *               missing_feedback_for_bad_review:
+ *                 summary: "Missing feedback for bad review (optional but recommended)"
+ *                 value:
+ *                   status: "success"
+ *                   statusCode: 201
+ *                   message: "Review created successfully (feedback recommended for bad reviews)"
  *                   details: null
  *       401:
  *         description: Unauthorized - missing or invalid access token
