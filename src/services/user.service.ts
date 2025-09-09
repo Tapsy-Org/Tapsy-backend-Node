@@ -108,6 +108,17 @@ export class UserService {
     try {
       if (!data.username) throw new AppError('Username is required', 400);
 
+      // Validate mobile number format if provided
+      if (data.mobile_number) {
+        const mobileRegex = /^\+?[1-9]\d{1,14}$/; // E.164 format: +1234567890 or 1234567890
+        if (!mobileRegex.test(data.mobile_number)) {
+          throw new AppError(
+            'Mobile number must contain only digits and optional + prefix (e.g., +1234567890 or 1234567890)',
+            400,
+          );
+        }
+      }
+
       // Check for existing username
       const existingUserByUsername = await prisma.user.findFirst({
         where: { username: data.username },
@@ -278,6 +289,17 @@ export class UserService {
 
   async login(data: { firebase_token?: string; mobile_number?: string; email?: string }) {
     try {
+      // Validate mobile number format if provided
+      if (data.mobile_number) {
+        const mobileRegex = /^\+?[1-9]\d{1,14}$/; // E.164 format: +1234567890 or 1234567890
+        if (!mobileRegex.test(data.mobile_number)) {
+          throw new AppError(
+            'Mobile number must contain only digits and optional + prefix (e.g., +1234567890 or 1234567890)',
+            400,
+          );
+        }
+      }
+
       let user = null;
 
       // 1. Try login with email
