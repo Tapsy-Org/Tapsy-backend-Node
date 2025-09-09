@@ -27,7 +27,9 @@ export class UserCategoryService {
       const existingAssignments = await prisma.userCategory.findMany({
         where: { userId, categoryId: { in: categories } },
       });
-      const existingCategoryIds = existingAssignments.map((a) => a.categoryId);
+      const existingCategoryIds = existingAssignments.map(
+        (a: { categoryId: string }) => a.categoryId,
+      );
       const newCategoryIds = categories.filter((id) => !existingCategoryIds.includes(id));
       if (newCategoryIds.length === 0) {
         throw new AppError('All categories already assigned to this user', 400);
@@ -35,7 +37,7 @@ export class UserCategoryService {
 
       // Prepare data with category names
       const userCategoryData = newCategoryIds.map((categoryId) => {
-        const category = existingCategories.find((c) => c.id === categoryId);
+        const category = existingCategories.find((c: { id: string }) => c.id === categoryId);
         return {
           userId,
           categoryId,
@@ -46,6 +48,14 @@ export class UserCategoryService {
       });
 
       await prisma.userCategory.createMany({ data: userCategoryData });
+      // Advance onboarding for INDIVIDUAL users after selecting categories
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          // Only for individual users; business users do not track onboarding
+          onboarding_step: user.user_type === 'INDIVIDUAL' ? 'LOCATION' : undefined,
+        },
+      });
 
       // Return only required fields
       return await prisma.userCategory.findMany({

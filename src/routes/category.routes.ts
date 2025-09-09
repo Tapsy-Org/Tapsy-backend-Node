@@ -762,6 +762,20 @@ router.put('/:id', requireAuth('ADMIN'), categoryController.updateCategory);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
+ *       400:
+ *         description: Bad request - category cannot be deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               category_in_use:
+ *                 summary: Category is being used by users
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Cannot delete this category because users are currently using it. Please update the category instead of deleting it."
+ *                   details: null
  */
 router.delete('/:id', requireAuth('ADMIN'), categoryController.deleteCategory);
 

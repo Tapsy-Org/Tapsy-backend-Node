@@ -1,3 +1,4 @@
+// Local type aliases to avoid dependency on generated Prisma types at lint time
 import type { Prisma, UserType } from '@prisma/client';
 import bcryptjs from 'bcryptjs';
 
@@ -20,7 +21,6 @@ export class UserService {
         zip_code: _zipCode,
         website: _website,
         about: _about,
-        logo_url: _logoUrl,
         video_url: _videoUrl,
         categories: _categories,
         ...cleanUser
@@ -142,6 +142,7 @@ export class UserService {
         name: data.name,
         status: 'PENDING',
         verification_method: 'MOBILE',
+        onboarding_step: data.user_type === 'BUSINESS' ? undefined : 'REGISTERED',
       };
 
       if (data.user_type === 'INDIVIDUAL') {
@@ -216,6 +217,8 @@ export class UserService {
         userData.about = data.about;
         userData.logo_url = data.logo_url;
         userData.video_url = data.video_url;
+        // Onboarding step tracking applies only for INDIVIDUAL users. Keep null for BUSINESS.
+        userData.onboarding_step = undefined;
       }
 
       // CREATE USER
@@ -262,8 +265,8 @@ export class UserService {
         ...this.cleanUserResponse(user),
         message:
           userData.verification_method === 'EMAIL'
-            ? 'Registration successful. Please check your email for OTP verification.'
-            : 'Registration successful. Please check your SMS for OTP verification.',
+            ? 'Please check your email for OTP verification.'
+            : 'Please check your SMS for OTP verification.',
         status: 'OTP_SENT',
         verification_method: userData.verification_method,
       };
@@ -325,6 +328,10 @@ export class UserService {
             user_id: user.id,
             user_type: user.user_type,
             verification_method: 'EMAIL',
+            onboarding_step:
+              user.user_type === 'INDIVIDUAL'
+                ? (user as Prisma.UserCreateInput).onboarding_step
+                : undefined,
           },
         };
       } else if (user.verification_method === 'MOBILE' && data.mobile_number) {
@@ -336,6 +343,10 @@ export class UserService {
             user_id: user.id,
             user_type: user.user_type,
             verification_method: 'MOBILE',
+            onboarding_step:
+              user.user_type === 'INDIVIDUAL'
+                ? (user as Prisma.UserCreateInput).onboarding_step
+                : undefined,
           },
         };
       }
@@ -449,6 +460,10 @@ export class UserService {
 
       if (user.status === 'PENDING') {
         updateData.status = 'ACTIVE';
+        // Move INDIVIDUAL users into CATEGORY step after verification
+        if (user.user_type === 'INDIVIDUAL') {
+          updateData.onboarding_step = 'CATEGORY';
+        }
       } else if (user.status === 'ACTIVE') {
         updateData.last_login = new Date();
       } else {
@@ -551,55 +566,86 @@ export class UserService {
       throw new AppError('Failed to find user', 500, { originalError: error });
     }
   }
-  async findAll() {
+
+  async findAllPaginated(page: number, limit: number) {
     try {
-      return await prisma.user.findMany({
-        include: {
-          categories: { include: { category: true } },
-        },
-      });
+      const skip = (page - 1) * limit;
+
+      const [users, total] = await Promise.all([
+        prisma.user.findMany({
+          skip,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            categories: { include: { category: true } },
+          },
+        }),
+        prisma.user.count(),
+      ]);
+
+      return { users, total };
     } catch (error) {
-      throw new AppError('Failed to fetch all users', 500, { originalError: error });
+      throw new AppError('Failed to fetch users', 500, { originalError: error });
     }
   }
 
   async update(id: string, data: Prisma.UserUpdateInput) {
     try {
+      // // Phone/Email updates are disabled at controller level, but sanitize here too
+      // if (data.mobile_number !== undefined) {
+      //   // @ts-expect-error - intentionally stripping mobile_number
+      //   data.mobile_number = undefined;
+      // }
+      // if (data.email !== undefined) {
+      //   // @ts-expect-error - intentionally stripping email
+      //   data.email = undefined;
+      // }
       // Check if user exists
       const existingUser = await prisma.user.findUnique({ where: { id } });
       if (!existingUser) {
         throw new AppError('User not found', 404);
       }
 
-      // Validate contact uniqueness if being updated
+      // Validate username uniqueness if being updated
       if (
-        data.mobile_number &&
-        typeof data.mobile_number === 'string' &&
-        data.mobile_number !== existingUser.mobile_number
+        data.username &&
+        typeof data.username === 'string' &&
+        data.username !== existingUser.username
       ) {
-        const userWithMobile = await prisma.user.findUnique({
-          where: { mobile_number: data.mobile_number },
+        const userWithUsername = await prisma.user.findUnique({
+          where: { username: data.username },
         });
-        if (userWithMobile) {
-          throw new AppError('Mobile number already in use', 409);
+        if (userWithUsername) {
+          throw new AppError('Username already in use', 409);
         }
       }
 
-      if (data.email && typeof data.email === 'string' && data.email !== existingUser.email) {
-        const userWithEmail = await prisma.user.findUnique({
-          where: { email: data.email },
-        });
-        if (userWithEmail) {
-          throw new AppError('Email already in use', 409);
-        }
-      }
+      // Validate contact uniqueness if being updated (disabled)
+      // if (
+      //   data.mobile_number &&
+      //   typeof data.mobile_number === 'string' &&
+      //   data.mobile_number !== existingUser.mobile_number
+      // ) {
+      //   const userWithMobile = await prisma.user.findUnique({
+      //     where: { mobile_number: data.mobile_number },
+      //   });
+      //   if (userWithMobile) {
+      //     throw new AppError('Mobile number already in use', 409);
+      //   }
+      // }
+
+      // if (data.email && typeof data.email === 'string' && data.email !== existingUser.email) {
+      //   const userWithEmail = await prisma.user.findUnique({
+      //     where: { email: data.email },
+      //   });
+      //   if (userWithEmail) {
+      //     throw new AppError('Email already in use', 409);
+      //   }
+      // }
 
       const updatedUser = await prisma.user.update({
         where: { id },
         data,
-        include: {
-          categories: { include: { category: true } },
-        },
       });
 
       return updatedUser;
@@ -608,6 +654,34 @@ export class UserService {
       throw new AppError('Failed to update user', 500, { originalError: error });
     }
   }
+
+  // async updateWithOldContactVerification(
+  //   id: string,
+  //   field: 'mobile_number' | 'email',
+  //   newValue: string,
+  // ) {
+  //   /*
+  //   try {
+  //     // Disabled: phone/email change verification via OTP
+  //   } catch (error) {
+  //     if (error instanceof AppError) throw error;
+  //     throw new AppError('Failed to initiate verification', 500, { originalError: error });
+  //   }
+  //   */
+  //   throw new AppError('Phone/Email change flow is currently disabled', 400);
+  // }
+
+  // async verifyUpdateOtp(id: string, otp: string) {
+  //   /*
+  //   try {
+  //     // Disabled: phone/email change verification via OTP
+  //   } catch (error) {
+  //     if (error instanceof AppError) throw error;
+  //     throw new AppError('Failed to verify OTP', 500, { originalError: error });
+  //   }
+  //   */
+  //   throw new AppError('Phone/Email change flow is currently disabled', 400);
+  // }
 
   async softDelete(id: string) {
     try {
@@ -640,7 +714,6 @@ export class UserService {
     }
   }
 
-  // Business user creation with category and subcategories in User table
   async createBusinessUserWithCategories(
     userData: Prisma.UserCreateInput,
     categoryId?: string,
@@ -688,8 +761,11 @@ export class UserService {
   }
 
   async usernameExists(username: string) {
-    const user = await prisma.user.findUnique({ where: { username } });
-    return user !== null;
+    const user = await prisma.user.findUnique({ where: { username }, select: { status: true } });
+    if (!user) return false;
+    if (user.status === 'PENDING') return false;
+
+    return true;
   }
   async findBusinessById(id: string) {
     try {

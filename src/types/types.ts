@@ -9,7 +9,7 @@ export interface CreateLocationData {
   location: string;
   latitude: number;
   longitude: number;
-  location_type: 'HOME' | 'WORK' | 'OTHER';
+  location_type?: 'HOME' | 'WORK' | 'OTHER';
   address?: string;
   zip_code?: string;
   city?: string;

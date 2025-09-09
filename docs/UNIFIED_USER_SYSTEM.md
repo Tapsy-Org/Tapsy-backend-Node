@@ -29,6 +29,10 @@ model User {
   verification_method  VerificationMethod?
   otp                  String?
   refresh_token        String?
+  otp_expiry           DateTime?
+  
+  // Onboarding tracking (for INDIVIDUAL users only)
+  onboarding_step      OnboardingStep?     @default(REGISTERED)
   
   // Business-specific fields (null for individual users)
   website        String?
@@ -58,6 +62,13 @@ enum VerificationMethod {
   MOBILE
   EMAIL
 }
+
+enum OnboardingStep {
+  REGISTERED
+  CATEGORY
+  LOCATION
+  COMPLETED
+}
 ```
 
 ### ✅ **Updated Related Tables:**
@@ -80,7 +91,7 @@ model Location {
   latitude      Float        // GPS latitude
   longitude     Float        // GPS longitude
   location      String       // General description
-  location_type LocationType // HOME, WORK, OTHER
+  location_type LocationType? // Optional: HOME, WORK, OTHER
   city          String?      // City name
   state         String?      // State/Province
   country       String?      // Country name
@@ -103,12 +114,14 @@ PUT    /api/users/{id}                  # Update user
 POST   /api/users/{id}/deactivate       # Deactivate user
 POST   /api/users/{id}/restore          # Restore user
 GET    /api/users/type/{user_type}      # Get users by type (INDIVIDUAL/BUSINESS)
-GET    /api/users                       # Get all users
+GET    /api/users                       # Get all users (paginated)
 POST   /api/users/send-otp             # Send OTP for verification
 POST   /api/users/verify-otp           # Verify OTP
 POST   /api/users/check-username       # Check username availability
 POST   /api/users/refresh-token        # Refresh access token
 POST   /api/users/logout               # Logout user
+PUT    /api/users/update               # Update own profile (multiple fields)
+# POST   /api/users/verify-update-otp    # (Disabled) Verify OTP for contact updates
 ```
 
 ### **User Category Assignment (`/api/user-categories`)**
@@ -158,6 +171,7 @@ GET    /api/user-subcategories/user/{id}  # Get user's subcategories
     "status": "ACTIVE",
     "verification_method": "MOBILE",
     "otp_verified": true,
+    "onboarding_step": "CATEGORY",
     "created_at": "2024-01-01T00:00:00.000Z",
     "access_token": "jwt-access-token",
     "refresh_token": "jwt-refresh-token"
@@ -266,11 +280,14 @@ GET    /api/user-subcategories/user/{id}  # Get user's subcategories
 **Response for Email Verification Required (200 OK):**
 ```json
 {
-  "status": "OTP_SENT",
-  "message": "OTP has been sent to your email",
-  "data": {
-    "user_type": "BUSINESS"
-  }
+    "status": "OTP_SENT",
+    "message": "OTP has been sent to your email",
+    "data": {
+      "user_id": "user-uuid-123",
+      "user_type": "BUSINESS",
+      "verification_method": "EMAIL",
+      "onboarding_step": null
+    }
 }
 ```
 
@@ -315,6 +332,7 @@ GET    /api/user-subcategories/user/{id}  # Get user's subcategories
     "username": "mycompany",
     "status": "ACTIVE",
     "otp_verified": true,
+    "onboarding_step": "CATEGORY",
     "access_token": "jwt-access-token",
     "refresh_token": "jwt-refresh-token"
   }
@@ -455,7 +473,210 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### **8. Get Users by Type**
+### **8. Get All Users (Paginated)**
+
+**GET** `/api/users?page=1&limit=20`
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Query Parameters:**
+- `page` (optional): Page number (default: 1, min: 1)
+- `limit` (optional): Items per page (default: 20, min: 1, max: 100)
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "Users fetched successfully",
+  "data": {
+    "users": [
+      {
+        "id": "user-uuid-123",
+        "user_type": "INDIVIDUAL",
+        "username": "john_doe",
+        "status": "ACTIVE",
+        "onboarding_step": "COMPLETED",
+        "created_at": "2024-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "user-uuid-456",
+        "user_type": "BUSINESS",
+        "username": "company1",
+        "status": "ACTIVE",
+        "onboarding_step": null,
+        "created_at": "2024-01-01T00:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 150,
+      "total_pages": 8,
+      "has_next_page": true,
+      "has_prev_page": false
+    }
+  }
+}
+```
+
+### **9. Update Own Profile (Multiple Fields)**
+
+**PUT** `/api/users/update`
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body (Multiple Fields):**
+```json
+{
+  "username": "updated_username",
+  "name": "John Smith",
+  "website": "https://newwebsite.com",
+  "about": "Updated company description"
+}
+```
+
+**Request Body (File Uploads):**
+```
+Content-Type: multipart/form-data
+
+logo_url: [FILE]
+video_url: [FILE]
+username: "new_username"
+about: "Updated about text"
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "User updated successfully",
+  "data": {
+    "user": {
+      "id": "user-uuid-123",
+      "username": "updated_username",
+      "name": "John Smith",
+      "website": "https://newwebsite.com",
+      "about": "Updated company description",
+      "updated_at": "2024-01-01T12:00:00.000Z"
+    }
+  }
+}
+```
+
+### **10. Two-Step Contact Verification (Disabled)**
+
+#### **Step 1: Request Contact Update**
+
+**PUT** `/api/users/update`
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body (Email Update):**
+```json
+{
+  "email": "newemail@example.com"
+}
+```
+
+**Request Body (Mobile Update):**
+```json
+{
+  "mobile_number": "+1987654321"
+}
+```
+
+> This flow is currently disabled. The following examples are retained for reference only.
+
+**Response (200 OK) - Step 1:**
+```json
+{
+  "status": "success",
+  "message": "Verification required from your current email",
+  "data": {
+    "message": "OTP sent to your current email. Please verify to proceed.",
+    "verification_method": "EMAIL",
+    "otp_expiry": "2024-01-01T00:10:00.000Z",
+    "current_contact": "old@example.com",
+    "step": "old_verification"
+  }
+}
+```
+
+#### **Step 2: Verify Old Contact**
+
+**POST** `/api/users/verify-update-otp`
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body:**
+```json
+{
+  "otp": "123456"
+}
+```
+
+**Response (200 OK) - Step 2:**
+```json
+{
+  "status": "success",
+  "message": "Old contact verified. OTP sent to new contact.",
+  "data": {
+    "message": "OTP sent to your new email. Please verify to complete the update.",
+    "verification_method": "EMAIL",
+    "otp_expiry": "2024-01-01T00:10:00.000Z",
+    "new_contact": "newemail@example.com",
+    "step": "new_verification"
+  }
+}
+```
+
+#### **Step 3: Verify New Contact**
+
+**POST** `/api/users/verify-update-otp`
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body:**
+```json
+{
+  "otp": "654321"
+}
+```
+
+**Response (200 OK) - Step 3:**
+```json
+{
+  "status": "success",
+  "message": "Contact information updated successfully. Please log in again.",
+  "data": {
+    "user": {
+      "id": "user-uuid-123",
+      "email": "newemail@example.com",
+      "updated_at": "2024-01-01T12:00:00.000Z"
+    },
+    "message": "email updated successfully. Please log in again for security.",
+    "requires_relogin": true,
+    "step": "completed"
+  }
+}
+```
+
+### **11. Get Users by Type**
 
 **GET** `/api/users/type/{user_type}`
 
@@ -709,17 +930,65 @@ POST /api/ -user-subcategories/assign
 }
 ```
 
+## 🎯 **Onboarding Flow for Individual Users**
+
+The system now tracks onboarding progress for individual users through the `onboarding_step` field:
+
+### **Onboarding Steps:**
+1. **`REGISTERED`** - User has registered but not verified OTP
+2. **`CATEGORY`** - User has verified OTP and needs to select categories
+3. **`LOCATION`** - User has selected categories and needs to add location
+4. **`COMPLETED`** - User has completed all onboarding steps
+
+### **Onboarding Flow:**
+```javascript
+// 1. User registers
+POST /api/users/register
+// Response includes onboarding_step: "REGISTERED"
+
+// 2. User verifies OTP
+POST /api/users/verify-otp
+// Response includes onboarding_step: "CATEGORY"
+
+// 3. User selects categories
+POST /api/user-categories/add-categories-and-subcategories
+// System automatically sets onboarding_step: "LOCATION"
+
+// 4. User adds location
+POST /api/locations
+// System automatically sets onboarding_step: "COMPLETED"
+```
+
+### **Login Response with Onboarding Step:**
+```json
+{
+  "status": "success",
+  "message": "OTP verified successfully",
+  "data": {
+    "id": "user-uuid-123",
+    "user_type": "INDIVIDUAL",
+    "onboarding_step": "CATEGORY",
+    "access_token": "jwt-access-token",
+    "refresh_token": "jwt-refresh-token"
+  }
+}
+```
+
+**Note:** Business users do not have onboarding step tracking (`onboarding_step` is `null`).
+
 ## 🔧 **Business Logic Differences**
 
-### **  Users:**
+### **Individual Users:**
 - ✅ Can have **multiple categories** (many-to-many via `UserCategory`)
 - ✅ Can have **multiple subcategories** (stored as text in `UserSubCategory`)
 - ✅ Registration requires: mobile OR email + username (optional)
+- ✅ **Onboarding step tracking** enabled (`REGISTERED` → `CATEGORY` → `LOCATION` → `COMPLETED`)
 
 ### **Business Users:**
 - ✅ Can have **one category** (direct foreign key `categoryId` on User table)
 - ✅ Can have **multiple subcategories** (same `UserSubCategory` table)
 - ✅ Registration requires: mobile OR email + business_name (required)
+- ✅ **No onboarding step tracking** (onboarding_step is `null`)
 
 ## 📊 **Key Benefits**
 
@@ -731,6 +1000,10 @@ POST /api/ -user-subcategories/assign
 6. **✅ Better Performance:** Reduced JOINs and simplified queries
 7. **✅ Easier Maintenance:** Single codebase for user management
 8. **✅ Rich Location Data:** Support for street addresses, cities, states, and countries
+9. **✅ Onboarding Tracking:** Individual users have guided onboarding flow with step tracking
+10. **✅ Two-Step Verification:** Enhanced security for contact information updates
+11. **✅ Pagination Support:** Efficient user listing with pagination metadata
+12. **✅ Multiple Field Updates:** Update multiple profile fields in a single request
 
 ## 🔄 **Migration Strategy**
 
@@ -794,6 +1067,10 @@ The unified user system is fully implemented and ready for use! All new endpoint
 - 📝 AI-powered subcategory support
 - 📍 Enhanced location system with full address support
 - 🌍 GPS coordinates and comprehensive address fields
+- 🎯 Onboarding step tracking for individual users
+- 🔐 Two-step verification for contact updates
+- 📄 Pagination support for user listings
+- ✏️ Multiple field updates in single request
 - 📚 Complete Swagger documentation
 - ✅ Full test coverage
 

@@ -66,11 +66,10 @@ const router = Router();
  *         - latitude
  *         - longitude
  *         - location
- *         - location_type
  *
  *     CreateLocationRequest:
  *       type: object
- *       required: [location, latitude, longitude, location_type]
+ *       required: [location, latitude, longitude]
  *       properties:
  *         address:
  *           type: string
@@ -94,7 +93,8 @@ const router = Router();
  *         location_type:
  *           type: string
  *           enum: [HOME, WORK, OTHER]
- *           description: Type of location
+ *           nullable: true
+ *           description: Type of location (optional)
  *         city:
  *           type: string
  *           description: City name (optional)
@@ -130,7 +130,8 @@ const router = Router();
  *         location_type:
  *           type: string
  *           enum: [HOME, WORK, OTHER]
- *           description: Type of location
+ *           nullable: true
+ *           description: Type of location (optional)
  *         city:
  *           type: string
  *           description: City name
@@ -156,7 +157,7 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [location, latitude, longitude, location_type]
+ *             required: [location, latitude, longitude]
  *             properties:
  *               address:
  *                 type: string
@@ -180,7 +181,8 @@ const router = Router();
  *               location_type:
  *                 type: string
  *                 enum: [HOME, WORK, OTHER]
- *                 description: Type of location
+ *                 nullable: true
+ *                 description: Type of location (optional)
  *               city:
  *                 type: string
  *                 description: City name (optional)

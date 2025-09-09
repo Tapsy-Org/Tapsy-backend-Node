@@ -68,6 +68,14 @@ enum SubscriptionStatus {
   INACTIVE
 }
 
+// Tracks where an INDIVIDUAL user is in onboarding
+enum OnboardingStep {
+  REGISTERED
+  CATEGORY
+  LOCATION
+  COMPLETED
+}
+
 enum PaymentMethod {
   STRIPE
   RAZORPAY
@@ -119,7 +127,8 @@ model User {
   about               String?
   logo_url            String?
   video_url          String?
- 
+  onboarding_step     OnboardingStep?    @default(REGISTERED)
+  
   // Relations
   categories       UserCategory[]
   locations        Location[]
@@ -178,7 +187,7 @@ model Location {
   latitude      Float
   longitude     Float
   location      String
-  location_type LocationType
+  location_type LocationType?
   city          String?
   state         String?
   country       String?

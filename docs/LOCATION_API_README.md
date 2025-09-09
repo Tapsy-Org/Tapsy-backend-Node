@@ -10,7 +10,7 @@ The Location API now supports comprehensive address information including:
 - **📮 Postal/ZIP Code**: Postal codes for precise location identification
 - **🌍 GPS Coordinates**: Latitude and longitude for mapping and navigation
 - **🏙️ City Information**: City, state, and country details
-- **🏢 Location Types**: HOME, WORK, or OTHER categorization
+- **🏢 Location Types (optional)**: HOME, WORK, or OTHER categorization
 - **📝 General Description**: Human-readable location descriptions
 
 This enhanced system provides rich location data for better user experience, mapping integration, and location-based services.
@@ -50,7 +50,6 @@ Creates a new location for the authenticated user.
 - `location`: General location description
 - `latitude`: Latitude coordinate (-90 to 90)
 - `longitude`: Longitude coordinate (-180 to 180)
-- `location_type`: One of "HOME", "WORK", or "OTHER"
 
 **Optional Fields:**
 - `address`: Street address
@@ -238,11 +237,11 @@ Retrieves locations within a specified radius (public endpoint, no authenticatio
 ## 🔒 Security Features
 
 - **User Isolation**: Users can only access, modify, or delete their own locations
-- **Input Validation**: All coordinates and location types are validated
+- **Input Validation**: Coordinates are validated
 - **Authentication Required**: Most endpoints require valid access tokens
 - **Public Nearby Search**: Nearby locations endpoint is public for discovery
 
-## 📍 Location Types
+## 📍 Location Types (Optional)
 
 - **HOME**: User's home address
 - **WORK**: User's workplace address
@@ -261,7 +260,7 @@ Retrieves locations within a specified radius (public endpoint, no authenticatio
 {
   "status": "fail",
   "statusCode": 400,
-  "message": "Missing required fields: location, latitude, longitude, location_type",
+  "message": "Missing required fields: location, latitude, longitude",
   "details": null
 }
 ```
