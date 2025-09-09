@@ -676,4 +676,36 @@ export class ReviewService {
       throw new AppError('Failed to fetch review feed', 500, { originalError: error });
     }
   }
+
+  // Mark review as seen and increment view count
+  async markReviewAsSeenAndIncrementView(userId: string, reviewId: string) {
+    try {
+      // Import services here to avoid circular dependency
+      const { RedisService } = await import('./redis.service');
+      const { ReviewInteractionService } = await import('./ReviewInteraction.service');
+
+      const redisService = new RedisService();
+      const reviewInteractionService = new ReviewInteractionService();
+
+      // Mark review as seen in Redis
+      await redisService.markReviewAsSeen(userId, reviewId);
+
+      // Increment view count using existing service
+      const viewResult = await reviewInteractionService.incrementView(reviewId);
+
+      return {
+        reviewId: viewResult.reviewId,
+        viewCount: viewResult.viewCount,
+        userId,
+        message: 'Review marked as seen and view count incremented successfully',
+      };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to mark review as seen and increment view', 500, {
+        originalError: error,
+      });
+    }
+  }
 }

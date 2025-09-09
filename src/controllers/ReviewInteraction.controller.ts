@@ -277,4 +277,58 @@ export default class ReviewInteractionController {
       next(error);
     }
   }
+  // Increment view count for a review
+  static async incrementView(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { reviewId } = req.params;
+
+      if (!reviewId) {
+        throw new AppError('Review ID is required', 400);
+      }
+
+      const result = await reviewInteractionService.incrementView(reviewId);
+
+      return res.success(result, 'View count incremented successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get view count for a review
+  static async getReviewViewCount(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { reviewId } = req.params;
+
+      if (!reviewId) {
+        throw new AppError('Review ID is required', 400);
+      }
+
+      const result = await reviewInteractionService.getReviewViewCount(reviewId);
+
+      return res.success(result, 'Review view count fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get detailed view statistics for a review (optional: with user info if admin)
+  static async getReviewViewStats(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { reviewId } = req.params;
+      const { includeUserInfo = 'false' } = req.query;
+
+      if (!reviewId) {
+        throw new AppError('Review ID is required', 400);
+      }
+
+      const result = await reviewInteractionService.getReviewViewStats(
+        reviewId,
+        includeUserInfo === 'true',
+      );
+
+      return res.success(result, 'Review view statistics fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
 }

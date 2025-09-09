@@ -407,10 +407,10 @@ export default class ReviewController {
         throw new AppError('Review not found', 404);
       }
 
-      // Mark review as seen
-      await redisService.markReviewAsSeen(userId, reviewId);
+      // Mark review as seen and increment view count
+      const result = await reviewService.markReviewAsSeenAndIncrementView(userId, reviewId);
 
-      return res.success({ reviewId, userId }, 'Review marked as seen successfully');
+      return res.success(result, 'Review marked as seen and view count incremented successfully');
     } catch (error) {
       next(error);
     }
