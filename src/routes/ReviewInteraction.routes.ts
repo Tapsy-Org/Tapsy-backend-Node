@@ -811,4 +811,230 @@ router.get(
   ReviewInteractionController.getReviewCommentCount,
 );
 
+/**
+ * @swagger
+ * /api/review-interactions/reviews/{reviewId}/view:
+ *   post:
+ *     summary: Increment view count for a review
+ *     description: |
+ *       Increments the view count for a specific review by 1.
+ *       This endpoint should be called whenever a user views a review.
+ *       Requires authentication.
+ *     tags: [Review-Interactions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: reviewId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: The review ID to increment view count for
+ *     responses:
+ *       200:
+ *         description: View count incremented successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: View count incremented successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     reviewId:
+ *                       type: string
+ *                       format: uuid
+ *                       description: The review ID
+ *                     viewCount:
+ *                       type: integer
+ *                       description: Updated view count for the review
+ *                       example: 150
+ *                     message:
+ *                       type: string
+ *                       example: View count incremented successfully
+ *       400:
+ *         description: Bad request - missing review ID
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *       404:
+ *         description: Review not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post(
+  '/reviews/:reviewId/view',
+  dataFetchLimiter,
+  requireAuth(),
+  ReviewInteractionController.incrementView,
+);
+
+/**
+ * @swagger
+ * /api/review-interactions/reviews/{reviewId}/view-count:
+ *   get:
+ *     summary: Get view count for a review
+ *     description: |
+ *       Retrieves the total number of views for a specific review.
+ *       This is a lightweight endpoint that only returns the view count.
+ *     tags: [Review-Interactions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: reviewId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: The review ID to get view count for
+ *     responses:
+ *       200:
+ *         description: Review view count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Review view count fetched successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     reviewId:
+ *                       type: string
+ *                       format: uuid
+ *                       description: The review ID
+ *                     viewCount:
+ *                       type: integer
+ *                       description: Total number of views for the review
+ *                       example: 150
+ *       400:
+ *         description: Bad request - missing review ID
+ *       404:
+ *         description: Review not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+  '/reviews/:reviewId/view-count',
+  dataFetchLimiter,
+  requireAuth(),
+  ReviewInteractionController.getReviewViewCount,
+);
+
+/**
+ * @swagger
+ * /api/review-interactions/reviews/{reviewId}/view-stats:
+ *   get:
+ *     summary: Get detailed view statistics for a review
+ *     description: |
+ *       Retrieves comprehensive view statistics for a specific review including
+ *       view count, like count, comment count, and engagement metrics.
+ *       Optionally includes user information if requested.
+ *     tags: [Review-Interactions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: reviewId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: The review ID to get view statistics for
+ *       - in: query
+ *         name: includeUserInfo
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         description: Whether to include user information in the response
+ *     responses:
+ *       200:
+ *         description: Review view statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Review view statistics fetched successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     reviewId:
+ *                       type: string
+ *                       format: uuid
+ *                       description: The review ID
+ *                     viewCount:
+ *                       type: integer
+ *                       description: Total number of views for the review
+ *                       example: 150
+ *                     likeCount:
+ *                       type: integer
+ *                       description: Total number of likes for the review
+ *                       example: 42
+ *                     commentCount:
+ *                       type: integer
+ *                       description: Total number of comments for the review
+ *                       example: 15
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       description: When the review was created
+ *                     user:
+ *                       type: object
+ *                       description: User information (only if includeUserInfo=true)
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         username:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                         user_type:
+ *                           type: string
+ *                           enum: [INDIVIDUAL, BUSINESS, ADMIN]
+ *                     statistics:
+ *                       type: object
+ *                       properties:
+ *                         engagementRate:
+ *                           type: number
+ *                           format: float
+ *                           description: Engagement rate as percentage
+ *                           example: 38.0
+ *                         averageEngagement:
+ *                           type: number
+ *                           format: float
+ *                           description: Average engagement per view
+ *                           example: 0.38
+ *       400:
+ *         description: Bad request - missing review ID
+ *       404:
+ *         description: Review not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+  '/reviews/:reviewId/view-stats',
+  dataFetchLimiter,
+  requireAuth(),
+  ReviewInteractionController.getReviewViewStats,
+);
+
 export default router;

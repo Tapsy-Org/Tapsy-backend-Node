@@ -551,4 +551,130 @@ export class ReviewInteractionService {
       throw new AppError('Failed to fetch review comment count', 500, { originalError: error });
     }
   }
+  // Increment view count for a review
+  async incrementView(reviewId: string) {
+    try {
+      // Check if review exists and is active
+      const review = await prisma.review.findUnique({
+        where: {
+          id: reviewId,
+          status: { not: 'DELETED' },
+        },
+        select: { id: true, views: true },
+      });
+
+      if (!review) {
+        throw new AppError('Review not found', 404);
+      }
+
+      // Increment the view count
+      const updatedReview = await prisma.review.update({
+        where: { id: reviewId },
+        data: {
+          views: {
+            increment: 1,
+          },
+        },
+        select: {
+          id: true,
+          views: true,
+        },
+      });
+
+      return {
+        reviewId: updatedReview.id,
+        viewCount: updatedReview.views,
+        message: 'View count incremented successfully',
+      };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to increment view count', 500, { originalError: error });
+    }
+  }
+
+  // Get view count for a review
+  async getReviewViewCount(reviewId: string) {
+    try {
+      // Check if review exists
+      const review = await prisma.review.findUnique({
+        where: {
+          id: reviewId,
+          status: { not: 'DELETED' },
+        },
+        select: { id: true, views: true },
+      });
+
+      if (!review) {
+        throw new AppError('Review not found', 404);
+      }
+
+      return {
+        reviewId: review.id,
+        viewCount: review.views,
+      };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch review view count', 500, { originalError: error });
+    }
+  }
+
+  // Get detailed view statistics for a review
+  async getReviewViewStats(reviewId: string, includeUserInfo: boolean = false) {
+    try {
+      // Check if review exists
+      const review = await prisma.review.findUnique({
+        where: {
+          id: reviewId,
+          status: { not: 'DELETED' },
+        },
+        select: {
+          id: true,
+          views: true,
+          createdAt: true,
+          user: includeUserInfo
+            ? {
+                select: {
+                  id: true,
+                  username: true,
+                  name: true,
+                  user_type: true,
+                },
+              }
+            : false,
+        },
+      });
+
+      if (!review) {
+        throw new AppError('Review not found', 404);
+      }
+
+      // Get additional statistics
+      const [likeCount, commentCount] = await Promise.all([
+        prisma.like.count({ where: { reviewId } }),
+        prisma.comment.count({ where: { reviewId } }),
+      ]);
+
+      return {
+        reviewId: review.id,
+        viewCount: review.views,
+        likeCount,
+        commentCount,
+        createdAt: review.createdAt,
+        ...(includeUserInfo && review.user && { user: review.user }),
+        statistics: {
+          engagementRate: review.views > 0 ? ((likeCount + commentCount) / review.views) * 100 : 0,
+          averageEngagement: review.views > 0 ? (likeCount + commentCount) / review.views : 0,
+        },
+      };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to fetch review view statistics', 500, { originalError: error });
+    }
+  }
 }
