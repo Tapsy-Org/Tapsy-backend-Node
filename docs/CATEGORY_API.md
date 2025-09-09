@@ -244,9 +244,20 @@ Deletes a category from the system.
 
 #### Response
 - **204**: Category deleted successfully
+- **400**: Bad request - category cannot be deleted (users are using it)
 - **401**: Unauthorized
 - **403**: Forbidden (not admin)
 - **404**: Category not found
+
+#### Error Response (400)
+```json
+{
+  "status": "fail",
+  "statusCode": 400,
+  "message": "Cannot delete this category because users are currently using it. Please update the category instead of deleting it.",
+  "details": null
+}
+```
 
 ## Data Models
 
