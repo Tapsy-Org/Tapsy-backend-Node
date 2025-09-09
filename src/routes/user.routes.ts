@@ -1,6 +1,8 @@
 import { Router } from 'express';
 
 import UserController from '../controllers/user.controller';
+import { requireAuth } from '../middlewares/auth.middleware';
+import { dataFetchLimiter } from '../middlewares/rateLimit.middleware';
 import { upload } from '../middlewares/upload.middleware';
 const router = Router();
 
@@ -55,7 +57,8 @@ const router = Router();
  *         location_type:
  *           type: string
  *           enum: [HOME, WORK, OTHER]
- *           description: Type of location
+ *           nullable: true
+ *           description: Type of location (optional)
  *         city:
  *           type: string
  *           description: City name
@@ -144,7 +147,8 @@ const router = Router();
  *               location_type:
  *                 type: string
  *                 enum: [HOME, WORK, OTHER]
- *                 description: Type of location (for business users only)
+ *                 nullable: true
+ *                 description: Type of location (optional, for business users only)
  *               city:
  *                 type: string
  *                 description: City name (for business users only)
@@ -337,73 +341,234 @@ router.get('/:id', UserController.getById);
  * @swagger
  * /api/users/{id}:
  *   put:
- *     summary: Update user
+ *     summary: Update user (Admin only)
+ *     description: Admin endpoint to update any user's profile information. Supports file uploads for logo and video.
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         schema:
  *           type: string
  *         required: true
- *         description: User ID
+ *         description: User ID to update
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
  *               username:
  *                 type: string
- *                 description: Unique username
+ *                 description: Unique username (direct update with uniqueness check)
+ *                 example: "john_doe_new"
  *               name:
  *                 type: string
- *                 description: User's display name
+ *                 description: User's display name (direct update)
+ *                 example: "John Doe"
  *               mobile_number:
  *                 type: string
- *                 description: Mobile number
+ *                 description: Mobile number (direct update for admin)
+ *                 example: "+1234567890"
  *               email:
  *                 type: string
- *                 description: Email address
- *               firebase_token:
- *                 type: string
- *                 description: Firebase messaging token
- *               otp_verified:
- *                 type: boolean
- *                 description: OTP verification status
- *               status:
- *                 type: string
- *                 enum: [ACTIVE, INACTIVE, PENDING, DELETED]
- *                 description: User status
- *               last_login:
- *                 type: string
- *                 format: date-time
- *                 description: Last login timestamp
- *               address:
- *                 type: string
- *                 description: Street address
- *               zip_code:
- *                 type: string
- *                 description: Postal/ZIP code
+ *                 description: Email address (direct update for admin)
+ *                 example: "john@example.com"
  *               website:
  *                 type: string
- *                 description: Website URL
+ *                 description: Website URL (direct update)
+ *                 example: "https://johndoe.com"
  *               about:
  *                 type: string
- *                 description: About information
+ *                 description: About information (direct update)
+ *                 example: "Software developer"
  *               logo_url:
  *                 type: string
- *                 description: Logo URL
- *               video_urls:
+ *                 description: Logo URL (direct update)
+ *                 example: "https://example.com/logo.png"
+ *               video_url:
  *                 type: string
- *                 description: Video URLs
+ *                 description: Video URL (direct update)
+ *                 example: "https://youtube.com/watch?v=123"
+ *               logo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Logo file upload (will replace logo_url)
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *                 description: Video file upload (will replace video_url)
+ *           examples:
+ *             username_update:
+ *               summary: Update username
+ *               value:
+ *                 username: "john_doe_new"
+ *             name_update:
+ *               summary: Update name
+ *               value:
+ *                 name: "John Smith"
+ *             mobile_update:
+ *               summary: Update mobile number
+ *               value:
+ *                 mobile_number: "+1234567890"
+ *             email_update:
+ *               summary: Update email
+ *               value:
+ *                 email: "john@newdomain.com"
+ *             about_update:
+ *               summary: Update about
+ *               value:
+ *                 about: "Full-stack developer with 5 years experience"
+ *             logo_url_update:
+ *               summary: Update logo URL
+ *               value:
+ *                 logo_url: "https://example.com/new-logo.png"
+ *             video_url_update:
+ *               summary: Update video URL
+ *               value:
+ *                 video_url: "https://youtube.com/watch?v=abc123"
+ *             logo_upload:
+ *               summary: Upload logo file
+ *               value:
+ *                 logo: "[FILE]"
+ *             video_upload:
+ *               summary: Upload video file
+ *               value:
+ *                 video: "[FILE]"
  *     responses:
  *       200:
  *         description: User updated successfully
+ *       403:
+ *         description: Access denied - Admin role required
  *       404:
  *         description: User not found
  */
-router.put('/:id', UserController.update);
+/**
+ * @swagger
+ * /api/users/update:
+ *   put:
+ *     summary: Update own user profile
+ *     description: Update your own user profile information. Users can only update their own profile. Supports file uploads for logo and video.
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Username (direct update)
+ *                 example: "john_doe"
+ *               name:
+ *                 type: string
+ *                 description: Full name (direct update)
+ *                 example: "John Doe"
+ *               mobile_number:
+ *                 type: string
+ *                 description: Mobile number (requires OTP verification)
+ *                 example: "+1234567890"
+ *               email:
+ *                 type: string
+ *                 description: Email address (requires OTP verification)
+ *                 example: "john@example.com"
+ *               website:
+ *                 type: string
+ *                 description: Website URL (direct update)
+ *                 example: "https://johndoe.com"
+ *               about:
+ *                 type: string
+ *                 description: About information (direct update)
+ *                 example: "Software developer"
+ *               logo_url:
+ *                 type: string
+ *                 description: Logo URL (direct update)
+ *                 example: "https://example.com/logo.png"
+ *               video_url:
+ *                 type: string
+ *                 description: Video URL (direct update)
+ *                 example: "https://youtube.com/watch?v=123"
+ *               logo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Logo file upload (will replace logo_url)
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *                 description: Video file upload (will replace video_url)
+ *           examples:
+ *             username_update:
+ *               summary: Update username
+ *               value:
+ *                 username: "new_username"
+ *             name_update:
+ *               summary: Update name
+ *               value:
+ *                 name: "John Smith"
+ *             mobile_update:
+ *               summary: Update mobile number
+ *               value:
+ *                 mobile_number: "+1987654321"
+ *             email_update:
+ *               summary: Update email
+ *               value:
+ *                 email: "newemail@example.com"
+ *             website_update:
+ *               summary: Update website
+ *               value:
+ *                 website: "https://newsite.com"
+ *             about_update:
+ *               summary: Update about
+ *               value:
+ *                 about: "Full-stack developer with 5 years experience"
+ *             logo_url_update:
+ *               summary: Update logo URL
+ *               value:
+ *                 logo_url: "https://example.com/new-logo.png"
+ *             video_url_update:
+ *               summary: Update video URL
+ *               value:
+ *                 video_url: "https://youtube.com/watch?v=abc123"
+ *             logo_upload:
+ *               summary: Upload logo file
+ *               value:
+ *                 logo: "[FILE]"
+ *             video_upload:
+ *               summary: Upload video file
+ *               value:
+ *                 video: "[FILE]"
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *       400:
+ *         description: Invalid request or validation error
+ *       403:
+ *         description: Access denied - can only update own profile
+ *       404:
+ *         description: User not found
+ */
+// User self-update route (with file uploads)
+router.put(
+  '/update',
+  dataFetchLimiter,
+  requireAuth(),
+  upload.fields([{ name: 'logo_url' }, { name: 'video_url' }]),
+  UserController.update,
+);
+
+// Admin update route (can update any user, with file uploads)
+router.put(
+  '/:id',
+  dataFetchLimiter,
+  requireAuth('ADMIN'),
+  upload.fields([{ name: 'logo_url' }, { name: 'video_url' }]),
+  UserController.update,
+);
 
 /**
  * @swagger
@@ -630,7 +795,7 @@ router.post('/verify-otp', UserController.verifyOtp);
  *       404:
  *         description: No users found
  */
-router.get('/', UserController.getAllUsers);
+router.get('/', dataFetchLimiter, requireAuth('ADMIN'), UserController.getAllUsers);
 
 // Note: Refresh token and logout are now handled by unified /auth endpoints
 // Use /auth/refresh-token and /auth/logout for all user types
@@ -1008,5 +1173,12 @@ router.post('/check-username', UserController.checkUsername);
  *                   example: "Failed to fetch business"
  */
 router.get('/business/:id', UserController.getBusinessById);
-
+// /**
+//  * @swagger
+//  * /api/users/verify-update-otp:
+//  *   post:
+//  *     summary: Verify update OTP
+//  *     description: Verify the OTP sent to user's email or mobile number for updating contact information.
+//  */
+// router.post('/verify-update-otp', requireAuth(), UserController.verifyUpdateOtp);
 export default router;
