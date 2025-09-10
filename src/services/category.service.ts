@@ -122,6 +122,15 @@ export const updateCategory = async (id: string, updates: Record<string, unknown
 };
 
 export const deleteCategory = async (id: string) => {
+  // check if linked
+  const linked = await prisma.userCategory.findFirst({ where: { categoryId: id } });
+  if (linked) {
+    throw new AppError(
+      'Cannot delete this category because users are currently using it. Please update the category instead of deleting it.',
+      400,
+    );
+  }
+
   try {
     return await prisma.category.delete({
       where: { id },

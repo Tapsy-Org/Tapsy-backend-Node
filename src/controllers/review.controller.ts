@@ -1,33 +1,19 @@
-import { ReviewRating } from '@prisma/client';
-import { NextFunction, Request, Response } from 'express';
+import { ReviewRating, Status } from '@prisma/client';
+import { NextFunction, Response } from 'express';
 
+import { RedisService } from '../services/redis.service';
 import { ReviewService } from '../services/review.service';
 import { AuthRequest } from '../types/express';
 import AppError from '../utils/AppError';
 import { uploadFileToS3 } from '../utils/s3';
 
 const reviewService = new ReviewService();
+const redisService = new RedisService();
 
 export default class ReviewController {
   static async createReview(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { rating, badges, caption, hashtags, title, businessId } = req.body;
-
-      // Debug logging
-      console.log('Received form data:', {
-        rating,
-        badges,
-        caption,
-        hashtags,
-        title,
-        businessId,
-        hashtagsType: typeof hashtags,
-        hashtagsIsArray: Array.isArray(hashtags),
-        fileReceived: !!req.file,
-        fileSize: req.file?.size,
-        fileMimeType: req.file?.mimetype,
-      });
-
+      const { rating, badges, caption, hashtags, title, businessId, feedbackText } = req.body;
       // Get user ID from authenticated request
       const userId = req.user?.userId;
       if (!userId) {
@@ -95,32 +81,10 @@ export default class ReviewController {
         }
       }
 
-      // Validate businessId format if provided
-      if (businessId && typeof businessId === 'string') {
-        const uuidRegex =
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(businessId)) {
-          throw new AppError('Invalid business ID format. Must be a valid UUID', 400);
-        }
-      }
-
-      // Process video upload if provided
+      // Process video upload
       let video_url: string | undefined;
       if (req.file) {
         try {
-          // Validate AWS environment variables
-          if (
-            !process.env.AWS_REGION ||
-            !process.env.AWS_ACCESS_KEY_ID ||
-            !process.env.AWS_SECRET_ACCESS_KEY ||
-            !process.env.AWS_BUCKET_NAME
-          ) {
-            throw new AppError(
-              'AWS configuration is incomplete. Please check environment variables.',
-              500,
-            );
-          }
-
           // Generate unique filename
           const timestamp = Date.now();
           const originalName = req.file.originalname;
@@ -154,6 +118,7 @@ export default class ReviewController {
         title: title || null,
         video_url,
         businessId: businessId || null,
+        feedbackText: feedbackText || null,
       };
 
       // Create the review
@@ -171,9 +136,33 @@ export default class ReviewController {
     }
   }
 
-  static async getReviews(req: Request, res: Response, next: NextFunction) {
+  static async getReviews(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { userId, businessId, rating, page = '1', limit = '10' } = req.query;
+      const {
+        userId,
+        businessId,
+        rating,
+        page = '1',
+        limit = '10',
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        search,
+      } = req.query;
+
+      // Validate sortBy parameter
+      const validSortFields = ['createdAt', 'views', 'rating'];
+      const validSortOrder = ['asc', 'desc'];
+
+      if (sortBy && !validSortFields.includes(sortBy as string)) {
+        throw new AppError(
+          'Invalid sortBy parameter. Must be one of: createdAt, views, rating',
+          400,
+        );
+      }
+
+      if (sortOrder && !validSortOrder.includes(sortOrder as string)) {
+        throw new AppError('Invalid sortOrder parameter. Must be one of: asc, desc', 400);
+      }
 
       const filters = {
         userId: userId as string,
@@ -181,6 +170,9 @@ export default class ReviewController {
         rating: rating as ReviewRating,
         page: parseInt(page as string, 10),
         limit: parseInt(limit as string, 10),
+        sortBy: sortBy as 'createdAt' | 'views' | 'rating',
+        sortOrder: sortOrder as 'asc' | 'desc',
+        search: search as string,
       };
 
       const result = await reviewService.getReviews(filters);
@@ -191,7 +183,7 @@ export default class ReviewController {
     }
   }
 
-  static async getReviewById(req: Request, res: Response, next: NextFunction) {
+  static async getReviewById(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { reviewId } = req.params;
 
@@ -281,6 +273,193 @@ export default class ReviewController {
       const updatedReview = await reviewService.updateReviewStatus(reviewId, status, adminUserId);
 
       return res.success(updatedReview, 'Review status updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getBusinessReviews(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const {
+        page = '1',
+        limit = '5',
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        search,
+        status,
+      } = req.query;
+
+      const businessId = req.user?.userId;
+
+      if (!businessId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      // Validate sortBy parameter
+      const validSortFields = ['createdAt', 'views', 'rating'];
+      const validSortOrder = ['asc', 'desc'];
+
+      if (sortBy && !validSortFields.includes(sortBy as string)) {
+        throw new AppError(
+          'Invalid sortBy parameter. Must be one of: createdAt, views, rating',
+          400,
+        );
+      }
+
+      if (sortOrder && !validSortOrder.includes(sortOrder as string)) {
+        throw new AppError('Invalid sortOrder parameter. Must be one of: asc, desc', 400);
+      }
+
+      const filters = {
+        page: parseInt(page as string, 10),
+        limit: parseInt(limit as string, 10),
+        sortBy: sortBy as 'createdAt' | 'views' | 'rating',
+        sortOrder: sortOrder as 'asc' | 'desc',
+        search: search as string,
+        status: status as Status,
+      };
+
+      const result = await reviewService.getBusinessReviews(businessId, filters);
+
+      return res.success(result, 'Your business reviews fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+  static async getReviewFeed(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      // Read sensitive location data from request body instead of query parameters
+      const { cursor, limit = 10, latitude, longitude } = req.body;
+
+      const options = {
+        cursor: cursor as string | undefined,
+        limit: typeof limit === 'string' ? parseInt(limit, 10) : limit,
+        latitude: latitude ? parseFloat(latitude as string) : undefined,
+        longitude: longitude ? parseFloat(longitude as string) : undefined,
+      };
+
+      if (options.limit < 1 || options.limit > 50) {
+        throw new AppError('Limit must be between 1 and 50', 400);
+      }
+
+      // Validate location parameters if provided
+      if ((options.latitude && !options.longitude) || (!options.latitude && options.longitude)) {
+        throw new AppError('Both latitude and longitude must be provided together', 400);
+      }
+
+      if (options.latitude && (options.latitude < -90 || options.latitude > 90)) {
+        throw new AppError('Latitude must be between -90 and 90', 400);
+      }
+
+      if (options.longitude && (options.longitude < -180 || options.longitude > 180)) {
+        throw new AppError('Longitude must be between -180 and 180', 400);
+      }
+
+      const result = await reviewService.getReviewFeed(userId, options);
+
+      return res.success(result, 'Review feed fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async markReviewAsSeen(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      const { reviewId } = req.params;
+      if (!reviewId) {
+        throw new AppError('Review ID is required', 400);
+      }
+
+      // Check if review exists
+      const review = await reviewService.getReviewById(reviewId);
+      if (!review) {
+        throw new AppError('Review not found', 404);
+      }
+
+      // Mark review as seen and increment view count
+      const result = await reviewService.markReviewAsSeenAndIncrementView(userId, reviewId);
+
+      return res.success(result, 'Review marked as seen and view count incremented successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async markReviewsAsSeen(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      const { reviewIds } = req.body;
+      if (!reviewIds || !Array.isArray(reviewIds) || reviewIds.length === 0) {
+        throw new AppError('Review IDs array is required and must not be empty', 400);
+      }
+
+      // Limit the number of reviews that can be marked as seen at once
+      if (reviewIds.length > 100) {
+        throw new AppError('Cannot mark more than 100 reviews as seen at once', 400);
+      }
+
+      // Mark reviews as seen
+      await redisService.markReviewsAsSeen(userId, reviewIds);
+
+      return res.success(
+        {
+          reviewIds,
+          userId,
+          count: reviewIds.length,
+        },
+        'Reviews marked as seen successfully',
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getSeenReviews(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      const seenReviewIds = await redisService.getSeenReviewIds(userId);
+      const count = await redisService.getSeenReviewsCount(userId);
+
+      return res.success(
+        {
+          seenReviewIds,
+          count,
+        },
+        'Seen reviews fetched successfully',
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async clearSeenReviews(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      await redisService.clearSeenReviews(userId);
+
+      return res.success({ userId }, 'All seen reviews cleared successfully');
     } catch (error) {
       next(error);
     }

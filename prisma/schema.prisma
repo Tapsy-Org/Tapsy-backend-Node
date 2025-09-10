@@ -68,6 +68,14 @@ enum SubscriptionStatus {
   INACTIVE
 }
 
+// Tracks where an INDIVIDUAL user is in onboarding
+enum OnboardingStep {
+  REGISTERED
+  CATEGORY
+  LOCATION
+  COMPLETED
+}
+
 enum PaymentMethod {
   STRIPE
   RAZORPAY
@@ -77,15 +85,15 @@ enum PaymentMethod {
 }
 
 enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  MESSAGE
+  MENTION
   SYSTEM
-  MARKETING
-  TRANSACTIONAL
 }
-
 enum NotificationStatus {
-  PENDING
-  SENT
-  READ
+  ACTIVE
   ARCHIVED
 }
 
@@ -102,8 +110,8 @@ model User {
   user_type           UserType
   mobile_number       String?            @unique
   email               String?            @unique 
-  username            String
-  device_id           String?
+  username            String             @unique
+  name                String?
   status              Status
   last_login          DateTime?
   createdAt           DateTime           @default(now())
@@ -119,7 +127,8 @@ model User {
   about               String?
   logo_url            String?
   video_url          String?
- 
+  onboarding_step     OnboardingStep?    @default(REGISTERED)
+  
   // Relations
   categories       UserCategory[]
   locations        Location[]
@@ -132,10 +141,20 @@ model User {
   messagesReceived Message[]       @relation("MessagesReceived")
   comments         Comment[]
   businessVideos   BusinessVideo[]
-  notifications    Notification[]
+  receivedNotifications Notification[] @relation("UserNotifications")
+  sentNotifications     Notification[] @relation("SenderNotifications")
   subscriptions    Subscription[]
   supportTickets   SupportTicket[]
   searches         RecentSearch[]
+
+  @@index([user_type])
+  @@index([status])
+  @@index([name])
+  @@index([createdAt])
+
+  @@index([user_type, status])         // For combined filtering
+  @@index([last_login(sort: Desc)])    // For sorting by recent activity
+  @@index([otp_verified])              // For admin queries on verification
 }
 
 model Category {
@@ -149,6 +168,10 @@ model Category {
   updatedAt  DateTime         @updatedAt
 
   users UserCategory[]
+
+  @@index([name])
+  @@index([audience])
+  @@index([status, sort_order]) 
 }
 
 model UserCategory {
@@ -165,6 +188,7 @@ model UserCategory {
   category Category @relation(fields: [categoryId], references: [id])
 
   @@unique([userId, categoryId])
+  @@index([userId])
   @@index([categoryId])
 }
 
@@ -177,7 +201,7 @@ model Location {
   latitude      Float
   longitude     Float
   location      String
-  location_type LocationType
+  location_type LocationType?
   city          String?
   state         String?
   country       String?
@@ -185,6 +209,11 @@ model Location {
   updatedAt     DateTime     @updatedAt
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([latitude, longitude])
+  @@index([country, state, city])
+  @@index([zip_code])
 }
 
 
@@ -202,10 +231,30 @@ model Review {
   views      Int          @default(0)
   createdAt  DateTime     @default(now())
   status     Status       @default(ACTIVE)
+  
+  feedback   ReviewFeedback?
   user       User      @relation("UserReviews", fields: [userId], references: [id])
   business User?     @relation("BusinessReviews", fields: [businessId], references: [id])
   likes    Like[]
   comments Comment[]
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([status])
+}
+
+model ReviewFeedback {
+  id          String   @id @default(uuid()) @db.Uuid
+  reviewId    String   @unique @db.Uuid
+  feedback    String   
+  is_resolved Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@index([is_resolved])
 }
 
 model Like {
@@ -216,34 +265,9 @@ model Like {
 
   user   User   @relation(fields: [userId], references: [id])
   review Review @relation(fields: [reviewId], references: [id])
-}
 
-// ---------- Social / Follows ----------
-model Follow {
-  id              String   @id @default(uuid()) @db.Uuid
-  followerId      String   @db.Uuid
-  followingUserId String   @db.Uuid
-  followType      String
-  createdAt       DateTime @default(now())
-
-  follower  User @relation("UserFollowers", fields: [followerId], references: [id])
-  following User @relation("UserFollowing", fields: [followingUserId], references: [id])
-
-  @@unique([followerId, followingUserId])
-}
-
-// ---------- Messaging ----------
-model Message {
-  id          String   @id @default(uuid()) @db.Uuid
-  senderId    String   @db.Uuid
-  receiverId  String   @db.Uuid
-  sender_type UserType
-  text        String
-  is_read     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-
-  sender   User @relation("MessagesSent", fields: [senderId], references: [id])
-  receiver User @relation("MessagesReceived", fields: [receiverId], references: [id])
+  @@unique([userId, reviewId])
+  @@index([reviewId])
 }
 
 model Comment {
@@ -258,6 +282,41 @@ model Comment {
   user    User      @relation(fields: [userId], references: [id])
   parent  Comment?  @relation("CommentReplies", fields: [parent_comment_id], references: [id])
   replies Comment[] @relation("CommentReplies")
+
+  @@index([userId])
+  @@index([parent_comment_id])
+  @@index([reviewId, createdAt(sort: Desc)])
+}
+
+// ---------- Social / Follows ----------
+model Follow {
+  id              String   @id @default(uuid()) @db.Uuid
+  followerId      String   @db.Uuid
+  followingUserId String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  follower  User @relation("UserFollowers", fields: [followerId], references: [id])
+  following User @relation("UserFollowing", fields: [followingUserId], references: [id])
+
+  @@unique([followerId, followingUserId])
+  @@index([followingUserId])
+}
+
+// ---------- Messaging ----------
+model Message {
+  id          String   @id @default(uuid()) @db.Uuid
+  senderId    String   @db.Uuid
+  receiverId  String   @db.Uuid
+  sender_type UserType
+  text        String
+  is_read     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  sender   User @relation("MessagesSent", fields: [senderId], references: [id])
+  receiver User @relation("MessagesReceived", fields: [receiverId], references: [id])
+
+  @@index([senderId, receiverId, createdAt])
+  @@index([receiverId, is_read])
 }
 
 // ---------- Business Media ----------
@@ -268,13 +327,17 @@ model BusinessVideo {
   createdAt  DateTime @default(now())
 
   business User @relation(fields: [businessId], references: [id])
+
+  @@index([businessId, createdAt(sort: Desc)])
 }
 
 // ---------- Notifications ----------
 model Notification {
   id        String             @id @default(uuid()) @db.Uuid
   userId    String             @db.Uuid
+  senderId  String?            @db.Uuid
   type      NotificationType
+  referenceId  String?            @db.Uuid         // likeId, commentId, followId, messageId, etc.
   title     String
   content   String
   image_url String?
@@ -282,7 +345,11 @@ model Notification {
   is_read   Boolean            @default(false)
   createdAt DateTime           @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation("UserNotifications", fields: [userId], references: [id])
+  sender User?  @relation("SenderNotifications", fields: [senderId], references: [id])
+
+  @@index([userId, is_read, createdAt(sort: Desc)])
+  @@index([userId, type])
 }
 
 // ---------- Help & Support ----------
@@ -298,6 +365,10 @@ model SupportTicket {
   updatedAt   DateTime      @updatedAt
 
   user User? @relation(fields: [userId], references: [id])
+
+  @@index([status, updatedAt(sort: Desc)])
+  @@index([userId])
+  @@index([email])
 }
 
 // ---------- Search ----------
@@ -309,6 +380,9 @@ model RecentSearch {
   createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, searchText])
 }
 
 // ---------- Settings ----------
@@ -336,6 +410,8 @@ model Plan {
   updatedAt       DateTime     @updatedAt
 
   subscriptions Subscription[]
+
+  @@index([status, sort_order])
 }
 
 model Subscription {
@@ -353,6 +429,10 @@ model Subscription {
 
   business User @relation(fields: [businessId], references: [id])
   plan     Plan @relation(fields: [planId], references: [id])
+
+  @@index([businessId, status])
+  @@index([status])
+  @@index([ends_at])
 }
 
 model QRCode {
@@ -361,4 +441,7 @@ model QRCode {
   image_url  String
   status     Status
   createdAt  DateTime @default(now())
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([name])
 }

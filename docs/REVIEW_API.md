@@ -6,6 +6,15 @@ This document describes the Review API endpoints for the Tapsy backend.
 
 The Review API allows users to create, read, and manage video reviews with ratings, captions, hashtags, and business associations.
 
+### Bad Review Feedback System
+
+The API includes a special feature for handling negative reviews:
+
+- **Automatic Status Management**: Reviews with ratings ONE or TWO are automatically set to PENDING status
+- **Feedback Collection**: Users can provide detailed feedback text for bad reviews using the `feedbackText` field
+- **Business Insights**: This feedback is stored separately and allows businesses to understand and address negative experiences
+- **Optional but Recommended**: While `feedbackText` is optional, it's highly recommended for bad reviews to provide constructive feedback
+
 ## Authentication
 
 All protected endpoints require a valid Bearer token in the Authorization header:
@@ -33,10 +42,11 @@ Creates a new review with optional video upload.
 - `title` (optional): Review title
 - `video` (optional): Video file (max 100MB, video/* formats only)
 - `businessId` (optional): ID of the business being reviewed
+- `feedbackText` (optional): Feedback text for bad reviews (recommended for ONE/TWO ratings)
 
-**Example Request:**
+**Example Request (Good Review):**
 ```bash
-curl -X POST http://localhost:3000/reviews \
+curl -X POST http://localhost:3000/api/reviews \
   -H "Authorization: Bearer <access_token>" \
   -F "rating=FIVE" \
   -F "caption=Amazing service and great food!" \
@@ -44,6 +54,18 @@ curl -X POST http://localhost:3000/reviews \
   -F "title=Best Restaurant Experience" \
   -F "businessId=business-uuid-123" \
   -F "video=@/path/to/video.mp4"
+```
+
+**Example Request (Bad Review with Feedback):**
+```bash
+curl -X POST http://localhost:3000/api/reviews \
+  -H "Authorization: Bearer <access_token>" \
+  -F "rating=ONE" \
+  -F "caption=Terrible experience, very disappointed" \
+  -F "hashtags=[\"#bad\", \"#terrible\", \"#disappointed\"]" \
+  -F "title=Worst Experience Ever" \
+  -F "businessId=business-uuid-123" \
+  -F "feedbackText=The service was extremely slow, staff was rude, and the food was cold. I waited 45 minutes for a simple order and when it arrived, it was completely wrong. The manager was unhelpful and dismissive."
 ```
 
 **Response (201 Created):**
@@ -173,19 +195,89 @@ curl -H "Authorization: Bearer <access_token>" \
   "http://localhost:3000/reviews/my/reviews?page=1&limit=10"
 ```
 
-### 5. Get Business Reviews
+### 5. Get My Business Reviews
 
-**GET** `/reviews/business/:businessId`
+**GET** `/reviews/my/business-reviews`
 
-Retrieves all reviews for a specific business.
+Retrieves all reviews for the authenticated business user with pagination support. Default limit is 5 reviews per page.
+
+**Headers:**
+- `Authorization: Bearer <access_token>` (required - BUSINESS user type)
 
 **Query Parameters:**
 - `page` (optional): Page number (default: 1)
-- `limit` (optional): Items per page (default: 10)
+- `limit` (optional): Items per page (default: 5, max: 100)
+- `status` (optional): Filter by status (ACTIVE, INACTIVE, PENDING, DELETED)
+- `sortBy` (optional): Sort by field (createdAt, views, rating)
+- `sortOrder` (optional): Sort order (asc, desc)
+- `search` (optional): Search in title, caption, or hashtags
 
 **Example Request:**
 ```bash
-curl "http://localhost:3000/reviews/business/business-uuid-123?page=1&limit=20"
+curl -H "Authorization: Bearer <business_access_token>" \
+  "http://localhost:3000/reviews/my/business-reviews?page=1&limit=5&status=ACTIVE&sortBy=createdAt&sortOrder=desc"
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "Your business reviews fetched successfully",
+  "data": {
+    "reviews": [
+      {
+        "id": "review-uuid-123",
+        "userId": "user-uuid-123",
+        "rating": "FIVE",
+        "badges": null,
+        "caption": "Amazing service and great food!",
+        "hashtags": ["#great", "#food", "#service"],
+        "title": "Best Restaurant Experience",
+        "video_url": "https://bucket.s3.region.amazonaws.com/videos/user-uuid-123/review-timestamp.mp4",
+        "businessId": "business-uuid-123",
+        "views": 15,
+        "status": "ACTIVE",
+        "createdAt": "2024-01-01T00:00:00.000Z",
+        "user": {
+          "id": "user-uuid-123",
+          "username": "john_doe",
+          "user_type": "INDIVIDUAL",
+          "logo_url": "https://example.com/avatar.jpg"
+        },
+        "business": {
+          "id": "business-uuid-123",
+          "username": "restaurant_name",
+          "user_type": "BUSINESS",
+          "logo_url": "https://example.com/logo.png"
+        },
+        "likes": [
+          {
+            "id": "like-uuid-123",
+            "userId": "user-uuid-456"
+          }
+        ],
+        "comments": [
+          {
+            "id": "comment-uuid-123",
+            "comment": "I agree, great place!",
+            "createdAt": "2024-01-01T01:00:00.000Z",
+            "user": {
+              "id": "user-uuid-456",
+              "username": "jane_doe",
+              "logo_url": "https://example.com/avatar2.jpg"
+            }
+          }
+        ]
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 5,
+      "total": 25,
+      "totalPages": 5
+    }
+  }
+}
 ```
 
 ### 6. Delete Review
@@ -257,6 +349,35 @@ curl -X DELETE \
 }
 ```
 
+**Business Reviews Specific Errors:**
+```json
+{
+  "status": "fail",
+  "statusCode": 404,
+  "message": "Business not found or inactive",
+  "details": null
+}
+```
+
+**Video Upload Errors:**
+```json
+{
+  "status": "fail",
+  "statusCode": 400,
+  "message": "Invalid file type. Only video files are allowed",
+  "details": null
+}
+```
+
+```json
+{
+  "status": "fail",
+  "statusCode": 400,
+  "message": "File too large. Maximum size is 100MB",
+  "details": null
+}
+```
+
 ### 500 Internal Server Error
 ```json
 {
@@ -312,7 +433,9 @@ interface UserSummary {
 
 ## Rate Limiting
 
-Currently, no rate limiting is implemented. Consider implementing rate limiting for production use.
+Rate limiting is implemented for all review endpoints:
+- **General endpoints**: 100 requests per 15 minutes per IP
+- **Sensitive operations**: 20 requests per 15 minutes per IP
 
 ## Security Considerations
 

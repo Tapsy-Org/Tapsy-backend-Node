@@ -11,10 +11,9 @@ export default class UserController {
   static async register(req: Request, res: Response, next: NextFunction) {
     try {
       const {
-        idToken,
         firebase_token,
-        device_id,
         username,
+        name,
         user_type,
         mobile_number,
         email,
@@ -28,7 +27,6 @@ export default class UserController {
         longitude,
         location,
         location_type,
-
         city,
         state,
         country,
@@ -53,17 +51,27 @@ export default class UserController {
         video_url = await uploadToS3(videoFile, 'video', tempKey);
       }
 
-      // INDIVIDUAL users must provide Firebase tokens
-      if (user_type === 'INDIVIDUAL' && (!idToken || !firebase_token)) {
-        throw new AppError('idToken and firebase_token are required for individual users', 400);
+      // Validate username format
+      if (username && username.includes(' ')) {
+        throw new AppError('Username cannot contain spaces', 400);
       }
 
-      // BUSINESS users can use mobile (need Firebase tokens) or email (no tokens required)
-      if (user_type === 'BUSINESS' && !((idToken && firebase_token) || email)) {
-        throw new AppError(
-          'Business users must provide mobile (with Firebase tokens) or email',
-          400,
-        );
+      // INDIVIDUAL users must provide mobile number
+      if (user_type === 'INDIVIDUAL' && !mobile_number) {
+        throw new AppError('Mobile number is required for individual users', 400);
+      }
+
+      // BUSINESS users can use mobile OR email (but not both)
+      if (user_type === 'BUSINESS') {
+        if (mobile_number && email) {
+          throw new AppError(
+            'Business users can register with either mobile number or email, not both',
+            400,
+          );
+        }
+        if (!mobile_number && !email) {
+          throw new AppError('Business users must provide either mobile number or email', 400);
+        }
       }
       let categoriesParsed = categories;
       let subcategoriesParsed = subcategories;
@@ -72,7 +80,7 @@ export default class UserController {
         try {
           categoriesParsed = JSON.parse(categories);
         } catch {
-          categoriesParsed = [categories]; // fallback if plain string
+          categoriesParsed = [categories];
         }
       }
       if (typeof subcategories === 'string') {
@@ -85,10 +93,9 @@ export default class UserController {
 
       // Call service to register
       const user = await userService.register({
-        idToken,
         firebase_token,
-        device_id,
         username,
+        name,
         user_type,
         mobile_number,
         email,
@@ -109,7 +116,14 @@ export default class UserController {
         country,
       });
 
-      return res.created({ user }, 'User registered successfully');
+      // Return simplified response with only essential fields
+      const simplifiedResponse = {
+        status: user.status,
+        verification_method: user.verification_method,
+        message: user.message,
+      };
+
+      return res.created(simplifiedResponse, 'User registered successfully');
     } catch (error) {
       next(error);
     }
@@ -117,17 +131,16 @@ export default class UserController {
 
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const { idToken, firebase_token, device_id, mobile_number, email } = req.body;
+      const { firebase_token, mobile_number, email } = req.body;
 
       // Validate required fields
-      if (!idToken && !mobile_number && !email) {
-        throw new AppError('Either idToken, mobile_number, or email is required for login', 400);
+      if (!mobile_number && !email) {
+        throw new AppError('Either mobile_number or email is required for login', 400);
       }
 
       const result = await userService.login({
-        idToken,
         firebase_token,
-        device_id,
+        mobile_number,
         email,
       });
 
@@ -161,7 +174,6 @@ export default class UserController {
       const otp = await userService.sendOtp({ email, mobile_number });
 
       return res.success({ otp }, 'OTP sent successfully');
-      // ⚠️ in prod don’t return OTP in response
     } catch (error) {
       next(error);
     }
@@ -176,7 +188,26 @@ export default class UserController {
         throw new AppError('Invalid or expired OTP', 400);
       }
 
-      return res.success(user, 'OTP verified successfully');
+      // Return simplified response with only essential fields
+      const simplifiedResponse = {
+        id: user.id,
+        user_type: user.user_type,
+        mobile_number: user.mobile_number,
+        email: user.email,
+        username: user.username,
+        name: user.name,
+        status: user.status,
+        verification_method: user.verification_method,
+        onboarding_step: user.user_type === 'INDIVIDUAL' ? user.onboarding_step : undefined,
+        website: user.website,
+        about: user.about,
+        logo_url: user.logo_url,
+        video_url: user.video_url,
+        access_token: user.access_token,
+        refresh_token: user.refresh_token,
+      };
+
+      return res.success(simplifiedResponse, 'OTP verified successfully');
     } catch (error) {
       next(error);
     }
@@ -198,44 +229,82 @@ export default class UserController {
 
   static async update(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
-      if (!id) {
+      // Determine if this is a user updating themselves or admin updating any user
+      const isAdminUpdate = req.params.id && req.user?.user_type === 'ADMIN';
+      const userId = isAdminUpdate ? req.params.id : req.user?.userId;
+
+      if (!userId) {
         return res.fail('User id is required', 400);
+      }
+
+      // Security check: Non-admin users can only update their own profile
+      if (!isAdminUpdate && req.user?.userId !== userId) {
+        return res.fail('You can only update your own profile', 403);
       }
 
       const allowedFields = [
         'username',
-        'mobile_number',
-        'email',
-        'firebase_token',
-        'otp_verified',
-        'device_id',
-        'status',
-        'last_login',
-        // Removed business_name, bio, tags since they don't exist in schema
-        'address',
-        'zip_code',
+        'name',
+        // 'mobile_number', // disabled: updating phone via controller
+        // 'email', // disabled: updating email via controller
         'website',
         'about',
         'logo_url',
-        'video_urls',
+        'video_url',
       ];
 
       const payload = req.body;
-      const data = Object.keys(payload)
-        .filter((key) => allowedFields.includes(key))
-        .reduce((acc: Record<string, unknown>, key) => {
-          if (payload[key] !== undefined) {
-            acc[key] = payload[key];
-          }
-          return acc;
-        }, {});
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      if (Object.keys(data).length === 0) {
-        return res.fail('No updatable fields provided', 400);
+      let updates: Record<string, string | undefined> = {};
+
+      // ✅ Handle file uploads (logo and video)
+      // Only support 'logo_url' and 'video_url' field names
+      if (files?.logo_url?.length) {
+        const logoFile = files.logo_url[0];
+        const logoUrl = await uploadToS3(logoFile, 'logo', userId);
+        updates.logo_url = logoUrl;
       }
 
-      const user = await userService.update(id, data);
+      if (files?.video_url?.length) {
+        const videoFile = files.video_url[0];
+        const videoUrl = await uploadToS3(videoFile, 'video', userId);
+        updates.video_url = videoUrl;
+      }
+
+      // ✅ Handle text fields (allow multiple fields except sensitive ones)
+      const providedAllowedFields = Object.keys(payload).filter(
+        (key) => allowedFields.includes(key) && payload[key] !== undefined,
+      );
+
+      // Phone/Email updates are disabled
+      // const wantsMobileUpdate = providedAllowedFields.includes('mobile_number');
+      // const wantsEmailUpdate = providedAllowedFields.includes('email');
+      // if (wantsMobileUpdate && wantsEmailUpdate) {
+      //   return res.fail('Please update only one of email or mobile_number at a time', 400);
+      // }
+      // if (wantsMobileUpdate || wantsEmailUpdate) {
+      //   return res.fail('Phone/Email change flow is currently disabled', 400);
+      // }
+
+      // Non-sensitive fields: allow multiple updates in one go (phone/email excluded by allowedFields)
+      for (const key of providedAllowedFields) {
+        if (key === 'username') {
+          const value = payload[key];
+          if (typeof value === 'string' && value.includes(' ')) {
+            throw new AppError('Username cannot contain spaces', 400);
+          }
+        }
+        updates[key] = payload[key];
+      }
+
+      // 🚀 If still no updates (neither files nor text fields), return fail
+      if (Object.keys(updates).length === 0) {
+        return res.fail('No valid updates provided', 400);
+      }
+
+      // ✅ Save updates
+      const user = await userService.update(userId, updates);
       return res.success({ user }, 'User updated successfully');
     } catch (error) {
       next(error);
@@ -284,8 +353,35 @@ export default class UserController {
   }
   static async getAllUsers(req: Request, res: Response, next: NextFunction) {
     try {
-      const users = await userService.findAll();
-      return res.success({ users }, 'All users fetched successfully');
+      // Check if user is authenticated and is an admin
+      if (!req.user?.userId) {
+        return res.fail('Authentication required', 401);
+      }
+
+      if (req.user.user_type !== 'ADMIN') {
+        return res.fail('Admin access required', 403);
+      }
+
+      const page = Math.max(parseInt((req.query.page as string) || '1', 10), 1);
+      const limit = Math.min(Math.max(parseInt((req.query.limit as string) || '20', 10), 1), 100);
+
+      const { users, total } = await userService.findAllPaginated(page, limit);
+      const totalPages = Math.ceil(total / limit) || 1;
+
+      return res.success(
+        {
+          users,
+          pagination: {
+            page,
+            limit,
+            total,
+            total_pages: totalPages,
+            has_next_page: page < totalPages,
+            has_prev_page: page > 1,
+          },
+        },
+        'Users fetched successfully',
+      );
     } catch (error) {
       next(error);
     }
@@ -324,4 +420,48 @@ export default class UserController {
       next(error);
     }
   }
+
+  static async checkUsername(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { username } = req.body;
+
+      if (!username || typeof username !== 'string') {
+        throw new AppError('Username is required and must be a string', 400);
+      }
+
+      const exists = await userService.usernameExists(username);
+
+      return res.success(
+        {
+          username,
+          available: !exists,
+        },
+        exists ? 'Username is already taken' : 'Username is available',
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getBusinessById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return res.fail('User id is required', 400);
+      }
+      const business = await userService.findBusinessById(id);
+      return res.success({ business }, 'Business fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Phone/Email change verification endpoint disabled
+  // static async verifyUpdateOtp(req: Request, res: Response, next: NextFunction) {
+  //   try {
+  //     return res.fail('Phone/Email change flow is currently disabled', 400);
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // }
 }

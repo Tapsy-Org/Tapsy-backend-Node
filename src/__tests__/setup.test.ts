@@ -19,17 +19,21 @@ global.console = {
 jest.mock('../config/db', () => ({
   __esModule: true,
   default: {
-    User: {
+    user: {
       create: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
     },
     businessUser: {
       create: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },
@@ -37,6 +41,7 @@ jest.mock('../config/db', () => ({
       create: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },
@@ -44,6 +49,75 @@ jest.mock('../config/db', () => ({
       create: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    review: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn(),
+    },
+    notification: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn(),
+    },
+    like: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    comment: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    userCategory: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    userCategoryAssignment: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    userPersonalization: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    location: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },
@@ -66,6 +140,42 @@ jest.mock('../config/firebase', () => ({
 // Mock nodemailer
 jest.mock('../utils/mailer', () => ({
   sendOtpEmail: jest.fn(),
+}));
+
+// Mock Socket.IO
+jest.mock('socket.io', () => ({
+  Server: jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+    to: jest.fn().mockReturnThis(),
+    emit: jest.fn(),
+  })),
+}));
+
+// Mock server imports
+jest.mock('../server', () => ({
+  io: {
+    on: jest.fn(),
+    to: jest.fn().mockReturnThis(),
+    emit: jest.fn(),
+  },
+  onlineUsers: new Map(),
+  server: {
+    listen: jest.fn(),
+    close: jest.fn(),
+  },
+}));
+
+// Mock AWS S3
+jest.mock('../utils/s3', () => ({
+  uploadFileToS3: jest.fn(),
+}));
+
+// Mock buildNotificationText
+jest.mock('../utils/buildNotificationText', () => ({
+  buildNotificationText: jest.fn().mockReturnValue({
+    title: 'Mock Title',
+    content: 'Mock Content',
+  }),
 }));
 
 // Global test timeout

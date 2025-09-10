@@ -13,13 +13,8 @@ export const createLocation = async (req: AuthRequest, res: Response, next: Next
     const { location, latitude, longitude, location_type, city, state, country } = req.body;
 
     // Validate required fields
-    if (!location || !latitude || !longitude || !location_type) {
-      return res.fail('Missing required fields: location, latitude, longitude, location_type', 400);
-    }
-
-    // Validate location_type enum
-    if (!['HOME', 'WORK', 'OTHER'].includes(location_type)) {
-      return res.fail('Invalid location_type. Must be HOME, WORK, or OTHER', 400);
+    if (!location || !latitude || !longitude) {
+      return res.fail('Missing required fields: location, latitude, longitude', 400);
     }
 
     // Validate coordinates
@@ -93,10 +88,10 @@ export const updateLocation = async (req: AuthRequest, res: Response, next: Next
 
     const { location, latitude, longitude, location_type, city, state, country } = req.body;
 
-    // Validate location_type if provided
-    if (location_type && !['HOME', 'WORK', 'OTHER'].includes(location_type)) {
-      return res.fail('Invalid location_type. Must be HOME, WORK, or OTHER', 400);
-    }
+    // location_type is optional and not restricted
+    // if (location_type && !['HOME', 'WORK', 'OTHER'].includes(location_type)) {
+    //   return res.fail('Invalid location_type. Must be HOME, WORK, or OTHER', 400);
+    // }
 
     // Validate coordinates if provided
     if (latitude !== undefined && (latitude < -90 || latitude > 90)) {

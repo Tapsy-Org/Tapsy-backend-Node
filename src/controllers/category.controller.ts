@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 
 import * as categoryService from '../services/category.service';
+import AppError from '../utils/AppError';
 
 export const createCategory = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -54,8 +55,16 @@ export const deleteCategory = async (req: Request, res: Response, next: NextFunc
   try {
     const { id } = req.params;
     await categoryService.deleteCategory(id);
-    res.status(204).send();
+    return res.success(null, 'Category deleted successfully');
   } catch (error) {
+    if (
+      error instanceof AppError &&
+      error.statusCode === 400 &&
+      error.message.includes('Cannot delete this category because users are currently using it')
+    ) {
+      return res.fail(error.message, 400);
+    }
+
     next(error);
   }
 };

@@ -69,14 +69,27 @@ describe('Unified User System Integration Tests', () => {
         const response = await request(app)
           .post('/api/users/register')
           .send({
-            idToken: 'test-token',
             firebase_token: 'test-firebase-token',
             user_type: 'BUSINESS',
             mobile_number: '+1234567890',
           })
           .expect(400);
 
-        expect(response.body.message).toContain('Device ID is required');
+        expect(response.body.message).toContain('Username is required');
+      });
+
+      it('should return 400 for username with spaces', async () => {
+        const response = await request(app)
+          .post('/api/users/register')
+          .send({
+            firebase_token: 'test-firebase-token',
+            user_type: 'INDIVIDUAL',
+            mobile_number: '+1234567890',
+            username: 'john doe',
+          })
+          .expect(400);
+
+        expect(response.body.message).toContain('Username cannot contain spaces');
       });
     });
 
