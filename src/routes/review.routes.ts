@@ -922,7 +922,7 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *                   statusCode: 500
  *                   message: "Failed to fetch review feed"
  */
-router.post('/feed', requireAuth(), ReviewController.getReviewFeed);
+router.post('/feed', dataFetchLimiter, requireAuth(), ReviewController.getReviewFeed);
 
 /**
  * @swagger
@@ -1107,7 +1107,7 @@ router.get('/seen', requireAuth(), ReviewController.getSeenReviews);
  *       500:
  *         description: Internal server error
  */
-router.delete('/seen', requireAuth(), ReviewController.clearSeenReviews);
+router.delete('/seen', dataFetchLimiter, requireAuth(), ReviewController.clearSeenReviews);
 
 /**
  * @swagger
@@ -1640,7 +1640,7 @@ router.delete('/:reviewId', requireAuth(), ReviewController.deleteReview);
  *       500:
  *         description: Internal server error
  */
-router.post('/:reviewId/seen', requireAuth(), ReviewController.markReviewAsSeen);
+router.post('/:reviewId/seen', requireAuth(), dataFetchLimiter, ReviewController.markReviewAsSeen);
 
 /**
  * @swagger
@@ -1770,6 +1770,6 @@ router.post('/:reviewId/seen', requireAuth(), ReviewController.markReviewAsSeen)
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/seen', requireAuth(), ReviewController.markReviewsAsSeen);
+router.post('/seen', dataFetchLimiter, requireAuth(), ReviewController.markReviewsAsSeen);
 
 export default router;
