@@ -2,7 +2,7 @@ import type { Prisma, ReviewRating, Status } from '@prisma/client';
 
 import prisma from '../config/db';
 import AppError from '../utils/AppError';
-import { RedisService } from './redis.service';
+import { RedisService } from '../utils/redis';
 
 export class ReviewService {
   private redisService: RedisService;
@@ -101,6 +101,22 @@ export class ReviewService {
           data: {
             reviewId: review.id,
             feedback: data.feedbackText,
+          },
+        });
+      }
+
+      if (isBadReview) {
+        await this.redisService.scheduleReviewApproval(review.id);
+      }
+
+      // Update business rating aggregates (as we discussed before)
+      if (review.businessId) {
+        const ratingValue = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 }[review.rating];
+        await prisma.user.update({
+          where: { id: review.businessId },
+          data: {
+            review_count: { increment: 1 },
+            rating_sum: { increment: ratingValue },
           },
         });
       }
@@ -686,15 +702,12 @@ export class ReviewService {
   // Mark review as seen and increment view count
   async markReviewAsSeenAndIncrementView(userId: string, reviewId: string) {
     try {
-      // Import services here to avoid circular dependency
-      const { RedisService } = await import('./redis.service');
       const { ReviewInteractionService } = await import('./ReviewInteraction.service');
 
-      const redisService = new RedisService();
       const reviewInteractionService = new ReviewInteractionService();
 
       // Mark review as seen in Redis
-      await redisService.markReviewAsSeen(userId, reviewId);
+      await this.redisService.markReviewAsSeen(userId, reviewId);
 
       // Increment view count using existing service
       const viewResult = await reviewInteractionService.incrementView(reviewId);

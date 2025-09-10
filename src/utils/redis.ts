@@ -1,3 +1,4 @@
+import queueConfig from '../config/queue';
 import RedisConfig from '../config/redis';
 import AppError from '../utils/AppError';
 
@@ -151,6 +152,27 @@ export class RedisService {
     } catch (error) {
       console.error('Error getting seen reviews count:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Schedules a pending review for automatic approval using BullMQ.
+   * @param reviewId - The ID of the review to schedule.
+   */
+  async scheduleReviewApproval(reviewId: string): Promise<void> {
+    try {
+      // Get delay from environment variables (defaults to 24 hours)
+      const approvalDelay = parseInt(process.env.REVIEW_APPROVAL_DELAY || '24');
+
+      await queueConfig.reviewApprovalQueue.add(
+        'approve-review',
+        { reviewId },
+        { delay: approvalDelay },
+      );
+      console.log(`Successfully scheduled review ${reviewId} for approval.`);
+    } catch (error) {
+      console.error('Error scheduling review for approval:', error);
+      throw new AppError('Failed to schedule review for approval', 500, { originalError: error });
     }
   }
 

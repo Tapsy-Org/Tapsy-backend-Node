@@ -1,10 +1,10 @@
 import { ReviewRating, Status } from '@prisma/client';
 import { NextFunction, Response } from 'express';
 
-import { RedisService } from '../services/redis.service';
 import { ReviewService } from '../services/review.service';
 import { AuthRequest } from '../types/express';
 import AppError from '../utils/AppError';
+import { RedisService } from '../utils/redis';
 import { uploadFileToS3 } from '../utils/s3';
 
 const reviewService = new ReviewService();
