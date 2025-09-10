@@ -146,6 +146,15 @@ model User {
   subscriptions    Subscription[]
   supportTickets   SupportTicket[]
   searches         RecentSearch[]
+
+  @@index([user_type])
+  @@index([status])
+  @@index([name])
+  @@index([createdAt])
+
+  @@index([user_type, status])         // For combined filtering
+  @@index([last_login(sort: Desc)])    // For sorting by recent activity
+  @@index([otp_verified])              // For admin queries on verification
 }
 
 model Category {
@@ -159,6 +168,10 @@ model Category {
   updatedAt  DateTime         @updatedAt
 
   users UserCategory[]
+
+  @@index([name])
+  @@index([audience])
+  @@index([status, sort_order]) 
 }
 
 model UserCategory {
@@ -175,6 +188,7 @@ model UserCategory {
   category Category @relation(fields: [categoryId], references: [id])
 
   @@unique([userId, categoryId])
+  @@index([userId])
   @@index([categoryId])
 }
 
@@ -195,6 +209,11 @@ model Location {
   updatedAt     DateTime     @updatedAt
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([latitude, longitude])
+  @@index([country, state, city])
+  @@index([zip_code])
 }
 
 
@@ -212,10 +231,30 @@ model Review {
   views      Int          @default(0)
   createdAt  DateTime     @default(now())
   status     Status       @default(ACTIVE)
+  
+  feedback   ReviewFeedback?
   user       User      @relation("UserReviews", fields: [userId], references: [id])
   business User?     @relation("BusinessReviews", fields: [businessId], references: [id])
   likes    Like[]
   comments Comment[]
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([status])
+}
+
+model ReviewFeedback {
+  id          String   @id @default(uuid()) @db.Uuid
+  reviewId    String   @unique @db.Uuid
+  feedback    String   
+  is_resolved Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@index([is_resolved])
 }
 
 model Like {
@@ -228,33 +267,7 @@ model Like {
   review Review @relation(fields: [reviewId], references: [id])
 
   @@unique([userId, reviewId])
-}
-
-// ---------- Social / Follows ----------
-model Follow {
-  id              String   @id @default(uuid()) @db.Uuid
-  followerId      String   @db.Uuid
-  followingUserId String   @db.Uuid
-  createdAt       DateTime @default(now())
-
-  follower  User @relation("UserFollowers", fields: [followerId], references: [id])
-  following User @relation("UserFollowing", fields: [followingUserId], references: [id])
-
-  @@unique([followerId, followingUserId])
-}
-
-// ---------- Messaging ----------
-model Message {
-  id          String   @id @default(uuid()) @db.Uuid
-  senderId    String   @db.Uuid
-  receiverId  String   @db.Uuid
-  sender_type UserType
-  text        String
-  is_read     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-
-  sender   User @relation("MessagesSent", fields: [senderId], references: [id])
-  receiver User @relation("MessagesReceived", fields: [receiverId], references: [id])
+  @@index([reviewId])
 }
 
 model Comment {
@@ -269,6 +282,41 @@ model Comment {
   user    User      @relation(fields: [userId], references: [id])
   parent  Comment?  @relation("CommentReplies", fields: [parent_comment_id], references: [id])
   replies Comment[] @relation("CommentReplies")
+
+  @@index([userId])
+  @@index([parent_comment_id])
+  @@index([reviewId, createdAt(sort: Desc)])
+}
+
+// ---------- Social / Follows ----------
+model Follow {
+  id              String   @id @default(uuid()) @db.Uuid
+  followerId      String   @db.Uuid
+  followingUserId String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  follower  User @relation("UserFollowers", fields: [followerId], references: [id])
+  following User @relation("UserFollowing", fields: [followingUserId], references: [id])
+
+  @@unique([followerId, followingUserId])
+  @@index([followingUserId])
+}
+
+// ---------- Messaging ----------
+model Message {
+  id          String   @id @default(uuid()) @db.Uuid
+  senderId    String   @db.Uuid
+  receiverId  String   @db.Uuid
+  sender_type UserType
+  text        String
+  is_read     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  sender   User @relation("MessagesSent", fields: [senderId], references: [id])
+  receiver User @relation("MessagesReceived", fields: [receiverId], references: [id])
+
+  @@index([senderId, receiverId, createdAt])
+  @@index([receiverId, is_read])
 }
 
 // ---------- Business Media ----------
@@ -279,6 +327,8 @@ model BusinessVideo {
   createdAt  DateTime @default(now())
 
   business User @relation(fields: [businessId], references: [id])
+
+  @@index([businessId, createdAt(sort: Desc)])
 }
 
 // ---------- Notifications ----------
@@ -297,6 +347,9 @@ model Notification {
 
   user   User   @relation("UserNotifications", fields: [userId], references: [id])
   sender User?  @relation("SenderNotifications", fields: [senderId], references: [id])
+
+  @@index([userId, is_read, createdAt(sort: Desc)])
+  @@index([userId, type])
 }
 
 // ---------- Help & Support ----------
@@ -312,6 +365,10 @@ model SupportTicket {
   updatedAt   DateTime      @updatedAt
 
   user User? @relation(fields: [userId], references: [id])
+
+  @@index([status, updatedAt(sort: Desc)])
+  @@index([userId])
+  @@index([email])
 }
 
 // ---------- Search ----------
@@ -323,6 +380,9 @@ model RecentSearch {
   createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, searchText])
 }
 
 // ---------- Settings ----------
@@ -350,6 +410,8 @@ model Plan {
   updatedAt       DateTime     @updatedAt
 
   subscriptions Subscription[]
+
+  @@index([status, sort_order])
 }
 
 model Subscription {
@@ -367,6 +429,10 @@ model Subscription {
 
   business User @relation(fields: [businessId], references: [id])
   plan     Plan @relation(fields: [planId], references: [id])
+
+  @@index([businessId, status])
+  @@index([status])
+  @@index([ends_at])
 }
 
 model QRCode {
@@ -375,4 +441,7 @@ model QRCode {
   image_url  String
   status     Status
   createdAt  DateTime @default(now())
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([name])
 }

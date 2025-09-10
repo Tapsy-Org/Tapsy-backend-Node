@@ -19,6 +19,7 @@ export class ReviewService {
     title?: string;
     video_url?: string;
     businessId?: string;
+    feedbackText?: string;
   }) {
     try {
       // Validate required fields
@@ -33,12 +34,8 @@ export class ReviewService {
       }
 
       // Determine status based on rating
-      let status: Status;
-      if (data.rating === 'ONE' || data.rating === 'TWO') {
-        status = 'PENDING';
-      } else {
-        status = 'ACTIVE';
-      }
+      const isBadReview = data.rating === 'ONE' || data.rating === 'TWO';
+      const status: Status = isBadReview ? 'PENDING' : 'ACTIVE';
 
       // Check if user exists and is active
       const user = await prisma.user.findUnique({
@@ -98,6 +95,15 @@ export class ReviewService {
             : undefined,
         },
       });
+
+      if (isBadReview && data.feedbackText) {
+        await prisma.reviewFeedback.create({
+          data: {
+            reviewId: review.id,
+            feedback: data.feedbackText,
+          },
+        });
+      }
 
       return review;
     } catch (error) {
@@ -674,6 +680,38 @@ export class ReviewService {
         throw error;
       }
       throw new AppError('Failed to fetch review feed', 500, { originalError: error });
+    }
+  }
+
+  // Mark review as seen and increment view count
+  async markReviewAsSeenAndIncrementView(userId: string, reviewId: string) {
+    try {
+      // Import services here to avoid circular dependency
+      const { RedisService } = await import('./redis.service');
+      const { ReviewInteractionService } = await import('./ReviewInteraction.service');
+
+      const redisService = new RedisService();
+      const reviewInteractionService = new ReviewInteractionService();
+
+      // Mark review as seen in Redis
+      await redisService.markReviewAsSeen(userId, reviewId);
+
+      // Increment view count using existing service
+      const viewResult = await reviewInteractionService.incrementView(reviewId);
+
+      return {
+        reviewId: viewResult.reviewId,
+        viewCount: viewResult.viewCount,
+        userId,
+        message: 'Review marked as seen and view count incremented successfully',
+      };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to mark review as seen and increment view', 500, {
+        originalError: error,
+      });
     }
   }
 }

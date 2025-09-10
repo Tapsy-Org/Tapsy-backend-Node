@@ -13,7 +13,7 @@ const redisService = new RedisService();
 export default class ReviewController {
   static async createReview(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { rating, badges, caption, hashtags, title, businessId } = req.body;
+      const { rating, badges, caption, hashtags, title, businessId, feedbackText } = req.body;
       // Get user ID from authenticated request
       const userId = req.user?.userId;
       if (!userId) {
@@ -81,32 +81,10 @@ export default class ReviewController {
         }
       }
 
-      // Validate businessId format if provided
-      if (businessId && typeof businessId === 'string') {
-        const uuidRegex =
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(businessId)) {
-          throw new AppError('Invalid business ID format. Must be a valid UUID', 400);
-        }
-      }
-
-      // Process video upload if provided
+      // Process video upload
       let video_url: string | undefined;
       if (req.file) {
         try {
-          // Validate AWS environment variables
-          if (
-            !process.env.AWS_REGION ||
-            !process.env.AWS_ACCESS_KEY_ID ||
-            !process.env.AWS_SECRET_ACCESS_KEY ||
-            !process.env.AWS_BUCKET_NAME
-          ) {
-            throw new AppError(
-              'AWS configuration is incomplete. Please check environment variables.',
-              500,
-            );
-          }
-
           // Generate unique filename
           const timestamp = Date.now();
           const originalName = req.file.originalname;
@@ -140,6 +118,7 @@ export default class ReviewController {
         title: title || null,
         video_url,
         businessId: businessId || null,
+        feedbackText: feedbackText || null,
       };
 
       // Create the review
@@ -407,10 +386,10 @@ export default class ReviewController {
         throw new AppError('Review not found', 404);
       }
 
-      // Mark review as seen
-      await redisService.markReviewAsSeen(userId, reviewId);
+      // Mark review as seen and increment view count
+      const result = await reviewService.markReviewAsSeenAndIncrementView(userId, reviewId);
 
-      return res.success({ reviewId, userId }, 'Review marked as seen successfully');
+      return res.success(result, 'Review marked as seen and view count incremented successfully');
     } catch (error) {
       next(error);
     }
