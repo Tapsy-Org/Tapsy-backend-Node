@@ -11,15 +11,26 @@ export const createLocationForUser = async (userId: string, locationData: Create
         location_type: locationData.location_type ?? null,
       },
     });
+
     // After first location creation, mark onboarding as COMPLETED for INDIVIDUAL users
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         onboarding_step: 'COMPLETED',
       },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        user_type: true,
+        onboarding_step: true,
+      },
     });
 
-    return location;
+    return {
+      location,
+      onboardingStep: updatedUser.onboarding_step,
+    };
   } catch {
     throw new AppError('Failed to create location', 500);
   }

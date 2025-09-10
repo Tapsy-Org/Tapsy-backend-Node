@@ -224,7 +224,7 @@ const router = Router();
  *                 subcategories: ["Web Development", "Mobile Apps"]
  *     responses:
  *       201:
- *         description: User registered successfully, OTP sent for verification
+ *         description: OTP sent for verification
  *         content:
  *           application/json:
  *             schema:
@@ -235,10 +235,24 @@ const router = Router();
  *                   example: "OTP_SENT"
  *                 message:
  *                   type: string
- *                   example: "Registration successful. Please check your SMS/email for OTP verification."
+ *                   example: "Please check your SMS for OTP verification."
  *                 verification_method:
  *                   type: string
  *                   enum: [EMAIL, MOBILE]
+ *                 id:
+ *                   type: string
+ *                   description: User ID
+ *                 username:
+ *                   type: string
+ *                   description: Username
+ *                 user_type:
+ *                   type: string
+ *                   enum: [INDIVIDUAL, BUSINESS]
+ *                 onboarding_step:
+ *                   type: string
+ *                   enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *                   description: Current onboarding step (for INDIVIDUAL users only)
+ *                   nullable: true
  *       400:
  *         description: Missing required fields or validation errors
  *       409:
@@ -309,6 +323,11 @@ router.post(
  *                     verification_method:
  *                       type: string
  *                       enum: [EMAIL, MOBILE]
+ *                     onboarding_step:
+ *                       type: string
+ *                       enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *                       description: Current onboarding step (for INDIVIDUAL users only)
+ *                       nullable: true
  *       400:
  *         description: Missing required fields
  *       404:
@@ -386,17 +405,9 @@ router.get('/:id', UserController.getById);
  *                 example: "Software developer"
  *               logo_url:
  *                 type: string
- *                 description: Logo URL (direct update)
- *                 example: "https://example.com/logo.png"
- *               video_url:
- *                 type: string
- *                 description: Video URL (direct update)
- *                 example: "https://youtube.com/watch?v=123"
- *               logo:
- *                 type: string
  *                 format: binary
  *                 description: Logo file upload (will replace logo_url)
- *               video:
+ *               video_url:
  *                 type: string
  *                 format: binary
  *                 description: Video file upload (will replace video_url)
@@ -421,19 +432,11 @@ router.get('/:id', UserController.getById);
  *               summary: Update about
  *               value:
  *                 about: "Full-stack developer with 5 years experience"
- *             logo_url_update:
- *               summary: Update logo URL
- *               value:
- *                 logo_url: "https://example.com/new-logo.png"
- *             video_url_update:
- *               summary: Update video URL
- *               value:
- *                 video_url: "https://youtube.com/watch?v=abc123"
- *             logo_upload:
+ *             logo_url:
  *               summary: Upload logo file
  *               value:
  *                 logo: "[FILE]"
- *             video_upload:
+ *             video_url:
  *               summary: Upload video file
  *               value:
  *                 video: "[FILE]"
@@ -487,17 +490,9 @@ router.get('/:id', UserController.getById);
  *                 example: "Software developer"
  *               logo_url:
  *                 type: string
- *                 description: Logo URL (direct update)
- *                 example: "https://example.com/logo.png"
- *               video_url:
- *                 type: string
- *                 description: Video URL (direct update)
- *                 example: "https://youtube.com/watch?v=123"
- *               logo:
- *                 type: string
  *                 format: binary
  *                 description: Logo file upload (will replace logo_url)
- *               video:
+ *               video_url:
  *                 type: string
  *                 format: binary
  *                 description: Video file upload (will replace video_url)
@@ -526,22 +521,14 @@ router.get('/:id', UserController.getById);
  *               summary: Update about
  *               value:
  *                 about: "Full-stack developer with 5 years experience"
- *             logo_url_update:
- *               summary: Update logo URL
- *               value:
- *                 logo_url: "https://example.com/new-logo.png"
- *             video_url_update:
- *               summary: Update video URL
- *               value:
- *                 video_url: "https://youtube.com/watch?v=abc123"
- *             logo_upload:
+ *             logo_url:
  *               summary: Upload logo file
  *               value:
- *                 logo: "[FILE]"
- *             video_upload:
+ *                 logo_url: "[FILE]"
+ *             video_url:
  *               summary: Upload video file
  *               value:
- *                 video: "[FILE]"
+ *                 video_url: "[FILE]"
  *     responses:
  *       200:
  *         description: User updated successfully
@@ -771,6 +758,11 @@ router.post('/send-otp', UserController.sendOtp);
  *                     video_url:
  *                       type: string
  *                       nullable: true
+ *                     onboarding_step:
+ *                       type: string
+ *                       enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *                       description: Current onboarding step (for INDIVIDUAL users only)
+ *                       nullable: true
  *                     access_token:
  *                       type: string
  *                       description: JWT access token
@@ -785,13 +777,124 @@ router.post('/send-otp', UserController.sendOtp);
 router.post('/verify-otp', UserController.verifyOtp);
 /**
  * @swagger
+ * components:
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ *
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+ *         username:
+ *           type: string
+ *           example: "john_doe"
+ *         name:
+ *           type: string
+ *           example: "John Doe"
+ *         email:
+ *           type: string
+ *           example: "john@example.com"
+ *         mobile_number:
+ *           type: string
+ *           example: "+1234567890"
+ *         user_type:
+ *           type: string
+ *           enum: [INDIVIDUAL, BUSINESS, ADMIN]
+ *           example: "INDIVIDUAL"
+ *         status:
+ *           type: string
+ *           enum: [PENDING, ACTIVE, INACTIVE]
+ *           example: "ACTIVE"
+ *         onboarding_step:
+ *           type: string
+ *           enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *           description: Current onboarding step (for INDIVIDUAL users only)
+ *           nullable: true
+ *           example: "COMPLETED"
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2025-09-09T12:34:56.000Z"
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2025-09-09T12:34:56.000Z"
+ *
  * /api/users:
  *   get:
- *     summary: Get all users
+ *     summary: Get all users (paginated)
+ *     description: Retrieve a paginated list of users. **Only accessible by admins**.
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Number of users per page
  *     responses:
  *       200:
  *         description: Users fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Users fetched successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     users:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/User'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                           example: 1
+ *                         limit:
+ *                           type: integer
+ *                           example: 20
+ *                         total:
+ *                           type: integer
+ *                           example: 105
+ *                         total_pages:
+ *                           type: integer
+ *                           example: 6
+ *                         has_next_page:
+ *                           type: boolean
+ *                           example: true
+ *                         has_prev_page:
+ *                           type: boolean
+ *                           example: false
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Admin access required
  *       404:
  *         description: No users found
  */
@@ -1173,6 +1276,286 @@ router.post('/check-username', UserController.checkUsername);
  *                   example: "Failed to fetch business"
  */
 router.get('/business/:id', UserController.getBusinessById);
+
+/**
+ * @swagger
+ * /api/users/categories:
+ *   post:
+ *     summary: Add categories and subcategories for individual users
+ *     description: |
+ *       Add categories and subcategories to an individual user's profile.
+ *       This endpoint is only available for INDIVIDUAL users and advances their onboarding step to LOCATION.
+ *       - **Authentication**: Required (Bearer token)
+ *       - **User Type**: INDIVIDUAL only
+ *       - **Onboarding**: Advances user from CATEGORY to LOCATION step
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [categoryIds, subcategories]
+ *             properties:
+ *               categoryIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of category IDs to assign to the user
+ *                 example: ["category-id-1", "category-id-2"]
+ *               subcategories:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of subcategory names
+ *                 example: ["Web Development", "Mobile Apps", "UI/UX Design"]
+ *           examples:
+ *             individual_categories:
+ *               summary: Add categories for individual user
+ *               value:
+ *                 categoryIds: ["cat-123", "cat-456"]
+ *                 subcategories: ["Web Development", "Mobile Apps"]
+ *     responses:
+ *       200:
+ *         description: Categories and subcategories added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Categories and subcategories added successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: UserCategory relationship ID
+ *                       example: "user-category-uuid"
+ *                     userId:
+ *                       type: string
+ *                       description: User ID
+ *                       example: "user-uuid-123"
+ *                     categoryId:
+ *                       type: string
+ *                       description: Category ID
+ *                       example: "category-uuid-456"
+ *                     categoriesName:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: Category names
+ *                       example: ["Technology & IT"]
+ *                     subcategories:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: Subcategory names
+ *                       example: ["Web Development", "Mobile Apps", "UI/UX Design"]
+ *                     user_type:
+ *                       type: string
+ *                       enum: [INDIVIDUAL, BUSINESS]
+ *                       example: "INDIVIDUAL"
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Creation timestamp
+ *                       example: "2024-01-01T00:00:00.000Z"
+ *                     onboarding_step:
+ *                       type: string
+ *                       enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *                       description: Updated onboarding step
+ *                       example: "LOCATION"
+ *       400:
+ *         description: Invalid request or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "categoryIds must be a non-empty array of strings"
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Access denied - Individual users only
+ */
+
+/**
+ * @swagger
+ * /api/locations:
+ *   post:
+ *     summary: Create a new location for individual users
+ *     description: |
+ *       Create a new location for the authenticated user.
+ *       This endpoint is typically used by INDIVIDUAL users during onboarding.
+ *       After creating the first location, the user's onboarding step is set to COMPLETED.
+ *       - **Authentication**: Required (Bearer token)
+ *       - **User Type**: Any (but typically INDIVIDUAL during onboarding)
+ *       - **Onboarding**: Advances user from LOCATION to COMPLETED step
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [location, latitude, longitude]
+ *             properties:
+ *               location:
+ *                 type: string
+ *                 description: General location description
+ *                 example: "Home base"
+ *               latitude:
+ *                 type: number
+ *                 minimum: -90
+ *                 maximum: 90
+ *                 description: GPS latitude coordinate
+ *                 example: 19.07
+ *               longitude:
+ *                 type: number
+ *                 minimum: -180
+ *                 maximum: 180
+ *                 description: GPS longitude coordinate
+ *                 example: 72.88
+ *               location_type:
+ *                 type: string
+ *                 enum: [HOME, WORK, OTHER]
+ *                 nullable: true
+ *                 description: Type of location (optional)
+ *                 example: "HOME"
+ *               city:
+ *                 type: string
+ *                 description: City name
+ *                 example: "Mumbai"
+ *               state:
+ *                 type: string
+ *                 description: State/Province
+ *                 example: "Maharashtra"
+ *               country:
+ *                 type: string
+ *                 description: Country name
+ *                 example: "India"
+ *           examples:
+ *             home_location:
+ *               summary: Create home location
+ *               value:
+ *                 location: "My Home"
+ *                 latitude: 19.07
+ *                 longitude: 72.88
+ *                 location_type: "HOME"
+ *                 city: "Mumbai"
+ *                 state: "Maharashtra"
+ *                 country: "India"
+ *     responses:
+ *       201:
+ *         description: Location created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Location created successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     location:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           description: Location ID
+ *                           example: "location-uuid-123"
+ *                         userId:
+ *                           type: string
+ *                           description: User ID
+ *                           example: "user-uuid-456"
+ *                         location:
+ *                           type: string
+ *                           description: Location description
+ *                           example: "My Home"
+ *                         latitude:
+ *                           type: number
+ *                           description: GPS latitude coordinate
+ *                           example: 19.07
+ *                         longitude:
+ *                           type: number
+ *                           description: GPS longitude coordinate
+ *                           example: 72.88
+ *                         location_type:
+ *                           type: string
+ *                           enum: [HOME, WORK, OTHER]
+ *                           nullable: true
+ *                           description: Type of location
+ *                           example: "HOME"
+ *                         city:
+ *                           type: string
+ *                           nullable: true
+ *                           description: City name
+ *                           example: "Mumbai"
+ *                         state:
+ *                           type: string
+ *                           nullable: true
+ *                           description: State/Province
+ *                           example: "Maharashtra"
+ *                         country:
+ *                           type: string
+ *                           nullable: true
+ *                           description: Country name
+ *                           example: "India"
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                           description: Creation timestamp
+ *                           example: "2024-01-01T00:00:00.000Z"
+ *                         updatedAt:
+ *                           type: string
+ *                           format: date-time
+ *                           description: Last update timestamp
+ *                           example: "2024-01-01T00:00:00.000Z"
+ *                     onboardingStep:
+ *                       type: string
+ *                       enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *                       description: Updated onboarding step
+ *                       example: "COMPLETED"
+ *       400:
+ *         description: Invalid request or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Missing required fields: location, latitude, longitude"
+ *       401:
+ *         description: Authentication required
+ *       500:
+ *         description: Internal server error
+ 
+// Note: UserCategory and Location routes are defined in separate route files
+// This documentation is for reference when the routes are integrated
+ 
 // /**
 //  * @swagger
 //  * /api/users/verify-update-otp:

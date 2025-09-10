@@ -126,7 +126,7 @@ model User {
   website             String?
   about               String?
   logo_url            String?
-  video_url          String?
+  video_url           String?
   onboarding_step     OnboardingStep?    @default(REGISTERED)
   
   // Relations

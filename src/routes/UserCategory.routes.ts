@@ -312,46 +312,35 @@ const router = Router();
 // );
 /**
  * @swagger
- * /api/user-categories/{userId}/categories-and-subcategories:
+ * /api/user-categories/categories-and-subcategories:
  *   post:
- *     summary: Add categories and subcategories to an individual user (single API)
- *     description: This endpoint allows individual users to add multiple categories with their respective subcategories in one API call. Each category can have different subcategories.
+ *     summary: Add categories and subcategories to the authenticated INDIVIDUAL user
+ *     description: |
+ *       Allows an authenticated INDIVIDUAL user to assign one or more categories along with subcategories.
+ *       The userId is automatically taken from the access token — do not include it in the request.
  *     tags: [User Categories]
- *     parameters:
- *       - in: path
- *         name: userId
- *         schema:
- *           type: string
- *         required: true
- *         description: User ID (must be INDIVIDUAL user type)
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [categories]
+ *             required: [categoryIds, subcategories]
  *             properties:
- *               categories:
+ *               categoryIds:
  *                 type: array
  *                 items:
- *                   type: object
- *                   required: [categoryId, subcategories]
- *                   properties:
- *                     categoryId:
- *                       type: string
- *                       description: Category ID to assign
- *                     subcategories:
- *                       type: array
- *                       items:
- *                         type: string
- *                       description: Array of subcategory names for this category
- *           example:
- *             categories:
- *               - categoryId: "category-id-1"
- *                 subcategories: ["React Development", "Node.js Development"]
- *               - categoryId: "category-id-2"
- *                 subcategories: ["UI Design", "UX Research"]
+ *                   type: string
+ *                 description: Array of category IDs to assign
+ *                 example: ["category-uuid-1", "category-uuid-2"]
+ *               subcategories:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of subcategory names (applied to the selected categories)
+ *                 example: ["React Development", "Node.js Development"]
  *     responses:
  *       200:
  *         description: Categories and subcategories added successfully
@@ -360,20 +349,50 @@ const router = Router();
  *             schema:
  *               type: object
  *               properties:
- *                 status:
- *                   type: string
- *                   example: "success"
+ *                 success:
+ *                   type: boolean
+ *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Categories and subcategories added successfully"
+ *                   example: Categories and subcategories added successfully
  *                 data:
  *                   type: object
  *                   properties:
- *                     user:
- *                       type: object
- *                       description: Updated user object with categories
+ *                     id:
+ *                       type: string
+ *                       example: "user-category-uuid"
+ *                     userId:
+ *                       type: string
+ *                       example: "user-uuid"
+ *                     categoryId:
+ *                       type: string
+ *                       example: "category-uuid"
+ *                     categoriesName:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["Web Development"]
+ *                     subcategories:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["React Development", "Node.js Development"]
+ *                     user_type:
+ *                       type: string
+ *                       enum: [INDIVIDUAL, BUSINESS, ADMIN]
+ *                       example: "INDIVIDUAL"
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2025-09-09T10:15:30.000Z"
+ *                     onboarding_step:
+ *                       type: string
+ *                       enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *                       example: "LOCATION"
  *       400:
- *         description: Invalid request, user is not individual, or categories already assigned
+ *         description: Invalid request (e.g., missing or invalid categoryIds/subcategories)
+ *       401:
+ *         description: Unauthorized - missing or invalid bearer token
  *       404:
  *         description: User not found or invalid category IDs
  */
