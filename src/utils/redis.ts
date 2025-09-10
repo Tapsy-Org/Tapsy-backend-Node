@@ -4,21 +4,25 @@ import AppError from '../utils/AppError';
 
 export class RedisService {
   private redis: RedisConfig;
+  private readonly defaultSeenReviewsTTL: number;
 
   constructor() {
     this.redis = RedisConfig.getInstance();
+    // Default TTL for seen reviews: 30 days (converted to seconds)
+    const days = parseInt(process.env.TTL_SEEN_DAYS || '30');
+    this.defaultSeenReviewsTTL = days * 24 * 60 * 60; // Convert days to seconds
   }
 
   /**
    * Mark a review as seen by a user
    * @param userId - The user ID
    * @param reviewId - The review ID
-   * @param ttl - Time to live in seconds (default: 30 days)
+   * @param ttl - Time to live in seconds (default: from TTL_SEEN_DAYS env var or 30 days)
    */
   async markReviewAsSeen(
     userId: string,
     reviewId: string,
-    ttl: number = 30 * 24 * 60 * 60,
+    ttl: number = this.defaultSeenReviewsTTL,
   ): Promise<void> {
     try {
       const client = await this.redis.connect();
@@ -39,12 +43,12 @@ export class RedisService {
    * Mark multiple reviews as seen by a user
    * @param userId - The user ID
    * @param reviewIds - Array of review IDs
-   * @param ttl - Time to live in seconds (default: 30 days)
+   * @param ttl - Time to live in seconds (default: from TTL_SEEN_DAYS env var or 30 days)
    */
   async markReviewsAsSeen(
     userId: string,
     reviewIds: string[],
-    ttl: number = 30 * 24 * 60 * 60,
+    ttl: number = this.defaultSeenReviewsTTL,
   ): Promise<void> {
     try {
       const client = await this.redis.connect();
@@ -162,7 +166,7 @@ export class RedisService {
   async scheduleReviewApproval(reviewId: string): Promise<void> {
     try {
       // Get delay from environment variables (defaults to 24 hours)
-      const approvalDelay = parseInt(process.env.REVIEW_APPROVAL_DELAY || '24');
+      const approvalDelay = parseInt(process.env.REVIEW_APPROVAL_DELAY || '24') * 60 * 60 * 1000; // 24 hours
 
       await queueConfig.reviewApprovalQueue.add(
         'approve-review',
