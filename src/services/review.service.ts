@@ -195,6 +195,8 @@ export class ReviewService {
                 username: true,
                 user_type: true,
                 logo_url: true,
+                rating_sum: true,
+                review_count: true,
               },
             },
             _count: {
@@ -211,8 +213,31 @@ export class ReviewService {
         prisma.review.count({ where }),
       ]);
 
+      // Calculate business ratings for all reviews
+      const reviewsWithBusinessRating = reviews.map((review) => {
+        let businessRating = null;
+        let businessRatingCount = 0;
+        if (review.business && review.business.review_count > 0) {
+          businessRating = Number(
+            (review.business.rating_sum / review.business.review_count).toFixed(1),
+          );
+          businessRatingCount = review.business.review_count;
+        }
+
+        return {
+          ...review,
+          business: review.business
+            ? {
+                ...review.business,
+                rating: businessRating,
+                ratingCount: businessRatingCount,
+              }
+            : null,
+        };
+      });
+
       return {
-        reviews,
+        reviews: reviewsWithBusinessRating,
         pagination: {
           page,
           limit,
@@ -252,6 +277,8 @@ export class ReviewService {
               name: true,
               user_type: true,
               logo_url: true,
+              rating_sum: true,
+              review_count: true,
             },
           },
           likes: {
@@ -282,7 +309,26 @@ export class ReviewService {
         throw new AppError('Review not found', 404);
       }
 
-      return review;
+      // Calculate business rating if business exists
+      let businessRating = null;
+      let businessRatingCount = 0;
+      if (review.business && review.business.review_count > 0) {
+        businessRating = Number(
+          (review.business.rating_sum / review.business.review_count).toFixed(1),
+        );
+        businessRatingCount = review.business.review_count;
+      }
+
+      return {
+        ...review,
+        business: review.business
+          ? {
+              ...review.business,
+              rating: businessRating,
+              ratingCount: businessRatingCount,
+            }
+          : null,
+      };
     } catch (error) {
       if (error instanceof AppError) {
         throw error;
@@ -311,6 +357,176 @@ export class ReviewService {
         throw error;
       }
       throw new AppError('Failed to update review views', 500, { originalError: error });
+    }
+  }
+
+  async updateReview(
+    reviewId: string,
+    userId: string,
+    updateData: {
+      rating?: ReviewRating;
+      badges?: string;
+      caption?: string;
+      hashtags?: string[];
+      title?: string;
+      video_url?: string;
+      feedbackText?: string;
+    },
+  ) {
+    try {
+      // Check if review exists and belongs to user
+      const existingReview = await prisma.review.findUnique({
+        where: {
+          id: reviewId,
+          status: { not: 'DELETED' },
+        },
+        select: {
+          userId: true,
+          rating: true,
+          businessId: true,
+          status: true,
+        },
+      });
+
+      if (!existingReview) {
+        throw new AppError('Review not found', 404);
+      }
+
+      if (existingReview.userId !== userId) {
+        throw new AppError('You can only update your own reviews', 403);
+      }
+
+      // Validate rating if provided
+      if (updateData.rating) {
+        const validRatings = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE'];
+        if (!validRatings.includes(updateData.rating)) {
+          throw new AppError('Invalid rating value', 400);
+        }
+      }
+
+      // Determine new status based on rating
+      let newStatus = existingReview.status;
+      const newRating = updateData.rating || existingReview.rating;
+      const isBadReview = newRating === 'ONE' || newRating === 'TWO';
+
+      // Only update status if rating changed
+      if (updateData.rating && updateData.rating !== existingReview.rating) {
+        newStatus = isBadReview ? 'PENDING' : 'ACTIVE';
+      }
+
+      // Prepare update data
+      const updateFields: Prisma.ReviewUpdateInput = {};
+
+      if (updateData.rating !== undefined) updateFields.rating = updateData.rating;
+      if (updateData.badges !== undefined) updateFields.badges = updateData.badges;
+      if (updateData.caption !== undefined) updateFields.caption = updateData.caption;
+      if (updateData.hashtags !== undefined) updateFields.hashtags = updateData.hashtags;
+      if (updateData.title !== undefined) updateFields.title = updateData.title;
+      if (updateData.video_url !== undefined) updateFields.video_url = updateData.video_url;
+      if (newStatus !== existingReview.status) updateFields.status = newStatus;
+
+      // Update the review
+      const updatedReview = await prisma.review.update({
+        where: { id: reviewId },
+        data: updateFields,
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              name: true,
+              user_type: true,
+              logo_url: true,
+            },
+          },
+          business: {
+            select: {
+              id: true,
+              username: true,
+              name: true,
+              user_type: true,
+              logo_url: true,
+              rating_sum: true,
+              review_count: true,
+            },
+          },
+        },
+      });
+
+      // Handle feedback for bad reviews
+      if (isBadReview && updateData.feedbackText) {
+        // Check if feedback already exists
+        const existingFeedback = await prisma.reviewFeedback.findFirst({
+          where: { reviewId },
+        });
+
+        if (existingFeedback) {
+          // Update existing feedback
+          await prisma.reviewFeedback.update({
+            where: { id: existingFeedback.id },
+            data: { feedback: updateData.feedbackText },
+          });
+        } else {
+          // Create new feedback
+          await prisma.reviewFeedback.create({
+            data: {
+              reviewId,
+              feedback: updateData.feedbackText,
+            },
+          });
+        }
+      }
+
+      // Schedule approval if review became bad and status changed to PENDING
+      if (isBadReview && newStatus === 'PENDING' && existingReview.status !== 'PENDING') {
+        await this.redisService.scheduleReviewApproval(reviewId);
+      }
+
+      // Update business rating aggregates if rating changed
+      if (
+        updateData.rating &&
+        updateData.rating !== existingReview.rating &&
+        existingReview.businessId
+      ) {
+        const oldRatingValue = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 }[
+          existingReview.rating
+        ];
+        const newRatingValue = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 }[updateData.rating];
+        const ratingDifference = newRatingValue - oldRatingValue;
+
+        await prisma.user.update({
+          where: { id: existingReview.businessId },
+          data: {
+            rating_sum: { increment: ratingDifference },
+          },
+        });
+      }
+
+      // Calculate business rating if business exists
+      let businessRating = null;
+      let businessRatingCount = 0;
+      if (updatedReview.business && updatedReview.business.review_count > 0) {
+        businessRating = Number(
+          (updatedReview.business.rating_sum / updatedReview.business.review_count).toFixed(1),
+        );
+        businessRatingCount = updatedReview.business.review_count;
+      }
+
+      return {
+        ...updatedReview,
+        business: updatedReview.business
+          ? {
+              ...updatedReview.business,
+              rating: businessRating,
+              ratingCount: businessRatingCount,
+            }
+          : null,
+      };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to update review', 500, { originalError: error });
     }
   }
 
@@ -473,6 +689,8 @@ export class ReviewService {
                 username: true,
                 logo_url: true,
                 user_type: true,
+                rating_sum: true,
+                review_count: true,
               },
             },
             likes: {
@@ -503,8 +721,31 @@ export class ReviewService {
         prisma.review.count({ where }),
       ]);
 
+      // Calculate business ratings for all reviews
+      const reviewsWithBusinessRating = reviews.map((review) => {
+        let businessRating = null;
+        let businessRatingCount = 0;
+        if (review.business && review.business.review_count > 0) {
+          businessRating = Number(
+            (review.business.rating_sum / review.business.review_count).toFixed(1),
+          );
+          businessRatingCount = review.business.review_count;
+        }
+
+        return {
+          ...review,
+          business: review.business
+            ? {
+                ...review.business,
+                rating: businessRating,
+                ratingCount: businessRatingCount,
+              }
+            : null,
+        };
+      });
+
       return {
-        reviews,
+        reviews: reviewsWithBusinessRating,
         pagination: {
           page,
           limit,
@@ -574,6 +815,8 @@ export class ReviewService {
               name: true,
               user_type: true,
               logo_url: true,
+              rating_sum: true,
+              review_count: true,
               categories: { select: { categoryId: true } },
               locations: { select: { latitude: true, longitude: true }, take: 1 },
             },
@@ -641,7 +884,27 @@ export class ReviewService {
           engagementScore * 0.15 +
           freshnessScore * 0.1;
 
-        return { ...review, finalScore };
+        // Calculate business rating if business exists
+        let businessRating = null;
+        let businessRatingCount = 0;
+        if (review.business && review.business.review_count > 0) {
+          businessRating = Number(
+            (review.business.rating_sum / review.business.review_count).toFixed(1),
+          );
+          businessRatingCount = review.business.review_count;
+        }
+
+        return {
+          ...review,
+          finalScore,
+          business: review.business
+            ? {
+                ...review.business,
+                rating: businessRating,
+                ratingCount: businessRatingCount,
+              }
+            : null,
+        };
       });
 
       // --- Sorting and Cursor Logic (Using the more efficient findIndex/slice method) ---
