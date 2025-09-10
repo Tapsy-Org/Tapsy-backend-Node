@@ -21,6 +21,9 @@ jest.mock('../../../config/db', () => ({
   comment: {
     deleteMany: jest.fn(),
   },
+  reviewFeedback: {
+    create: jest.fn(),
+  },
   $transaction: jest.fn(),
 }));
 
@@ -174,6 +177,110 @@ describe('ReviewService', () => {
         },
         include: expect.any(Object),
       });
+    });
+
+    it('should create feedback for bad reviews with feedbackText', async () => {
+      // Mock user exists
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'user-123',
+        user_type: 'INDIVIDUAL',
+      } as any);
+
+      // Mock business exists
+      mockPrisma.user.findUnique
+        .mockResolvedValueOnce({
+          id: 'user-123',
+          user_type: 'INDIVIDUAL',
+        } as any)
+        .mockResolvedValueOnce({
+          id: 'business-123',
+          user_type: 'BUSINESS',
+        } as any);
+
+      const badReviewData = {
+        ...mockReviewData,
+        rating: 'ONE' as const,
+        feedbackText: 'Terrible service, very disappointed',
+      };
+      const { feedbackText, ...reviewDataWithoutFeedback } = badReviewData;
+      const mockCreatedReview = {
+        id: 'review-123',
+        ...reviewDataWithoutFeedback,
+        status: 'PENDING',
+        views: 0,
+        createdAt: new Date(),
+      };
+      mockPrisma.review.create.mockResolvedValue(mockCreatedReview as any);
+      mockPrisma.reviewFeedback.create.mockResolvedValue({
+        id: 'feedback-123',
+        reviewId: 'review-123',
+        feedback: 'Terrible service, very disappointed',
+        is_resolved: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+
+      await reviewService.createReview(badReviewData);
+
+      expect(mockPrisma.review.create).toHaveBeenCalledWith({
+        data: {
+          ...reviewDataWithoutFeedback,
+          status: 'PENDING',
+          views: 0,
+        },
+        include: expect.any(Object),
+      });
+      expect(mockPrisma.reviewFeedback.create).toHaveBeenCalledWith({
+        data: {
+          reviewId: 'review-123',
+          feedback: 'Terrible service, very disappointed',
+        },
+      });
+    });
+
+    it('should not create feedback for bad reviews without feedbackText', async () => {
+      // Mock user exists
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'user-123',
+        user_type: 'INDIVIDUAL',
+      } as any);
+
+      // Mock business exists
+      mockPrisma.user.findUnique
+        .mockResolvedValueOnce({
+          id: 'user-123',
+          user_type: 'INDIVIDUAL',
+        } as any)
+        .mockResolvedValueOnce({
+          id: 'business-123',
+          user_type: 'BUSINESS',
+        } as any);
+
+      const badReviewData = {
+        ...mockReviewData,
+        rating: 'TWO' as const,
+        feedbackText: undefined,
+      };
+      const mockCreatedReview = {
+        id: 'review-123',
+        ...badReviewData,
+        status: 'PENDING',
+        views: 0,
+        createdAt: new Date(),
+      };
+      mockPrisma.review.create.mockResolvedValue(mockCreatedReview as any);
+
+      await reviewService.createReview(badReviewData);
+
+      expect(mockPrisma.review.create).toHaveBeenCalledWith({
+        data: {
+          ...badReviewData,
+          status: 'PENDING',
+          views: 0,
+        },
+        include: expect.any(Object),
+      });
+      expect(mockPrisma.reviewFeedback.create).not.toHaveBeenCalled();
     });
   });
 
