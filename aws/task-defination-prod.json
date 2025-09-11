@@ -34,7 +34,7 @@
         "logDriver": "awslogs",
         "options": {
           "awslogs-create-group": "true",
-          "awslogs-group": "/ecs/",
+          "awslogs-group": "/ecs/backend-prod-api",
           "awslogs-region": "us-west-1",
           "awslogs-stream-prefix": "ecs"
         }
@@ -173,7 +173,7 @@
         "logDriver": "awslogs",
         "options": {
           "awslogs-create-group": "true",
-          "awslogs-group": "/ecs/",
+          "awslogs-group": "/ecs/backend-prod-worker",
           "awslogs-region": "us-west-1",
           "awslogs-stream-prefix": "ecs"
         }
