@@ -454,6 +454,282 @@ router.get('/active', categoryController.getActiveCategories);
 
 /**
  * @swagger
+ * /api/categories/with-business-count:
+ *   get:
+ *     summary: Get categories with business count
+ *     description: |
+ *       **📊 Categories with Business Statistics**
+ *       Retrieves all active categories along with the count of active businesses in each category.
+ *       Perfect for creating dynamic filter interfaces that show availability.
+ *       **🚀 Features:**
+ *       - **Real-time Counts**: Live business counts per category
+ *       - **Active Only**: Only includes active categories and businesses
+ *       - **Sort Ready**: Pre-sorted by business count (descending)
+ *       - **Filter Friendly**: Ideal for dropdown and checkbox filters
+ *       **💡 Use Cases:**
+ *       - Dynamic search filters with counts
+ *       - Category browsing interfaces
+ *       - Business discovery pages
+ *       - Analytics dashboards
+ *       - Market research tools
+ *     tags: [Categories]
+ *     responses:
+ *       200:
+ *         description: Categories with business count fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Categories with business count fetched successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                         description: Unique category identifier
+ *                         example: "cat-restaurant-uuid"
+ *                       name:
+ *                         type: string
+ *                         description: Category display name
+ *                         example: "Restaurants"
+ *                       slug:
+ *                         type: string
+ *                         description: URL-friendly identifier
+ *                         example: "restaurants"
+ *                       status:
+ *                         type: boolean
+ *                         description: Category active status (always true for this endpoint)
+ *                         example: true
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Category creation timestamp
+ *                         example: "2023-01-15T10:30:00Z"
+ *                       _count:
+ *                         type: object
+ *                         properties:
+ *                           users:
+ *                             type: integer
+ *                             description: Number of active businesses in this category
+ *                             example: 245
+ *             examples:
+ *               successful_response:
+ *                 summary: Categories with business counts
+ *                 value:
+ *                   status: success
+ *                   message: "Categories with business count fetched successfully"
+ *                   data:
+ *                     - id: "cat-restaurant-uuid"
+ *                       name: "Restaurants"
+ *                       slug: "restaurants"
+ *                       status: true
+ *                       createdAt: "2023-01-15T10:30:00Z"
+ *                       _count:
+ *                         users: 245
+ *                     - id: "cat-retail-uuid"
+ *                       name: "Retail Stores"
+ *                       slug: "retail-stores"
+ *                       status: true
+ *                       createdAt: "2023-01-15T10:31:00Z"
+ *                       _count:
+ *                         users: 189
+ *                     - id: "cat-services-uuid"
+ *                       name: "Professional Services"
+ *                       slug: "professional-services"
+ *                       status: true
+ *                       createdAt: "2023-01-15T10:32:00Z"
+ *                       _count:
+ *                         users: 156
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               database_error:
+ *                 summary: Database connection error
+ *                 value:
+ *                   status: error
+ *                   statusCode: 500
+ *                   message: "Failed to fetch categories with business count"
+ *                   details: null
+ */
+router.get('/with-business-count', categoryController.getCategoriesWithBusinessCount);
+
+/**
+ * @swagger
+ * /api/categories/top:
+ *   get:
+ *     summary: Get top categories by business count
+ *     description: |
+ *       **🏆 Most Popular Categories**
+ *       Retrieves the most popular categories ranked by the number of active businesses.
+ *       Perfect for highlighting trending categories and market insights.
+ *       **🚀 Features:**
+ *       - **Smart Ranking**: Sorted by business count (highest first)
+ *       - **Configurable Limit**: Customize how many top categories to return
+ *       - **Active Only**: Only includes categories with active businesses
+ *       - **Performance Optimized**: Fast queries with indexed sorting
+ *       **💡 Use Cases:**
+ *       - Homepage trending sections
+ *       - Market analysis dashboards
+ *       - Popular category widgets
+ *       - Business recommendations
+ *       - Industry insights
+ *     tags: [Categories]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 10
+ *         description: Number of top categories to return
+ *         example: 15
+ *     responses:
+ *       200:
+ *         description: Top categories fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Top categories fetched successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                         description: Unique category identifier
+ *                         example: "cat-restaurant-uuid"
+ *                       name:
+ *                         type: string
+ *                         description: Category display name
+ *                         example: "Restaurants"
+ *                       slug:
+ *                         type: string
+ *                         description: URL-friendly identifier
+ *                         example: "restaurants"
+ *                       status:
+ *                         type: boolean
+ *                         description: Category active status
+ *                         example: true
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Category creation timestamp
+ *                         example: "2023-01-15T10:30:00Z"
+ *                       _count:
+ *                         type: object
+ *                         properties:
+ *                           users:
+ *                             type: integer
+ *                             description: Number of active businesses in this category
+ *                             example: 387
+ *                 total:
+ *                   type: integer
+ *                   description: Total number of top categories returned
+ *                   example: 10
+ *                 limit:
+ *                   type: integer
+ *                   description: Requested limit parameter
+ *                   example: 10
+ *             examples:
+ *               top_categories:
+ *                 summary: Top 5 most popular categories
+ *                 value:
+ *                   status: success
+ *                   message: "Top categories fetched successfully"
+ *                   data:
+ *                     - id: "cat-restaurant-uuid"
+ *                       name: "Restaurants"
+ *                       slug: "restaurants"
+ *                       status: true
+ *                       createdAt: "2023-01-15T10:30:00Z"
+ *                       _count:
+ *                         users: 387
+ *                     - id: "cat-retail-uuid"
+ *                       name: "Retail Stores"
+ *                       slug: "retail-stores"
+ *                       status: true
+ *                       createdAt: "2023-01-15T10:31:00Z"
+ *                       _count:
+ *                         users: 298
+ *                     - id: "cat-services-uuid"
+ *                       name: "Professional Services"
+ *                       slug: "professional-services"
+ *                       status: true
+ *                       createdAt: "2023-01-15T10:32:00Z"
+ *                       _count:
+ *                         users: 245
+ *                     - id: "cat-health-uuid"
+ *                       name: "Health & Wellness"
+ *                       slug: "health-wellness"
+ *                       status: true
+ *                       createdAt: "2023-01-15T10:33:00Z"
+ *                       _count:
+ *                         users: 189
+ *                     - id: "cat-automotive-uuid"
+ *                       name: "Automotive"
+ *                       slug: "automotive"
+ *                       status: true
+ *                       createdAt: "2023-01-15T10:34:00Z"
+ *                       _count:
+ *                         users: 156
+ *                   total: 5
+ *                   limit: 5
+ *       400:
+ *         description: Bad request - invalid limit parameter
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalid_limit:
+ *                 summary: Invalid limit parameter
+ *                 value:
+ *                   status: fail
+ *                   statusCode: 400
+ *                   message: "Limit must be between 1 and 50"
+ *                   details: null
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               database_error:
+ *                 summary: Database connection error
+ *                 value:
+ *                   status: error
+ *                   statusCode: 500
+ *                   message: "Failed to fetch top categories"
+ *                   details: null
+ */
+router.get('/top', categoryController.getTopCategories);
+
+/**
+ * @swagger
  * /api/categories/{id}:
  *   get:
  *     summary: Get category by ID

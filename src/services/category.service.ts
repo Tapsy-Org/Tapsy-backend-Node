@@ -92,6 +92,79 @@ export const getActiveCategories = async () => {
   }
 };
 
+export const getCategoriesWithBusinessCount = async () => {
+  try {
+    return await prisma.category.findMany({
+      where: {
+        status: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        createdAt: true,
+        _count: {
+          select: {
+            users: {
+              where: {
+                user_type: 'BUSINESS',
+                user: {
+                  status: 'ACTIVE',
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+  } catch (error) {
+    throw new AppError('Failed to fetch categories with business count', 500, {
+      originalError: error,
+    });
+  }
+};
+
+export const getTopCategories = async (limit: number = 10) => {
+  try {
+    return await prisma.category.findMany({
+      where: {
+        status: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        createdAt: true,
+        _count: {
+          select: {
+            users: {
+              where: {
+                user_type: 'BUSINESS',
+                user: {
+                  status: 'ACTIVE',
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        users: {
+          _count: 'desc',
+        },
+      },
+      take: limit,
+    });
+  } catch (error) {
+    throw new AppError('Failed to fetch top categories', 500, { originalError: error });
+  }
+};
+
 export const getCategoryById = async (id: string) => {
   const category = await prisma.category.findUnique({
     where: { id },
