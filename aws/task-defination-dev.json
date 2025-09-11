@@ -143,6 +143,30 @@
         {
           "name": "FROM_EMAIL",
           "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/from_email-KzTlQn"
+        },
+        {
+          "name": "TTL_SEEN_DAYS",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/ttl_seen_days-tLrNvg"
+        },
+        {
+          "name": "REVIEW_APPROVAL_DELAY",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/review_approval_delay-janYGA"
+        },
+        {
+          "name": "TTL_OTP_MINUTES",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/ttl_otp_minutes-xskVEl"
+        },
+        {
+          "name": "TWILLIO_SID",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/twillio_sid-b7p9iT"
+        },
+        {
+          "name": "TWILLIO_AUTH_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/twillio_auth_token-fi18cI"
+        },
+        {
+          "name": "TWILLIO_NUM",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/twillio_num-xKmk3O"
         }
       ],
       "environment": [
@@ -282,6 +306,30 @@
         {
           "name": "FROM_EMAIL",
           "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/from_email-KzTlQn"
+        },
+        {
+          "name": "TTL_SEEN_DAYS",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/ttl_seen_days-tLrNvg"
+        },
+        {
+          "name": "REVIEW_APPROVAL_DELAY",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/review_approval_delay-janYGA"
+        },
+        {
+          "name": "TTL_OTP_MINUTES",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/ttl_otp_minutes-xskVEl"
+        },
+        {
+          "name": "TWILLIO_SID",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/twillio_sid-b7p9iT"
+        },
+        {
+          "name": "TWILLIO_AUTH_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/twillio_auth_token-fi18cI"
+        },
+        {
+          "name": "TWILLIO_NUM",
+          "valueFrom": "arn:aws:secretsmanager:us-west-1:029923774811:secret:backend/both/twillio_num-xKmk3O"
         }
       ],
       "environment": [
