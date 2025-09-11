@@ -1391,7 +1391,7 @@ router.get('/:reviewId', dataFetchLimiter, requireAuth(), ReviewController.getRe
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.put('/:reviewId', requireAuth(), ReviewController.updateReview);
+router.put('/:reviewId', requireAuth(), dataFetchLimiter, ReviewController.updateReview);
 
 /**
  * @swagger
@@ -1584,7 +1584,12 @@ router.get('/my/reviews', requireAuth(), ReviewController.getMyReviews);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewStatus);
+router.patch(
+  '/:reviewId/status',
+  requireAuth(),
+  dataFetchLimiter,
+  ReviewController.updateReviewStatus,
+);
 
 /**
  * @swagger
