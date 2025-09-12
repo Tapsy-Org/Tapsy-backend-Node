@@ -115,8 +115,8 @@ const upload = multer();
  */
 router.post(
   '/',
-  requireAuth('BUSINESS'),
   businessVideoLimiter,
+  requireAuth('BUSINESS'),
   upload.single('video'),
   BusinessVideoController.createBusinessVideo,
 );
