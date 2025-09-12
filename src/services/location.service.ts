@@ -19,16 +19,12 @@ export const createLocationForUser = async (userId: string, locationData: Create
         onboarding_step: 'COMPLETED',
       },
       select: {
-        id: true,
-        username: true,
-        name: true,
-        user_type: true,
         onboarding_step: true,
       },
     });
 
     return {
-      location,
+      ...location,
       onboardingStep: updatedUser.onboarding_step,
     };
   } catch {

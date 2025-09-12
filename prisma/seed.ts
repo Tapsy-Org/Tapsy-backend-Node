@@ -177,39 +177,8 @@ async function seedIndividualUsers() {
   return individualUsers;
 }
 
-async function seedAdminUsers() {
-  console.log('👑 Seeding admin users...');
-  
-  const adminUsers: any[] = [];
-  
-  for (let i = 0; i < 2; i++) {
-    try {
-      const adminUser = await prisma.user.create({
-        data: {
-          user_type: UserType.ADMIN,
-          mobile_number: `+1${faker.string.numeric(10)}`,
-          email: faker.internet.email(),
-          username: `admin_${faker.internet.username()}`,
-          name: faker.person.fullName(),
-          status: Status.ACTIVE as any,
-          last_login: faker.date.recent({ days: 7 }),
-          firebase_token: faker.string.uuid(),
-          otp_verified: true,
-          verification_method: faker.helpers.arrayElement([VerificationMethod.MOBILE, VerificationMethod.EMAIL]),
-          password: faker.internet.password(), // Admin users have passwords
-          about: 'System Administrator'
-        }
-      });
-      
-      adminUsers.push(adminUser);
-    } catch (error) {
-      console.log(`⚠️ Skipping admin user creation: ${error}`);
-    }
-  }
-  
-  console.log(`✅ Created ${adminUsers.length} admin users`);
-  return adminUsers;
-}
+
+
 
 async function assignCategoriesToUsers(businessUsers: any[], individualUsers: any[], categories: any[]) {
   for (const businessUser of businessUsers) {
@@ -891,8 +860,7 @@ async function main() {
     
     const businessUsers = await seedBusinessUsers();
     const individualUsers = await seedIndividualUsers();
-    const adminUsers = await seedAdminUsers();
-    const allUsers = [...businessUsers, ...individualUsers, ...adminUsers];
+    const allUsers = [...businessUsers, ...individualUsers];
     
     // Seed plans first (needed for subscriptions)
     const plans = await seedPlans();
@@ -947,7 +915,6 @@ async function main() {
     console.log(`   - Categories: ${await prisma.category.count()}`);
     console.log(`   - Business Users: ${businessUsers.length}`);
     console.log(`   - Individual Users: ${individualUsers.length}`);
-    console.log(`   - Admin Users: ${adminUsers.length}`);
     console.log(`   - User Categories: ${await prisma.userCategory.count()}`);
     console.log(`   - Locations: ${await prisma.location.count()}`);
     console.log(`   - Reviews: ${await prisma.review.count()}`);

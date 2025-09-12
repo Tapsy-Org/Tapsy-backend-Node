@@ -223,9 +223,7 @@ const router = Router();
  *                 data:
  *                   type: object
  *                   properties:
- *                     location:
  *                       type: object
- *                       description: Created location object
  *                       properties:
  *                         id:
  *                           type: string
@@ -258,10 +256,10 @@ const router = Router();
  *                           type: string
  *                           format: date-time
  *                           example: "2025-09-09T10:15:30.000Z"
- *                     onboardingStep:
- *                       type: string
- *                       enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
- *                       example: "COMPLETED"
+ *                         onboardingStep:
+ *                          type: string
+ *                          enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *                          example: "COMPLETED"
  *       400:
  *         description: Bad request - validation error
  *       401:

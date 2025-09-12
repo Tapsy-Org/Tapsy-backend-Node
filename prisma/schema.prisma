@@ -131,7 +131,6 @@ model User {
 
   // Business Only
   email               String?            @unique 
-  video_url           String?
   website             String?
   rating_sum   Int    @default(0)
   review_count Int    @default(0)
