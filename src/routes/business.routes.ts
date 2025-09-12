@@ -1098,4 +1098,246 @@ router.get('/:businessId', dataFetchLimiter, requireAuth(), BusinessController.g
  */
 router.get('/stats', dataFetchLimiter, requireAuth(), BusinessController.getBusinessStats);
 
+/**
+ * @swagger
+ * /api/businesses/nearby:
+ *   post:
+ *     summary: Get nearby businesses
+ *     description: |
+ *       **📍 Location-Based Business Discovery**
+ *       Find businesses within a specified radius of a given location.
+ *       Perfect for "near me" functionality and location-based recommendations.
+ *       **🚀 Features:**
+ *       - **Radius-based Search**: Find businesses within specified distance
+ *       - **Distance Sorting**: Results automatically sorted by proximity
+ *       - **Category Filtering**: Optional category-based filtering
+ *       - **Rating Filtering**: Optional minimum rating threshold
+ *       - **Real-time Results**: Live data from your business database
+ *       **💡 Use Cases:**
+ *       - "Near me" search functionality
+ *       - Location-based recommendations
+ *       - Map-based business discovery
+ *       - Travel and tourism apps
+ *       - Local business finder
+ *     tags: [Businesses]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - latitude
+ *               - longitude
+ *             properties:
+ *               latitude:
+ *                 type: number
+ *                 minimum: -90
+ *                 maximum: 90
+ *                 description: User's latitude coordinate
+ *                 example: 40.7128
+ *               longitude:
+ *                 type: number
+ *                 minimum: -180
+ *                 maximum: 180
+ *                 description: User's longitude coordinate
+ *                 example: -74.0060
+ *               radius:
+ *                 type: integer
+ *                 minimum: 100
+ *                 maximum: 50000
+ *                 description: Search radius in meters
+ *                 example: 2000
+ *                 default: 5000
+ *               categoryIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 description: Optional category IDs to filter by
+ *                 example: ["cat-restaurant-uuid", "cat-cafe-uuid"]
+ *               rating:
+ *                 type: number
+ *                 minimum: 1
+ *                 maximum: 5
+ *                 description: Optional minimum rating filter
+ *                 example: 4.0
+ *               limit:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 100
+ *                 description: Maximum number of results to return
+ *                 example: 20
+ *                 default: 20
+ *           examples:
+ *             basic_nearby:
+ *               summary: Basic nearby search
+ *               value:
+ *                 latitude: 40.7128
+ *                 longitude: -74.0060
+ *                 radius: 2000
+ *                 limit: 15
+ *             filtered_nearby:
+ *               summary: Filtered nearby search
+ *               value:
+ *                 latitude: 40.7589
+ *                 longitude: -73.9851
+ *                 radius: 1000
+ *                 categoryIds: ["cat-restaurant-uuid"]
+ *                 rating: 4.0
+ *                 limit: 10
+ *             wide_search:
+ *               summary: Wide area search
+ *               value:
+ *                 latitude: 40.7505
+ *                 longitude: -73.9934
+ *                 radius: 10000
+ *                 limit: 50
+ *     responses:
+ *       200:
+ *         description: Nearby businesses fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Nearby businesses fetched successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     businesses:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/BusinessResult'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                           example: 1
+ *                         limit:
+ *                           type: integer
+ *                           example: 20
+ *                         total:
+ *                           type: integer
+ *                           example: 15
+ *                         totalPages:
+ *                           type: integer
+ *                           example: 1
+ *                     filters:
+ *                       type: object
+ *                       properties:
+ *                         location:
+ *                           type: object
+ *                           properties:
+ *                             latitude:
+ *                               type: number
+ *                             longitude:
+ *                               type: number
+ *                             radius:
+ *                               type: integer
+ *                         rating:
+ *                           type: number
+ *                         categoryIds:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *             examples:
+ *               successful_nearby:
+ *                 summary: Successful nearby search
+ *                 value:
+ *                   status: success
+ *                   message: "Nearby businesses fetched successfully"
+ *                   data:
+ *                     businesses:
+ *                       - id: "business-uuid-1"
+ *                         username: "nearby_cafe"
+ *                         name: "Corner Coffee Shop"
+ *                         logo_url: "https://example.com/logo.jpg"
+ *                         rating: 4.5
+ *                         ratingCount: 89
+ *                         distance: 250
+ *                         categories:
+ *                           - category:
+ *                               id: "cat-cafe-uuid"
+ *                               name: "Cafes"
+ *                         locations:
+ *                           - address: "123 Main St, New York, NY"
+ *                             latitude: 40.7128
+ *                             longitude: -74.0060
+ *                       - id: "business-uuid-2"
+ *                         username: "pizza_place"
+ *                         name: "Mario's Pizza"
+ *                         logo_url: "https://example.com/pizza.jpg"
+ *                         rating: 4.2
+ *                         ratingCount: 156
+ *                         distance: 450
+ *                         categories:
+ *                           - category:
+ *                               id: "cat-restaurant-uuid"
+ *                               name: "Restaurants"
+ *                         locations:
+ *                           - address: "456 Broadway, New York, NY"
+ *                             latitude: 40.7505
+ *                             longitude: -73.9934
+ *                     pagination:
+ *                       page: 1
+ *                       limit: 20
+ *                       total: 15
+ *                       totalPages: 1
+ *                     filters:
+ *                       location:
+ *                         latitude: 40.7128
+ *                         longitude: -74.0060
+ *                         radius: 2000
+ *       400:
+ *         description: Bad request - invalid parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               missing_coordinates:
+ *                 summary: Missing latitude or longitude
+ *                 value:
+ *                   status: fail
+ *                   statusCode: 400
+ *                   message: "Latitude and longitude are required"
+ *                   details: null
+ *               invalid_coordinates:
+ *                 summary: Invalid coordinates
+ *                 value:
+ *                   status: fail
+ *                   statusCode: 400
+ *                   message: "Invalid latitude or longitude"
+ *                   details: null
+ *               invalid_radius:
+ *                 summary: Invalid radius
+ *                 value:
+ *                   status: fail
+ *                   statusCode: 400
+ *                   message: "Radius must be between 100 and 50000 meters"
+ *                   details: null
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/nearby', dataFetchLimiter, requireAuth(), BusinessController.getNearbyBusinesses);
+
 export default router;
