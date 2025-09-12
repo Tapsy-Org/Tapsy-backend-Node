@@ -1,4 +1,4 @@
-import { CategoryAudience } from '@prisma/client';
+import { CategoryAudience, Status } from '@prisma/client';
 
 import prisma from '../config/db';
 import AppError from '../utils/AppError';
@@ -6,7 +6,7 @@ import AppError from '../utils/AppError';
 export const createCategory = async (data: {
   name: string;
   slug: string;
-  status: boolean;
+  status: Status;
   audience: CategoryAudience;
   sort_order: number;
 }) => {
@@ -74,7 +74,7 @@ export const getActiveCategories = async () => {
   try {
     return await prisma.category.findMany({
       where: {
-        status: true, // Only get active categories
+        status: Status.ACTIVE, // Only get active categories
       },
       select: {
         id: true,

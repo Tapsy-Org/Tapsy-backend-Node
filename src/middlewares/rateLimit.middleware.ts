@@ -19,6 +19,10 @@ export const followToggleLimiter = createLimiter(
 );
 export const searchLimiter = createLimiter(100, 'Too many search requests from this IP.');
 export const dataFetchLimiter = createLimiter(100, 'Too many requests from this IP.');
+export const businessVideoLimiter = createLimiter(
+  100,
+  'Too many business video requests from this IP.',
+);
 export const likeToggleLimiter = createLimiter(100, 'Too many like/unlike requests from this IP.');
 export const commentLimiter = createLimiter(30, 'Too many comment requests from this IP.');
 export const reviewLimiter = createLimiter(20, 'Too many review requests from this IP.');

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import adminRouter from './admin.routes';
+import businessVideoRouter from './businessvideo.routes';
 import businessRouter from './business.routes';
 import categoryRouter from './category.routes';
 import followRouter from './follow.routes';
@@ -17,6 +18,7 @@ const mainRouter = Router();
 
 mainRouter.use('/', welcomeRouter);
 mainRouter.use('/admin', adminRouter);
+mainRouter.use('/business-videos', businessVideoRouter);
 mainRouter.use('/businesses', businessRouter);
 mainRouter.use('/categories', categoryRouter);
 mainRouter.use('/follow', followRouter);
