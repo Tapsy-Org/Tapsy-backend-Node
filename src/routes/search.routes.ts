@@ -615,7 +615,7 @@ router.post('/businesses', dataFetchLimiter, requireAuth(), SearchController.sea
  *                   statusCode: 500
  *                   message: "Redis cache temporarily unavailable"
  */
-router.get('/recent', requireAuth(), SearchController.getRecentSearches);
+router.get('/recent', dataFetchLimiter, requireAuth(), SearchController.getRecentSearches);
 
 /**
  * @swagger
@@ -672,7 +672,7 @@ router.get('/recent', requireAuth(), SearchController.getRecentSearches);
  *                     pagination:
  *                       type: object
  */
-router.get('/history', requireAuth(), SearchController.getSearchHistory);
+router.get('/history', dataFetchLimiter, requireAuth(), SearchController.getSearchHistory);
 
 /**
  * @swagger
@@ -786,6 +786,6 @@ router.get('/history', requireAuth(), SearchController.getSearchHistory);
  *                   statusCode: 500
  *                   message: "Redis cache temporarily unavailable"
  */
-router.delete('/recent', requireAuth(), SearchController.clearRecentSearches);
+router.delete('/recent', dataFetchLimiter, requireAuth(), SearchController.clearRecentSearches);
 
 export default router;
