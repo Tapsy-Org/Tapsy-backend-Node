@@ -1,8 +1,8 @@
 import { Router } from 'express';
 
 import adminRouter from './admin.routes';
-import businessVideoRouter from './businessvideo.routes';
 import businessRouter from './business.routes';
+import businessVideoRouter from './businessvideo.routes';
 import categoryRouter from './category.routes';
 import followRouter from './follow.routes';
 import locationRouter from './location.routes';
