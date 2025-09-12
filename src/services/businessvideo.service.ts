@@ -1,6 +1,7 @@
 import { BusinessVideo, Prisma, Status } from '@prisma/client';
 
 import prisma from '../config/db';
+import AppError from '../utils/AppError';
 
 export class BusinessVideoService {
   async createBusinessVideo(data: {
@@ -55,14 +56,36 @@ export class BusinessVideoService {
     };
   }
 
-  async updateBusinessVideo(id: string, businessVideo: BusinessVideo) {
+  async updateBusinessVideo(id: string, updateData: Partial<BusinessVideo>, businessId: string) {
+    const existingBusinessVideo = await prisma.businessVideo.findUnique({ where: { id } });
+    if (!existingBusinessVideo) {
+      throw new AppError('Business video not found', 404);
+    }
+    if (existingBusinessVideo.businessId !== businessId) {
+      throw new AppError('You can only update your own business videos', 403);
+    }
     return await prisma.businessVideo.update({
       where: { id },
-      data: businessVideo,
+      data: updateData,
     });
   }
 
-  async deleteBusinessVideo(id: string) {
+  async deleteBusinessVideo(id: string, userId: string, user_type: string) {
+    const businessVideo = await prisma.businessVideo.findUnique({
+      where: {
+        id,
+        status: Status.ACTIVE,
+      },
+    });
+
+    if (!businessVideo) {
+      throw new AppError('Business video not found', 404);
+    }
+
+    if (businessVideo?.businessId !== userId && user_type !== 'ADMIN') {
+      throw new AppError('You can only delete your own business videos', 403);
+    }
+
     return await prisma.businessVideo.delete({
       where: { id },
     });
