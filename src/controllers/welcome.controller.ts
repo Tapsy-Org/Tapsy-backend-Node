@@ -12,7 +12,7 @@ export const getWelcomeData = async (_req: Request, res: Response, next: NextFun
     }
 
     // Use reusable signed URL generator
-    const videoUrl = await generateSignedUrl('14192082_1920_1080_25fps.mp4');
+    const videoUrl = await generateSignedUrl('14192082_1920_1080_25fps.mp4 ');
 
     return res.success(
       {
