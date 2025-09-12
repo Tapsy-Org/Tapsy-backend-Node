@@ -205,6 +205,49 @@ const options = {
             totalPages: { type: 'integer' },
           },
         },
+        BusinessVideo: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            businessId: { type: 'string', format: 'uuid' },
+            title: { type: 'string' },
+            caption: { type: 'string', nullable: true },
+            hashtags: { 
+              type: 'array', 
+              items: { type: 'string' } 
+            },
+            video_url: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+          required: ['id', 'businessId', 'title', 'hashtags', 'video_url', 'createdAt', 'updatedAt'],
+        },
+        CreateBusinessVideoRequest: {
+          type: 'object',
+          properties: {
+            title: { 
+              type: 'string', 
+              description: 'Title of the business video',
+              example: 'Our Amazing Product Demo'
+            },
+            caption: { 
+              type: 'string', 
+              description: 'Optional caption for the video',
+              example: 'Check out our latest product in action!'
+            },
+            hashtags: { 
+              type: 'string', 
+              description: 'Comma-separated hashtags or array of hashtags',
+              example: 'product,demo,amazing,business'
+            },
+            video: { 
+              type: 'string', 
+              format: 'binary',
+              description: 'Video file to upload'
+            },
+          },
+          required: ['title', 'hashtags', 'video'],
+        },
       },
     },
     servers: [

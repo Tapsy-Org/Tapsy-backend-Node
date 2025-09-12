@@ -1,4 +1,4 @@
-import { PrismaClient, CategoryAudience, NotificationType, NotificationStatus, SupportStatus, BillingCycle, SubscriptionStatus, PaymentMethod } from '@prisma/client';
+import { PrismaClient, CategoryAudience, NotificationType, NotificationStatus, SupportStatus, BillingCycle, SubscriptionStatus, PaymentMethod, UserType, Status, VerificationMethod, LocationType, ReviewRating, OnboardingStep } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 
 // Node.js globals for seeding
@@ -55,6 +55,7 @@ async function clearDatabase() {
   // Delete in reverse order of dependencies
   await prisma.like.deleteMany();
   await prisma.comment.deleteMany();
+  await prisma.reviewFeedback.deleteMany();
   await prisma.review.deleteMany();
   await prisma.businessVideo.deleteMany();
   await prisma.message.deleteMany();
@@ -68,6 +69,8 @@ async function clearDatabase() {
   await prisma.follow.deleteMany();
   await prisma.user.deleteMany();
   await prisma.category.deleteMany();
+  await prisma.qRCode.deleteMany();
+  await prisma.setting.deleteMany();
   
   console.log('✅ Database cleared successfully');
 }
@@ -76,9 +79,9 @@ async function seedCategories() {
   console.log('🌱 Seeding categories...');
   
   const allCategories = [
-    ...businessCategories.map(name => ({ name, audience: 'BUSINESS' as CategoryAudience })),
-    ...individualCategories.map(name => ({ name, audience: 'INDIVIDUAL' as CategoryAudience })),
-    ...bothCategories.map(name => ({ name, audience: 'BOTH' as CategoryAudience }))
+    ...businessCategories.map(name => ({ name, audience: CategoryAudience.BUSINESS })),
+    ...individualCategories.map(name => ({ name, audience: CategoryAudience.INDIVIDUAL })),
+    ...bothCategories.map(name => ({ name, audience: CategoryAudience.BOTH }))
   ];
 
   for (let i = 0; i < allCategories.length; i++) {
@@ -92,9 +95,10 @@ async function seedCategories() {
         name: category.name,
         slug,
         audience: category.audience,
-        status: true,
-        sort_order: i + 1
-      }
+        status: faker.helpers.arrayElement([Status.ACTIVE, Status.ACTIVE, Status.ACTIVE, Status.INACTIVE]) as any,
+        sort_order: i + 1,
+        icon: faker.helpers.arrayElement([faker.image.urlLoremFlickr({ category: 'icon' }), null]) as any
+      } as any
     });
   }
   
@@ -111,20 +115,22 @@ async function seedBusinessUsers() {
     try {
       const businessUser = await prisma.user.create({
         data: {
-          user_type: 'BUSINESS',
+          user_type: UserType.BUSINESS,
           mobile_number: `+1${faker.string.numeric(10)}`,
           email: faker.internet.email(),
           username: faker.company.name(),
           name: faker.company.name(),
-          status: faker.helpers.arrayElement(['ACTIVE', 'ACTIVE', 'ACTIVE', 'PENDING']), // Mostly active
+          status: faker.helpers.arrayElement([Status.ACTIVE, Status.ACTIVE, Status.ACTIVE, Status.PENDING]) as any, // Mostly active
           last_login: faker.date.recent({ days: 30 }),
           firebase_token: faker.string.uuid(),
           otp_verified: true,
-          verification_method: faker.helpers.arrayElement(['MOBILE', 'EMAIL']),
+          verification_method: faker.helpers.arrayElement([VerificationMethod.MOBILE, VerificationMethod.EMAIL]),
           website: faker.internet.url(),
           about: faker.company.catchPhrase(),
           logo_url: faker.image.urlLoremFlickr({ category: 'business' }),
-          video_url: faker.helpers.arrayElement([faker.image.urlLoremFlickr({ category: 'video' }), null])
+          video_url: faker.helpers.arrayElement([faker.image.urlLoremFlickr({ category: 'video' }), null]),
+          rating_sum: faker.number.int({ min: 0, max: 500 }),
+          review_count: faker.number.int({ min: 0, max: 100 })
         }
       });
       
@@ -139,7 +145,7 @@ async function seedBusinessUsers() {
 }
 
 async function seedIndividualUsers() {
-  console.log('Seeding individual users...');
+  console.log('👤 Seeding individual users...');
   
   const individualUsers: any[] = [];
   
@@ -147,18 +153,17 @@ async function seedIndividualUsers() {
     try {
       const individualUser = await prisma.user.create({
         data: {
-          user_type: 'INDIVIDUAL',
+          user_type: UserType.INDIVIDUAL,
           mobile_number: `+1${faker.string.numeric(10)}`,
-          email: faker.internet.email(),
           username: faker.internet.username(),
           name: faker.person.fullName(),
-          status: faker.helpers.arrayElement(['ACTIVE', 'ACTIVE', 'ACTIVE', 'PENDING']), // Mostly active
+          status: faker.helpers.arrayElement([Status.ACTIVE, Status.ACTIVE, Status.ACTIVE, Status.PENDING]) as any, // Mostly active
           last_login: faker.date.recent({ days: 30 }),
           firebase_token: faker.string.uuid(),
           otp_verified: true,
-          verification_method: faker.helpers.arrayElement(['MOBILE', 'EMAIL']),
+          verification_method: faker.helpers.arrayElement([VerificationMethod.MOBILE, VerificationMethod.EMAIL]),
           about: faker.person.bio(),
-          video_url: faker.helpers.arrayElement([faker.image.urlLoremFlickr({ category: 'video' }), null])
+          onboarding_step: faker.helpers.arrayElement([OnboardingStep.REGISTERED, OnboardingStep.CATEGORY, OnboardingStep.LOCATION, OnboardingStep.COMPLETED])
         }
       });
       
@@ -172,10 +177,44 @@ async function seedIndividualUsers() {
   return individualUsers;
 }
 
+async function seedAdminUsers() {
+  console.log('👑 Seeding admin users...');
+  
+  const adminUsers: any[] = [];
+  
+  for (let i = 0; i < 2; i++) {
+    try {
+      const adminUser = await prisma.user.create({
+        data: {
+          user_type: UserType.ADMIN,
+          mobile_number: `+1${faker.string.numeric(10)}`,
+          email: faker.internet.email(),
+          username: `admin_${faker.internet.username()}`,
+          name: faker.person.fullName(),
+          status: Status.ACTIVE as any,
+          last_login: faker.date.recent({ days: 7 }),
+          firebase_token: faker.string.uuid(),
+          otp_verified: true,
+          verification_method: faker.helpers.arrayElement([VerificationMethod.MOBILE, VerificationMethod.EMAIL]),
+          password: faker.internet.password(), // Admin users have passwords
+          about: 'System Administrator'
+        }
+      });
+      
+      adminUsers.push(adminUser);
+    } catch (error) {
+      console.log(`⚠️ Skipping admin user creation: ${error}`);
+    }
+  }
+  
+  console.log(`✅ Created ${adminUsers.length} admin users`);
+  return adminUsers;
+}
+
 async function assignCategoriesToUsers(businessUsers: any[], individualUsers: any[], categories: any[]) {
   for (const businessUser of businessUsers) {
     const businessCategories = categories.filter(cat => 
-      cat.audience === 'BUSINESS' || cat.audience === 'BOTH'
+      cat.audience === CategoryAudience.BUSINESS || cat.audience === CategoryAudience.BOTH
     );
     
     const selectedCategories = faker.helpers.arrayElements(
@@ -193,7 +232,7 @@ async function assignCategoriesToUsers(businessUsers: any[], individualUsers: an
             subcategories: faker.helpers.arrayElements([
               'Premium', 'Standard', 'Basic', 'Enterprise'
             ], faker.number.int({ min: 1, max: 3 })),
-            user_type: 'BUSINESS'
+            user_type: UserType.BUSINESS
           }
         });
       } catch (error) {
@@ -205,7 +244,7 @@ async function assignCategoriesToUsers(businessUsers: any[], individualUsers: an
   // Assign categories to individual users
   for (const individualUser of individualUsers) {
     const individualCategories = categories.filter(cat => 
-      cat.audience === 'INDIVIDUAL' || cat.audience === 'BOTH'
+      cat.audience === CategoryAudience.INDIVIDUAL || cat.audience === CategoryAudience.BOTH
     );
     
     const selectedCategories = faker.helpers.arrayElements(
@@ -223,7 +262,7 @@ async function assignCategoriesToUsers(businessUsers: any[], individualUsers: an
             subcategories: faker.helpers.arrayElements([
               'Beginner', 'Intermediate', 'Advanced', 'Expert'
             ], faker.number.int({ min: 1, max: 2 })),
-            user_type: 'INDIVIDUAL'
+            user_type: UserType.INDIVIDUAL
           }
         });
       } catch (error) {
@@ -236,7 +275,7 @@ async function assignCategoriesToUsers(businessUsers: any[], individualUsers: an
 }
 
 async function seedLocations(users: any[]) {
-  console.log('Seeding user locations...');
+  console.log('📍 Seeding user locations...');
   
   for (const user of users) {
     const locationCount = faker.number.int({ min: 1, max: 2 });
@@ -249,7 +288,12 @@ async function seedLocations(users: any[]) {
             latitude: faker.location.latitude(),
             longitude: faker.location.longitude(),
             location: faker.location.streetAddress(),
-            location_type: faker.helpers.arrayElement(['HOME', 'WORK', 'OTHER'])
+            address: faker.location.streetAddress(),
+            zip_code: faker.location.zipCode(),
+            city: faker.location.city(),
+            state: faker.location.state(),
+            country: faker.location.country(),
+            location_type: faker.helpers.arrayElement([LocationType.HOME, LocationType.WORK, LocationType.OTHER])
           }
         });
       } catch (error) {
@@ -262,10 +306,10 @@ async function seedLocations(users: any[]) {
 }
 
 async function seedReviews(users: any[]) {
-  console.log('Seeding reviews...');
+  console.log('⭐ Seeding reviews...');
   
-  const businessUsers = users.filter(user => user.user_type === 'BUSINESS');
-  const individualUsers = users.filter(user => user.user_type === 'INDIVIDUAL');
+  const businessUsers = users.filter(user => user.user_type === UserType.BUSINESS);
+  const individualUsers = users.filter(user => user.user_type === UserType.INDIVIDUAL);
   const allReviews: any[] = [];
   
   if (businessUsers.length === 0 || individualUsers.length === 0) {
@@ -284,7 +328,7 @@ async function seedReviews(users: any[]) {
         const review = await prisma.review.create({
           data: {
             userId: reviewer.id, // This is the user who CREATED the review
-            rating: faker.helpers.arrayElement(['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE']),
+            rating: faker.helpers.arrayElement([ReviewRating.ONE, ReviewRating.TWO, ReviewRating.THREE, ReviewRating.FOUR, ReviewRating.FIVE]),
             badges: faker.helpers.arrayElement(['Verified', 'Top Reviewer', 'Helpful', null]),
             caption: faker.lorem.sentence(),
             hashtags: faker.helpers.arrayElements([
@@ -293,7 +337,8 @@ async function seedReviews(users: any[]) {
             title: faker.lorem.words(3),
             video_url: faker.helpers.arrayElement([faker.image.urlLoremFlickr({ category: 'video' }), null]),
             businessId: businessUser.id, // This is the business being reviewed
-            views: faker.number.int({ min: 0, max: 1000 })
+            views: faker.number.int({ min: 0, max: 1000 }),
+            status: faker.helpers.arrayElement([Status.ACTIVE, Status.ACTIVE, Status.ACTIVE, Status.INACTIVE]) as any as any
           }
         });
         allReviews.push(review);
@@ -307,11 +352,37 @@ async function seedReviews(users: any[]) {
   return allReviews;
 }
 
-async function seedFollows(users: any[]) {
-  console.log('Seeding follows...');
+async function seedReviewFeedback(reviews: any[]) {
+  console.log('💬 Seeding review feedback...');
   
-  const individualUsers = users.filter(user => user.user_type === 'INDIVIDUAL');
-  const businessUsers = users.filter(user => user.user_type === 'BUSINESS');
+  let feedbackCount = 0;
+  
+  for (const review of reviews) {
+    // Only create feedback for some reviews
+    if (faker.datatype.boolean({ probability: 0.3 })) {
+      try {
+        await prisma.reviewFeedback.create({
+          data: {
+            reviewId: review.id,
+            feedback: faker.lorem.paragraph(),
+            is_resolved: faker.datatype.boolean()
+          }
+        });
+        feedbackCount++;
+      } catch (error) {
+        console.log(`⚠️ Skipping review feedback creation: ${error}`);
+      }
+    }
+  }
+  
+  console.log(`✅ Created ${feedbackCount} review feedback entries`);
+}
+
+async function seedFollows(users: any[]) {
+  console.log('👥 Seeding follows...');
+  
+  const individualUsers = users.filter(user => user.user_type === UserType.INDIVIDUAL);
+  const businessUsers = users.filter(user => user.user_type === UserType.BUSINESS);
   let totalFollows = 0;
   const followData: { followerId: string; followingUserId: string }[] = [];
   
@@ -381,7 +452,7 @@ async function seedPlans() {
       billingCycle: BillingCycle.MONTHLY,
       features: ['Basic listing', 'Up to 5 reviews', 'Standard support'],
       limits: ['5 reviews per month', 'Basic analytics'],
-      status: true,
+      status: Status.ACTIVE as any,
       sort_order: 1,
       stripe_price_id: 'price_basic_monthly',
       is_popular: false,
@@ -393,7 +464,7 @@ async function seedPlans() {
       billingCycle: BillingCycle.MONTHLY,
       features: ['Enhanced listing', 'Unlimited reviews', 'Priority support', 'Advanced analytics'],
       limits: ['Unlimited reviews', 'Advanced analytics', 'Priority support'],
-      status: true,
+      status: Status.ACTIVE as any,
       sort_order: 2,
       stripe_price_id: 'price_professional_monthly',
       is_popular: true,
@@ -405,7 +476,7 @@ async function seedPlans() {
       billingCycle: BillingCycle.MONTHLY,
       features: ['Premium listing', 'Unlimited everything', '24/7 support', 'Custom integrations'],
       limits: ['Unlimited everything', 'Custom integrations', '24/7 support'],
-      status: true,
+      status: Status.ACTIVE as any,
       sort_order: 3,
       stripe_price_id: 'price_enterprise_monthly',
       is_popular: false,
@@ -439,18 +510,18 @@ async function seedSubscriptions(businessUsers: any[], plans: any[]) {
     endDate.setMonth(endDate.getMonth() + 1);
     
     try {
-              await prisma.subscription.create({
-          data: {
-            businessId: businessUser.id,
-            planId: plan.id,
-            status: faker.helpers.arrayElement([SubscriptionStatus.ACTIVE, SubscriptionStatus.ACTIVE, SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL, SubscriptionStatus.PAST_DUE]),
-            starts_at: startDate,
-            ends_at: endDate,
-            trial_ends_at: plan.trial_days > 0 ? new Date(startDate.getTime() + plan.trial_days * 24 * 60 * 60 * 1000) : null,
-            cancelled_at: faker.helpers.arrayElement([null, null, null, faker.date.recent({ days: 10 })]),
-            payment_method: faker.helpers.arrayElement([PaymentMethod.STRIPE, PaymentMethod.RAZORPAY, PaymentMethod.CARD])
-          }
-        });
+      await prisma.subscription.create({
+        data: {
+          businessId: businessUser.id,
+          planId: plan.id,
+          status: faker.helpers.arrayElement([SubscriptionStatus.ACTIVE, SubscriptionStatus.ACTIVE, SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL, SubscriptionStatus.PAST_DUE]),
+          starts_at: startDate,
+          ends_at: endDate,
+          trial_ends_at: plan.trial_days > 0 ? new Date(startDate.getTime() + plan.trial_days * 24 * 60 * 60 * 1000) : null,
+          cancelled_at: faker.helpers.arrayElement([null, null, null, faker.date.recent({ days: 10 })]),
+          payment_method: faker.helpers.arrayElement([PaymentMethod.STRIPE, PaymentMethod.RAZORPAY, PaymentMethod.CARD])
+        }
+      });
     } catch (error) {
       console.log(`⚠️ Skipping subscription creation for business ${businessUser.id}: ${error}`);
     }
@@ -570,8 +641,8 @@ async function seedComments(users: any[], reviews: any[]) {
 async function seedMessages(users: any[]) {
   console.log('💌 Seeding messages...');
   
-  const individualUsers = users.filter(user => user.user_type === 'INDIVIDUAL');
-  const businessUsers = users.filter(user => user.user_type === 'BUSINESS');
+  const individualUsers = users.filter(user => user.user_type === UserType.INDIVIDUAL);
+  const businessUsers = users.filter(user => user.user_type === UserType.BUSINESS);
   
   // Individual to individual messages
   for (const user of individualUsers) {
@@ -591,7 +662,7 @@ async function seedMessages(users: any[]) {
           data: {
             senderId: user.id,
             receiverId: recipient.id,
-            sender_type: 'INDIVIDUAL',
+            sender_type: UserType.INDIVIDUAL,
             text: faker.lorem.sentence(),
             is_read: faker.datatype.boolean()
           }
@@ -620,7 +691,7 @@ async function seedMessages(users: any[]) {
           data: {
             senderId: user.id,
             receiverId: business.id,
-            sender_type: 'INDIVIDUAL',
+            sender_type: UserType.INDIVIDUAL,
             text: faker.lorem.sentence(),
             is_read: faker.datatype.boolean()
           }
@@ -645,6 +716,11 @@ async function seedBusinessVideos(businessUsers: any[]) {
         await prisma.businessVideo.create({
           data: {
             businessId: business.id,
+            title: faker.lorem.words(3),
+            caption: faker.lorem.sentence(),
+            hashtags: faker.helpers.arrayElements([
+              '#business', '#professional', '#quality', '#service', '#expert'
+            ], faker.number.int({ min: 1, max: 3 })),
             video_url: faker.image.urlLoremFlickr({ category: 'video' })
           }
         });
@@ -668,7 +744,9 @@ async function seedNotifications(users: any[]) {
         await prisma.notification.create({
           data: {
             userId: user.id,
+            senderId: faker.helpers.arrayElement([null, faker.helpers.arrayElement(users).id]),
             type: faker.helpers.arrayElement([NotificationType.SYSTEM, NotificationType.LIKE, NotificationType.COMMENT, NotificationType.FOLLOW, NotificationType.MESSAGE, NotificationType.MENTION]),
+            referenceId: faker.helpers.arrayElement([null, faker.string.uuid()]),
             title: faker.lorem.words(3),
             content: faker.lorem.sentence(),
             image_url: faker.helpers.arrayElement([faker.image.urlLoremFlickr({ category: 'notification' }), null]),
@@ -723,7 +801,7 @@ async function seedRecentSearches(users: any[]) {
         await prisma.recentSearch.create({
           data: {
             userId: user.id,
-            status: faker.helpers.arrayElement(['ACTIVE', 'INACTIVE']),
+            status: faker.helpers.arrayElement([Status.ACTIVE, Status.INACTIVE]) as any,
             searchText: faker.helpers.arrayElement([
               'restaurants near me',
               'best coffee shops',
@@ -747,6 +825,62 @@ async function seedRecentSearches(users: any[]) {
   console.log('✅ Recent searches created successfully');
 }
 
+async function seedSettings() {
+  console.log('⚙️ Seeding settings...');
+  
+  const settingsData = [
+    { key: 'app_name', value: 'Tapsy' },
+    { key: 'app_version', value: '1.0.0' },
+    { key: 'max_file_size', value: '10485760' }, // 10MB in bytes
+    { key: 'allowed_file_types', value: 'jpg,jpeg,png,mp4,mov' },
+    { key: 'max_reviews_per_user', value: '100' },
+    { key: 'max_follows_per_user', value: '1000' },
+    { key: 'notification_retention_days', value: '30' },
+    { key: 'search_history_retention_days', value: '90' }
+  ];
+
+  for (const setting of settingsData) {
+    try {
+      await prisma.setting.upsert({
+        where: { key: setting.key },
+        update: { value: setting.value },
+        create: setting
+      });
+    } catch (error) {
+      console.log(`⚠️ Skipping setting creation: ${error}`);
+    }
+  }
+  
+  console.log('✅ Settings created successfully');
+}
+
+async function seedQRCodes() {
+  console.log('📱 Seeding QR codes...');
+  
+  const qrCodes = [
+    { name: 'App Store Download', image_url: faker.image.urlLoremFlickr({ category: 'qr' }) },
+    { name: 'Google Play Download', image_url: faker.image.urlLoremFlickr({ category: 'qr' }) },
+    { name: 'Website Link', image_url: faker.image.urlLoremFlickr({ category: 'qr' }) },
+    { name: 'Contact Info', image_url: faker.image.urlLoremFlickr({ category: 'qr' }) }
+  ];
+
+  for (const qrCode of qrCodes) {
+    try {
+      await prisma.qRCode.create({
+        data: {
+          name: qrCode.name,
+          image_url: qrCode.image_url,
+          status: faker.helpers.arrayElement([Status.ACTIVE, Status.ACTIVE, Status.ACTIVE, Status.INACTIVE]) as any
+        }
+      });
+    } catch (error) {
+      console.log(`⚠️ Skipping QR code creation: ${error}`);
+    }
+  }
+  
+  console.log('✅ QR codes created successfully');
+}
+
 async function main() {
   try {
     console.log('Starting seeding process...');
@@ -757,7 +891,8 @@ async function main() {
     
     const businessUsers = await seedBusinessUsers();
     const individualUsers = await seedIndividualUsers();
-    const allUsers = [...businessUsers, ...individualUsers];
+    const adminUsers = await seedAdminUsers();
+    const allUsers = [...businessUsers, ...individualUsers, ...adminUsers];
     
     // Seed plans first (needed for subscriptions)
     const plans = await seedPlans();
@@ -770,6 +905,9 @@ async function main() {
     
     // Seed reviews (returns reviews for likes and comments)
     const reviews = await seedReviews(allUsers);
+    
+    // Seed review feedback
+    await seedReviewFeedback(reviews);
     
     // Seed follows
     await seedFollows(allUsers);
@@ -798,14 +936,22 @@ async function main() {
     // Seed recent searches
     await seedRecentSearches(allUsers);
     
+    // Seed settings
+    await seedSettings();
+    
+    // Seed QR codes
+    await seedQRCodes();
+    
     console.log('All seeding completed successfully!');
     console.log(`Summary:`);
     console.log(`   - Categories: ${await prisma.category.count()}`);
     console.log(`   - Business Users: ${businessUsers.length}`);
     console.log(`   - Individual Users: ${individualUsers.length}`);
+    console.log(`   - Admin Users: ${adminUsers.length}`);
     console.log(`   - User Categories: ${await prisma.userCategory.count()}`);
     console.log(`   - Locations: ${await prisma.location.count()}`);
     console.log(`   - Reviews: ${await prisma.review.count()}`);
+    console.log(`   - Review Feedback: ${await prisma.reviewFeedback.count()}`);
     console.log(`   - Follows: ${await prisma.follow.count()}`);
     console.log(`   - Plans: ${await prisma.plan.count()}`);
     console.log(`   - Subscriptions: ${await prisma.subscription.count()}`);
@@ -816,6 +962,8 @@ async function main() {
     console.log(`   - Notifications: ${await prisma.notification.count()}`);
     console.log(`   - Support Tickets: ${await prisma.supportTicket.count()}`);
     console.log(`   - Recent Searches: ${await prisma.recentSearch.count()}`);
+    console.log(`   - Settings: ${await prisma.setting.count()}`);
+    console.log(`   - QR Codes: ${await prisma.qRCode.count()}`);
     
   } catch (error) {
     console.error('❌ Error during seeding:', error);

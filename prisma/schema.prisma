@@ -106,10 +106,10 @@ enum SupportStatus {
 
 // ---------- Core ----------
 model User {
+  // Both
   id                  String             @id @default(uuid()) @db.Uuid
   user_type           UserType
   mobile_number       String?            @unique
-  email               String?            @unique 
   username            String             @unique
   name                String?
   status              Status
@@ -122,12 +122,22 @@ model User {
   otp                 String?
   refresh_token       String?
   otp_expiry          DateTime?
-  password            String?            // For admin users
-  website             String?
   about               String?
   logo_url            String?
   video_url           String?
   onboarding_step     OnboardingStep?    @default(REGISTERED)
+
+  // User Only
+
+  // Business Only
+  email               String?            @unique 
+  video_url           String?
+  website             String?
+  rating_sum   Int    @default(0)
+  review_count Int    @default(0)
+
+  // Admin Only
+  password            String?            // For admin users
   
   // Relations
   categories       UserCategory[]
@@ -162,8 +172,9 @@ model Category {
   name       String
   slug       String           @unique
   audience   CategoryAudience
-  status     Boolean
+  status     Status
   sort_order Int
+  icon       String?  
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 
@@ -230,6 +241,7 @@ model Review {
   businessId String?      @db.Uuid
   views      Int          @default(0)
   createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
   status     Status       @default(ACTIVE)
   
   feedback   ReviewFeedback?
@@ -277,6 +289,7 @@ model Comment {
   comment           String
   parent_comment_id String?  @db.Uuid
   createdAt         DateTime @default(now())
+  status            Status   @default(ACTIVE)
 
   review  Review    @relation(fields: [reviewId], references: [id])
   user    User      @relation(fields: [userId], references: [id])
@@ -311,6 +324,8 @@ model Message {
   text        String
   is_read     Boolean  @default(false)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  status      Status   @default(ACTIVE)
 
   sender   User @relation("MessagesSent", fields: [senderId], references: [id])
   receiver User @relation("MessagesReceived", fields: [receiverId], references: [id])
@@ -321,13 +336,18 @@ model Message {
 
 // ---------- Business Media ----------
 model BusinessVideo {
-  id         String   @id @default(uuid()) @db.Uuid
-  businessId String   @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
+  businessId String    @db.Uuid
+  title      String
+  caption    String?   // optional caption
+  hashtags   String[]  // array of hashtags
   video_url  String
-  createdAt  DateTime @default(now())
-
-  business User @relation(fields: [businessId], references: [id])
-
+  status     Status    @default(ACTIVE)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+ 
+  business   User      @relation(fields: [businessId], references: [id])
+ 
   @@index([businessId, createdAt(sort: Desc)])
 }
 
@@ -375,7 +395,7 @@ model SupportTicket {
 model RecentSearch {
   id         String   @id @default(uuid()) @db.Uuid
   userId     String   @db.Uuid
-  status     String
+  status     Status
   searchText String
   createdAt  DateTime @default(now())
 
@@ -401,7 +421,7 @@ model Plan {
   billingCycle    BillingCycle
   features        String[]
   limits          String[]
-  status          Boolean
+  status          Status
   sort_order      Int
   stripe_price_id String
   is_popular      Boolean      @default(false)
