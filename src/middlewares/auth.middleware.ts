@@ -5,7 +5,9 @@ import { AuthRequest } from '../types/express';
 import AppError from '../utils/AppError';
 import AuthTokens from '../utils/token';
 
-export const requireAuth = (role?: 'ADMIN' | 'BUSINESS' | 'INDIVIDUAL') => {
+type Role = 'ADMIN' | 'BUSINESS' | 'INDIVIDUAL';
+
+export const requireAuth = (...roles: Role[]) => {
   return async (req: AuthRequest, _res: Response, next: NextFunction) => {
     try {
       const authHeader = req.headers.authorization;
@@ -30,8 +32,8 @@ export const requireAuth = (role?: 'ADMIN' | 'BUSINESS' | 'INDIVIDUAL') => {
         throw new AppError('User not found or inactive', 401);
       }
 
-      // If role is specified, enforce it
-      if (role && user.user_type !== role) {
+      // If roles are specified, enforce them
+      if (roles.length > 0 && !roles.includes(user.user_type)) {
         throw new AppError('Access denied: insufficient permissions', 403);
       }
 

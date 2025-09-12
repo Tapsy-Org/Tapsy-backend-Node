@@ -2,6 +2,8 @@ import { Status } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 
 import { BusinessVideoService } from '../services/businessvideo.service';
+import { AuthRequest } from '../types/express';
+import AppError from '../utils/AppError';
 import { uploadFileToS3 } from '../utils/s3';
 const businessVideoService = new BusinessVideoService();
 
@@ -84,13 +86,71 @@ export default class BusinessVideoController {
     }
   }
 
-  static async updateBusinessVideo(req: Request, res: Response) {
-    const businessVideo = await businessVideoService.updateBusinessVideo(req.params.id, req.body);
-    res.status(200).json(businessVideo);
+  static async updateBusinessVideo(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const businessVideoId = req.params.id;
+      const businessId = req.user?.userId;
+      const updateData = req.body;
+
+      if (!businessVideoId || !businessId || !updateData) {
+        throw new AppError('Invalid request', 400);
+      }
+
+      // Validate status if provided
+      if (updateData.status) {
+        const validStatus = ['ACTIVE', 'INACTIVE', 'DELETED'];
+        if (!validStatus.includes(updateData.status)) {
+          throw new AppError('Invalid status value', 400);
+        }
+      }
+
+      // Handle video file upload if provided
+      if (req.file) {
+        const { buffer, originalname, mimetype } = req.file;
+        const { publicUrl } = await uploadFileToS3(
+          buffer,
+          originalname,
+          mimetype,
+          'gallery',
+          businessId,
+        );
+        updateData.video_url = publicUrl;
+      }
+
+      // Convert hashtags string to array if necessary
+      if (updateData.hashtags) {
+        updateData.hashtags = Array.isArray(updateData.hashtags)
+          ? updateData.hashtags
+          : updateData.hashtags.split(',').map((tag: string) => tag.trim());
+      }
+
+      // Trim title and caption
+      if (updateData.title) updateData.title = updateData.title.trim();
+      if (updateData.caption) updateData.caption = updateData.caption.trim();
+
+      // Call service to update
+      const updatedBusinessVideo = await businessVideoService.updateBusinessVideo(
+        businessVideoId,
+        updateData,
+        businessId,
+      );
+
+      res.success(updatedBusinessVideo, 'Business video updated successfully');
+    } catch (error) {
+      next(error);
+    }
   }
 
-  static async deleteBusinessVideo(req: Request, res: Response) {
-    const businessVideo = await businessVideoService.deleteBusinessVideo(req.params.id);
-    res.status(200).json(businessVideo);
+  static async deleteBusinessVideo(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const businessVideoId = req.params.id;
+      const { userId, user_type } = req.user!;
+
+      await businessVideoService.deleteBusinessVideo(businessVideoId, userId, user_type);
+
+      res.success('Business video deleted successfully');
+    } catch (error) {
+      next(error);
+    }
   }
 }

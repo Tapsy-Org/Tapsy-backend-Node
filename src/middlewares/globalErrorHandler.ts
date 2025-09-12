@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import multer from 'multer';
 
 import AppError from '../utils/AppError';
 
@@ -27,9 +28,41 @@ const handleGenericError = (err: Error, res: Response) => {
   });
 };
 
+const handleMulterError = (err: multer.MulterError, res: Response) => {
+  console.error('[MulterError]', { message: err.message, code: err.code });
+
+  let message = 'File upload error';
+  let statusCode = 400;
+
+  switch (err.code) {
+    case 'LIMIT_FILE_SIZE':
+      message = 'File too large. Maximum size is 100MB';
+      break;
+    case 'LIMIT_FILE_COUNT':
+      message = 'Too many files uploaded';
+      break;
+    case 'LIMIT_UNEXPECTED_FILE':
+      message = 'Unexpected field name. Expected field name: video';
+      break;
+    default:
+      message = err.message;
+  }
+
+  res.status(statusCode).json({
+    status: 'fail',
+    statusCode,
+    message,
+    details: null,
+  });
+};
+
 const globalErrorHandler = (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof AppError) {
     return handleAppError(err, res);
+  }
+
+  if (err instanceof Error && 'code' in err && err.code === 'LIMIT_UNEXPECTED_FILE') {
+    return handleMulterError(err as multer.MulterError, res);
   }
 
   if (err instanceof Error) {

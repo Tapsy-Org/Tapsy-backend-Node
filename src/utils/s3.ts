@@ -112,7 +112,6 @@ export async function uploadFileToS3(
 
     // Generate the public URL
     const publicUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
-    console.log(`File uploaded successfully to S3 at ${key}`);
     return { key, publicUrl };
   } catch (error) {
     console.error('Failed to upload file to S3:', error);
