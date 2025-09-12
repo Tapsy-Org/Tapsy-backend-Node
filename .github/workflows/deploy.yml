@@ -75,7 +75,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: ${{ steps.render-dev-task.outputs.task-definition }}
+          task-definition: ${{ steps.render-dev-task.outputs.task_definition_path }}
           service: backend-dev-service
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
@@ -85,9 +85,7 @@ jobs:
         if: github.ref == 'refs/heads/production'
         id: render-prod-task
         run: |
-          # Use sed to replace the placeholder in the task definition file
           sed -i 's|IMAGE_PLACEHOLDER|${{ steps.build-image.outputs.image }}|g' aws/task-defination-prod.json
-          # Output the path to the modified file so the next step can use it
           echo "task_definition_path=aws/task-defination-prod.json" >> $GITHUB_OUTPUT
 
 
@@ -95,7 +93,7 @@ jobs:
         if: github.ref == 'refs/heads/production'
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: ${{ steps.render-prod-task.outputs.task-definition }}
+          task-definition: ${{ steps.render-prod-task.outputs.task_definition_path }}
           service: backend-prod-service
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
