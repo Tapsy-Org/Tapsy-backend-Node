@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import { type Prisma, Status } from '@prisma/client';
 
 import prisma from '../config/db';
 import AppError from '../utils/AppError';
@@ -92,7 +92,7 @@ export class SearchService {
       await prisma.recentSearch.create({
         data: {
           userId,
-          status: 'COMPLETED',
+          status: Status.ACTIVE,
           searchText: query,
         },
       });

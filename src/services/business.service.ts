@@ -2,8 +2,60 @@ import type { Prisma } from '@prisma/client';
 
 import prisma from '../config/db';
 import AppError from '../utils/AppError';
+import {
+  type GoogleMapsLocation,
+  GoogleMapsService,
+  type GooglePlaceResult,
+} from './googlemaps.service';
+
+// Type definitions for better type safety
+interface BusinessLocation {
+  id: string;
+  address: string | null;
+  latitude: number;
+  longitude: number;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+}
+
+interface BusinessCategory {
+  category: {
+    id: string;
+    name: string;
+  };
+}
+
+interface BusinessWithDetails {
+  id: string;
+  username: string;
+  name: string | null;
+  logo_url: string | null;
+  about: string | null;
+  email: string | null;
+  website: string | null;
+  video_url?: string | null;
+  rating_sum: number;
+  review_count: number;
+  createdAt?: Date;
+  categories: BusinessCategory[];
+  locations: BusinessLocation[];
+  _count: {
+    businessReviews: number;
+    followers: number;
+    businessVideos?: number;
+  };
+  rating: number | null;
+  ratingCount: number;
+  distance?: number | null;
+}
 
 export class BusinessService {
+  private googleMapsService: GoogleMapsService;
+
+  constructor() {
+    this.googleMapsService = new GoogleMapsService();
+  }
   /**
    * Get businesses by category with optional filters
    */
@@ -153,19 +205,19 @@ export class BusinessService {
       ]);
 
       // Calculate distance and rating for each business
-      const businessesWithDetails = businesses.map((business) => {
+      const businessesWithDetails: BusinessWithDetails[] = businesses.map((business) => {
         const rating =
           business.review_count > 0
             ? Number((business.rating_sum / business.review_count).toFixed(1))
             : null;
 
-        let distance = null;
-        if (filters.location && (business as any).locations && (business as any).locations[0]) {
+        let distance: number | null = null;
+        if (filters.location && business.locations && business.locations[0]) {
           distance = this.calculateDistance(
             filters.location.latitude,
             filters.location.longitude,
-            (business as any).locations[0].latitude,
-            (business as any).locations[0].longitude,
+            business.locations[0].latitude,
+            business.locations[0].longitude,
           );
         }
 
@@ -282,68 +334,55 @@ export class BusinessService {
   }
 
   /**
-   * Search businesses using Google Places API
+   * Search businesses using Google Places API via GoogleMapsService
    */
   async searchGooglePlaces(
     query: string,
     location?: { latitude: number; longitude: number; radius?: number },
-  ) {
+  ): Promise<GooglePlaceResult[]> {
     try {
-      const googleMapsKey = process.env.GOOGLE_API_KEY;
-      if (!googleMapsKey) {
-        throw new AppError('Google Maps API key not configured', 500);
-      }
-
-      let url: URL;
-
       if (location) {
-        // Use Nearby Search for location-based queries
-        url = new URL('https://maps.googleapis.com/maps/api/place/nearbysearch/json');
-        url.searchParams.set('location', `${location.latitude},${location.longitude}`);
-        url.searchParams.set('radius', (location.radius || 5000).toString());
-        url.searchParams.set('keyword', query);
-      } else {
-        // Use Text Search for general queries
-        url = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
-        url.searchParams.set('query', query);
-      }
-
-      url.searchParams.set('key', googleMapsKey);
-      url.searchParams.set('type', 'establishment');
-
-      const response = await fetch(url.toString());
-      const data = await response.json();
-
-      if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-        console.error('Google Places API error:', data.error_message);
-        throw new AppError('Google Places API error', 500, { details: data.error_message });
-      }
-
-      return (
-        data.results?.map((place: any) => ({
-          place_id: place.place_id,
-          name: place.name,
-          formatted_address: place.formatted_address,
-          rating: place.rating || null,
-          user_ratings_total: place.user_ratings_total || 0,
-          price_level: place.price_level || null,
-          types: place.types || [],
-          geometry: place.geometry,
-          photos:
-            place.photos?.map((photo: any) => ({
-              photo_reference: photo.photo_reference,
-              width: photo.width,
-              height: photo.height,
-              html_attributions: photo.html_attributions,
-            })) || [],
-          opening_hours: place.opening_hours
+        // Use nearby search when location is provided
+        const googleLocation: GoogleMapsLocation = {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          radius: location.radius || 5000,
+        };
+        const results = await this.googleMapsService.searchNearbyBusinesses(query, googleLocation);
+        // Convert SearchBusinessResult to GooglePlaceResult format
+        return results.map((result) => ({
+          place_id: result.place_id || '',
+          name: result.name || '',
+          formatted_address: result.locations[0]?.address,
+          rating: result.google_rating || result.rating || undefined,
+          user_ratings_total: result.google_rating_count || result.ratingCount,
+          price_level: undefined,
+          types: result.categories.map((cat) => cat.category.name),
+          geometry: result.locations[0]
             ? {
-                open_now: place.opening_hours.open_now,
-                weekday_text: place.opening_hours.weekday_text,
+                location: {
+                  lat: result.locations[0].latitude,
+                  lng: result.locations[0].longitude,
+                },
               }
-            : null,
-        })) || []
-      );
+            : undefined,
+          photos: result.logo_url
+            ? [
+                {
+                  photo_reference: result.logo_url,
+                  width: 400,
+                  height: 400,
+                  html_attributions: [],
+                },
+              ]
+            : [],
+          opening_hours: undefined,
+          vicinity: result.locations[0]?.address,
+        }));
+      } else {
+        // Use text search when no location is provided
+        return await this.googleMapsService.searchBusinessesByText(query);
+      }
     } catch (error) {
       if (error instanceof AppError) {
         throw error;
@@ -484,21 +523,10 @@ export class BusinessService {
   }
 
   /**
-   * Calculate distance between two coordinates using Haversine formula
+   * Calculate distance between two coordinates using GoogleMapsService
    */
   private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371000; // Earth's radius in meters
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c;
-    return Math.round(distance); // Return distance in meters
+    return this.googleMapsService.calculateDistance(lat1, lon1, lat2, lon2);
   }
 
   /**

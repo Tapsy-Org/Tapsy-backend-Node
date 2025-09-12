@@ -96,7 +96,7 @@ export const getCategoriesWithBusinessCount = async () => {
   try {
     return await prisma.category.findMany({
       where: {
-        status: true,
+        status: 'ACTIVE',
       },
       select: {
         id: true,
@@ -132,7 +132,7 @@ export const getTopCategories = async (limit: number = 10) => {
   try {
     return await prisma.category.findMany({
       where: {
-        status: true,
+        status: 'ACTIVE',
       },
       select: {
         id: true,

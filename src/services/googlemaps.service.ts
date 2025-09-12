@@ -1,5 +1,45 @@
 import AppError from '../utils/AppError';
 
+// Google Places API Response Types
+interface GooglePlacePhoto {
+  photo_reference: string;
+  width: number;
+  height: number;
+  html_attributions: string[];
+}
+
+interface GooglePlaceOpeningHours {
+  open_now?: boolean;
+  weekday_text?: string[];
+}
+
+interface GooglePlaceGeometry {
+  location: {
+    lat: number;
+    lng: number;
+  };
+}
+
+interface GooglePlaceRawData {
+  place_id: string;
+  name: string;
+  formatted_address?: string;
+  rating?: number;
+  user_ratings_total?: number;
+  price_level?: number;
+  types?: string[];
+  geometry?: GooglePlaceGeometry;
+  photos?: GooglePlacePhoto[];
+  opening_hours?: GooglePlaceOpeningHours;
+  vicinity?: string;
+}
+
+interface GooglePlacesApiResponse {
+  status: string;
+  results?: GooglePlaceRawData[];
+  error_message?: string;
+}
+
 export interface GoogleMapsLocation {
   latitude: number;
   longitude: number;
@@ -107,7 +147,7 @@ export class GoogleMapsService {
       url.searchParams.set('type', 'establishment');
 
       const response = await fetch(url.toString());
-      const data = await response.json();
+      const data: GooglePlacesApiResponse = await response.json();
 
       if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
         console.error('Google Maps API error:', data.error_message);
@@ -136,7 +176,7 @@ export class GoogleMapsService {
       url.searchParams.set('type', 'establishment');
 
       const response = await fetch(url.toString());
-      const data = await response.json();
+      const data: GooglePlacesApiResponse = await response.json();
 
       if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
         console.error('Google Places API error:', data.error_message);
@@ -172,17 +212,17 @@ export class GoogleMapsService {
   /**
    * Format Google Places result for consistent API response
    */
-  private formatPlaceResult = (place: any): GooglePlaceResult => ({
+  private formatPlaceResult = (place: GooglePlaceRawData): GooglePlaceResult => ({
     place_id: place.place_id || '',
     name: place.name || '',
     formatted_address: place.formatted_address,
-    rating: place.rating || null,
+    rating: place.rating || undefined,
     user_ratings_total: place.user_ratings_total || 0,
-    price_level: place.price_level || null,
+    price_level: place.price_level || undefined,
     types: place.types || [],
     geometry: place.geometry,
     photos:
-      place.photos?.map((photo: any) => ({
+      place.photos?.map((photo: GooglePlacePhoto) => ({
         photo_reference: photo.photo_reference,
         width: photo.width,
         height: photo.height,
@@ -200,14 +240,12 @@ export class GoogleMapsService {
   /**
    * Format Google Places results to match local business format for search
    */
-  private formatSearchResults(places: any[]): SearchBusinessResult[] {
+  private formatSearchResults(places: GooglePlaceRawData[]): SearchBusinessResult[] {
     return places.slice(0, 10).map((place) => ({
       id: `google_${place.place_id}`,
       name: place.name,
-      username: (place.name as string)?.toLowerCase().replace(/\s+/g, '_') || 'unknown',
-      logo_url: (place.photos as any[])?.[0]
-        ? this.getPhotoUrl((place.photos as any[])[0].photo_reference, 400)
-        : null,
+      username: place.name?.toLowerCase().replace(/\s+/g, '_') || 'unknown',
+      logo_url: place.photos?.[0] ? this.getPhotoUrl(place.photos[0].photo_reference, 400) : null,
       about: null,
       email: null,
       website: null,
@@ -261,7 +299,21 @@ export class GoogleMapsService {
       } else {
         // Use text search when no location is provided
         const results = await this.searchBusinessesByText(query);
-        return this.formatSearchResults(results as any);
+        // Convert GooglePlaceResult[] to GooglePlaceRawData[] for formatSearchResults
+        const rawData: GooglePlaceRawData[] = results.map((result) => ({
+          place_id: result.place_id,
+          name: result.name,
+          formatted_address: result.formatted_address,
+          rating: result.rating,
+          user_ratings_total: result.user_ratings_total,
+          price_level: result.price_level,
+          types: result.types,
+          geometry: result.geometry,
+          photos: result.photos,
+          opening_hours: result.opening_hours,
+          vicinity: result.vicinity,
+        }));
+        return this.formatSearchResults(rawData);
       }
     } catch (error) {
       console.error('Google Maps search error:', error);
