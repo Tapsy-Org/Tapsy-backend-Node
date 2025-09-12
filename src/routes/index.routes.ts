@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import adminRouter from './admin.routes';
+import businessRouter from './business.routes';
 import businessVideoRouter from './businessvideo.routes';
 import categoryRouter from './category.routes';
 import followRouter from './follow.routes';
@@ -8,6 +9,7 @@ import locationRouter from './location.routes';
 import notificationRouter from './notification.routes';
 import reviewRouter from './review.routes';
 import reviewInteractionRouter from './ReviewInteraction.routes';
+import searchRouter from './search.routes';
 import userRouter from './user.routes';
 import userCategoryRouter from './UserCategory.routes';
 import welcomeRouter from './welcome.routes';
@@ -17,6 +19,7 @@ const mainRouter = Router();
 mainRouter.use('/', welcomeRouter);
 mainRouter.use('/admin', adminRouter);
 mainRouter.use('/business-videos', businessVideoRouter);
+mainRouter.use('/businesses', businessRouter);
 mainRouter.use('/categories', categoryRouter);
 mainRouter.use('/follow', followRouter);
 mainRouter.use('/users', userRouter);
@@ -25,6 +28,7 @@ mainRouter.use('/locations', locationRouter);
 mainRouter.use('/notifications', notificationRouter);
 mainRouter.use('/reviews', reviewRouter);
 mainRouter.use('/review-interactions', reviewInteractionRouter);
+mainRouter.use('/search', searchRouter);
 // // Add user-subcategories as an alias to user-categories for backwards compatibility
 // mainRouter.use('/user-subcategories', userCategoryRouter);
 

@@ -181,6 +181,14 @@ export class RedisService {
   }
 
   /**
+   * Get Redis client connection
+   * @returns Redis client instance
+   */
+  async connect() {
+    return await this.redis.connect();
+  }
+
+  /**
    * Health check for Redis connection
    * @returns Boolean indicating if Redis is connected
    */
@@ -192,6 +200,72 @@ export class RedisService {
     } catch (error) {
       console.error('Redis health check failed:', error);
       return false;
+    }
+  }
+
+  // ============ SEARCH RELATED METHODS ============
+
+  /**
+   * Save search query to Redis ZSET for recent searches
+   * @param userId - The user ID
+   * @param query - Search query
+   * @param maxRecentSearches - Maximum number of recent searches to keep (default: 10)
+   */
+  async saveRecentSearch(userId: string, query: string, maxRecentSearches = 10): Promise<void> {
+    try {
+      const client = await this.redis.connect();
+      const key = `recent_searches:${userId}`;
+      const timestamp = Date.now();
+
+      // Add search to sorted set with current timestamp as score
+      await client.zAdd(key, { score: timestamp, value: query });
+
+      // Keep only the most recent searches (trim to max limit)
+      await client.zRemRangeByRank(key, 0, -(maxRecentSearches + 1));
+
+      // Set TTL for the key (30 days)
+      await client.expire(key, 30 * 24 * 60 * 60);
+
+      console.log(`Saved recent search for user ${userId}: ${query}`);
+    } catch (error) {
+      console.error('Error saving recent search to Redis:', error);
+      // Don't throw error as this is not critical
+    }
+  }
+
+  /**
+   * Get recent searches for a user from Redis
+   * @param userId - The user ID
+   * @returns Array of recent search queries
+   */
+  async getRecentSearches(userId: string): Promise<string[]> {
+    try {
+      const client = await this.redis.connect();
+      const key = `recent_searches:${userId}`;
+
+      // Get all searches ordered by most recent first
+      const searches = await client.zRange(key, 0, -1, { REV: true });
+      return searches || [];
+    } catch (error) {
+      console.error('Error getting recent searches from Redis:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Clear recent searches for a user
+   * @param userId - The user ID
+   */
+  async clearRecentSearches(userId: string): Promise<void> {
+    try {
+      const client = await this.redis.connect();
+      const key = `recent_searches:${userId}`;
+
+      await client.del(key);
+      console.log(`Cleared recent searches for user ${userId}`);
+    } catch (error) {
+      console.error('Error clearing recent searches:', error);
+      throw new AppError('Failed to clear recent searches', 500, { originalError: error });
     }
   }
 }
