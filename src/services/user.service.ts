@@ -1,5 +1,5 @@
 // Local type aliases to avoid dependency on generated Prisma types at lint time
-import type { Prisma, UserType } from '@prisma/client';
+import type { Prisma, Status, UserType } from '@prisma/client';
 import bcryptjs from 'bcryptjs';
 
 import prisma from '../config/db';
@@ -43,7 +43,7 @@ export class UserService {
       // Check for existing user with the same mobile or email
       if (data.mobile_number) {
         const existingUser = await prisma.user.findUnique({
-          where: { mobile_number: data.mobile_number },
+          where: { mobile_number: data.mobile_number, status: { not: 'PENDING' } },
         });
         if (existingUser) {
           throw new AppError('User with this mobile number already exists', 409);
@@ -52,7 +52,7 @@ export class UserService {
 
       if (data.email) {
         const existingUser = await prisma.user.findUnique({
-          where: { email: data.email },
+          where: { email: data.email, status: { not: 'PENDING' } },
         });
         if (existingUser) {
           throw new AppError('User with this email already exists', 409);
@@ -88,7 +88,7 @@ export class UserService {
     user_type?: UserType;
     mobile_number?: string;
     email?: string;
-
+    status?: Status;
     website?: string;
     about?: string;
     logo_url?: string;
@@ -121,7 +121,7 @@ export class UserService {
 
       // Check for existing username
       const existingUserByUsername = await prisma.user.findFirst({
-        where: { username: data.username },
+        where: { username: data.username, status: { not: 'PENDING' } },
       });
       if (existingUserByUsername) {
         throw new AppError('Username already exists', 409);
@@ -130,7 +130,7 @@ export class UserService {
       // Check for existing email if provided
       if (data.email) {
         const existingUserByEmail = await prisma.user.findUnique({
-          where: { email: data.email },
+          where: { email: data.email, status: { not: 'PENDING' } },
         });
         if (existingUserByEmail) {
           throw new AppError('Email already exists', 409);
@@ -140,7 +140,7 @@ export class UserService {
       // Check for existing mobile number if provided
       if (data.mobile_number) {
         const existingUserByMobile = await prisma.user.findUnique({
-          where: { mobile_number: data.mobile_number },
+          where: { mobile_number: data.mobile_number, status: { not: 'PENDING' } },
         });
         if (existingUserByMobile) {
           throw new AppError('Mobile number already exists', 409);

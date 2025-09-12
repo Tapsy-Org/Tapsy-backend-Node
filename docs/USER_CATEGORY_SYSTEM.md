@@ -86,12 +86,7 @@ Authorization: Bearer <access_token>
     "subcategories": ["Web Development", "Mobile Apps", "UI/UX Design"],
     "user_type": "BUSINESS",
     "createdAt": "2024-01-01T00:00:00.000Z",
-    "category": {
-      "id": "category-uuid-456",
-      "name": "Technology & IT",
-      "slug": "technology-it",
-      "audience": "BUSINESS"
-    }
+    "onboardingg:"Location"
   }
 }
 ```

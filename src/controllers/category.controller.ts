@@ -68,3 +68,32 @@ export const deleteCategory = async (req: Request, res: Response, next: NextFunc
     next(error);
   }
 };
+
+export const getCategoriesWithBusinessCount = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const categories = await categoryService.getCategoriesWithBusinessCount();
+    res.success(categories, 'Categories with business count fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getTopCategories = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { limit = 10 } = req.query;
+    const limitNum = parseInt(limit as string) || 10;
+
+    if (limitNum < 1 || limitNum > 50) {
+      return res.fail('Limit must be between 1 and 50', 400);
+    }
+
+    const categories = await categoryService.getTopCategories(limitNum);
+    res.success(categories, 'Top categories fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};

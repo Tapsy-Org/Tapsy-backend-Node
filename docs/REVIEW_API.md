@@ -96,7 +96,9 @@ curl -X POST http://localhost:3000/api/reviews \
         "id": "business-uuid-123",
         "username": "restaurant_name",
         "user_type": "BUSINESS",
-        "logo_url": "https://example.com/logo.png"
+        "logo_url": "https://example.com/logo.png",
+        "rating": 4.2,
+        "ratingCount": 25
       }
     }
   }
@@ -248,7 +250,9 @@ curl -H "Authorization: Bearer <business_access_token>" \
           "id": "business-uuid-123",
           "username": "restaurant_name",
           "user_type": "BUSINESS",
-          "logo_url": "https://example.com/logo.png"
+          "logo_url": "https://example.com/logo.png",
+          "rating": 4.2,
+          "ratingCount": 25
         },
         "likes": [
           {
@@ -280,7 +284,109 @@ curl -H "Authorization: Bearer <business_access_token>" \
 }
 ```
 
-### 6. Delete Review
+### 6. Update Review
+
+**PUT** `/reviews/:reviewId`
+
+Updates an existing review. Users can only update their own reviews. All fields are optional - only provided fields will be updated.
+
+**Headers:**
+- `Authorization: Bearer <access_token>` (required)
+- `Content-Type: application/json`
+
+**Body (JSON):**
+- `rating` (optional): Updated rating - ONE, TWO, THREE, FOUR, or FIVE
+- `badges` (optional): Updated badges string
+- `caption` (optional): Updated review caption/description
+- `hashtags` (optional): Updated array of hashtags or JSON string
+- `title` (optional): Updated review title
+- `feedbackText` (optional): Updated feedback text for bad reviews (when rating is ONE or TWO)
+
+**Important Notes:**
+- Users can only update their own reviews
+- Changing rating from 3-5 to 1-2 will set status to PENDING (requires approval)
+- Changing rating from 1-2 to 3-5 will set status to ACTIVE (immediately visible)
+- Business rating aggregates are automatically recalculated when rating changes
+- Video updates are not supported through this endpoint (use separate video upload)
+
+**Example Request (Update Rating):**
+```bash
+curl -X PUT http://localhost:3000/api/reviews/review-uuid-123 \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rating": "FOUR"
+  }'
+```
+
+**Example Request (Complete Update):**
+```bash
+curl -X PUT http://localhost:3000/api/reviews/review-uuid-123 \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rating": "FIVE",
+    "caption": "Amazing experience, highly recommend!",
+    "hashtags": ["#amazing", "#recommend", "#excellent"],
+    "title": "Outstanding Service",
+    "badges": "Verified Customer, Frequent Visitor"
+  }'
+```
+
+**Example Request (Bad Review Update):**
+```bash
+curl -X PUT http://localhost:3000/api/reviews/review-uuid-123 \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rating": "ONE",
+    "caption": "Very disappointed with the service",
+    "hashtags": ["#disappointed", "#poor", "#service"],
+    "title": "Poor Experience",
+    "feedbackText": "Service was extremely slow and staff was unhelpful. Food was cold when it arrived."
+  }'
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "Review updated successfully",
+  "data": {
+    "id": "review-uuid-123",
+    "userId": "user-uuid-123",
+    "rating": "FOUR",
+    "caption": "Updated review - still great experience!",
+    "hashtags": ["#updated", "#great", "#experience"],
+    "title": "Good Experience",
+    "badges": "Verified Customer",
+    "video_url": "https://s3.amazonaws.com/bucket/video.mp4",
+    "businessId": "business-uuid-123",
+    "views": 150,
+    "status": "ACTIVE",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-16T14:45:00Z",
+    "user": {
+      "id": "user-uuid-123",
+      "username": "john_doe",
+      "name": "John Doe",
+      "user_type": "INDIVIDUAL",
+      "logo_url": "https://example.com/avatar.jpg"
+    },
+    "business": {
+      "id": "business-uuid-123",
+      "username": "restaurant_name",
+      "name": "Restaurant Name",
+      "user_type": "BUSINESS",
+      "logo_url": "https://example.com/logo.jpg",
+      "rating": 4.3,
+      "ratingCount": 28
+    }
+  }
+}
+```
+
+### 7. Delete Review
 
 **DELETE** `/reviews/:reviewId`
 
@@ -308,6 +414,40 @@ curl -X DELETE \
 ```
 
 ## Error Responses
+
+### Update Review Specific Errors
+
+**403 Forbidden (User trying to update someone else's review):**
+```json
+{
+  "status": "fail",
+  "statusCode": 403,
+  "message": "You can only update your own reviews",
+  "details": null
+}
+```
+
+**400 Bad Request (Invalid rating):**
+```json
+{
+  "status": "fail",
+  "statusCode": 400,
+  "message": "Invalid rating value. Must be ONE, TWO, THREE, FOUR, or FIVE",
+  "details": null
+}
+```
+
+**400 Bad Request (Invalid hashtags):**
+```json
+{
+  "status": "fail",
+  "statusCode": 400,
+  "message": "Hashtags must be an array",
+  "details": null
+}
+```
+
+### General Error Responses
 
 ### 400 Bad Request
 ```json
@@ -420,6 +560,8 @@ interface UserSummary {
   username: string;
   user_type: 'INDIVIDUAL' | 'BUSINESS' | 'ADMIN';
   logo_url?: string;
+  rating?: number; // Business average rating (only for BUSINESS user_type)
+  ratingCount?: number; // Total number of reviews (only for BUSINESS user_type)
 }
 ```
 

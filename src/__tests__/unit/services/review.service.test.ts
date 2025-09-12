@@ -2,10 +2,20 @@ import prisma from '../../../config/db';
 import { ReviewService } from '../../../services/review.service';
 import AppError from '../../../utils/AppError';
 
+// Mock Redis Service
+jest.mock('../../../utils/redis', () => ({
+  RedisService: jest.fn().mockImplementation(() => ({
+    scheduleReviewApproval: jest.fn().mockResolvedValue(undefined),
+    getSeenReviewIds: jest.fn().mockResolvedValue([]),
+    markReviewAsSeen: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 // Mock Prisma
 jest.mock('../../../config/db', () => ({
   user: {
     findUnique: jest.fn(),
+    update: jest.fn(),
   },
   review: {
     create: jest.fn(),
@@ -23,6 +33,8 @@ jest.mock('../../../config/db', () => ({
   },
   reviewFeedback: {
     create: jest.fn(),
+    findFirst: jest.fn(),
+    update: jest.fn(),
   },
   $transaction: jest.fn(),
 }));
@@ -77,6 +89,7 @@ describe('ReviewService', () => {
         createdAt: new Date(),
       };
       mockPrisma.review.create.mockResolvedValue(mockCreatedReview as any);
+      mockPrisma.user.update.mockResolvedValue({} as any); // Mock business rating update
 
       const result = await reviewService.createReview(mockReviewData);
 
@@ -166,6 +179,7 @@ describe('ReviewService', () => {
         createdAt: new Date(),
       };
       mockPrisma.review.create.mockResolvedValue(mockCreatedReview as any);
+      mockPrisma.user.update.mockResolvedValue({} as any); // Mock business rating update
 
       await reviewService.createReview(lowRatingData);
 
@@ -219,6 +233,7 @@ describe('ReviewService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       } as any);
+      mockPrisma.user.update.mockResolvedValue({} as any); // Mock business rating update
 
       await reviewService.createReview(badReviewData);
 
@@ -269,6 +284,7 @@ describe('ReviewService', () => {
         createdAt: new Date(),
       };
       mockPrisma.review.create.mockResolvedValue(mockCreatedReview as any);
+      mockPrisma.user.update.mockResolvedValue({} as any); // Mock business rating update
 
       await reviewService.createReview(badReviewData);
 
@@ -287,8 +303,8 @@ describe('ReviewService', () => {
   describe('getReviews', () => {
     it('should fetch reviews with filters', async () => {
       const mockReviews = [
-        { id: 'review-1', rating: 'FIVE' },
-        { id: 'review-2', rating: 'FOUR' },
+        { id: 'review-1', rating: 'FIVE', business: null },
+        { id: 'review-2', rating: 'FOUR', business: null },
       ];
       const mockTotal = 2;
 
@@ -301,7 +317,10 @@ describe('ReviewService', () => {
         limit: 10,
       });
 
-      expect(result.reviews).toEqual(mockReviews);
+      expect(result.reviews).toEqual([
+        { id: 'review-1', rating: 'FIVE', business: null },
+        { id: 'review-2', rating: 'FOUR', business: null },
+      ]);
       expect(result.pagination.total).toBe(mockTotal);
       expect(result.pagination.page).toBe(1);
       expect(result.pagination.limit).toBe(10);
@@ -310,12 +329,12 @@ describe('ReviewService', () => {
 
   describe('getReviewById', () => {
     it('should fetch review by ID', async () => {
-      const mockReview = { id: 'review-123', rating: 'FIVE' };
+      const mockReview = { id: 'review-123', rating: 'FIVE', business: null };
       mockPrisma.review.findUnique.mockResolvedValue(mockReview as any);
 
       const result = await reviewService.getReviewById('review-123');
 
-      expect(result).toEqual(mockReview);
+      expect(result).toEqual({ id: 'review-123', rating: 'FIVE', business: null });
     });
 
     it('should throw error if review not found', async () => {

@@ -48,19 +48,40 @@ export class UserCategoryService {
       });
 
       await prisma.userCategory.createMany({ data: userCategoryData });
+
       // Advance onboarding for INDIVIDUAL users after selecting categories
-      await prisma.user.update({
+      const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
           // Only for individual users; business users do not track onboarding
           onboarding_step: user.user_type === 'INDIVIDUAL' ? 'LOCATION' : undefined,
         },
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          user_type: true,
+          onboarding_step: true,
+          categories: {
+            where: { categoryId: { in: newCategoryIds } },
+            include: {
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
+          },
+        },
       });
 
-      // Return only required fields
-      return await prisma.userCategory.findMany({
-        where: { userId, categoryId: { in: newCategoryIds } },
-      });
+      // Return user with onboarding step and categories
+      return {
+        user: updatedUser,
+        categories: updatedUser.categories,
+      };
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to add user categories and subcategories', 500, {

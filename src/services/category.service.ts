@@ -1,4 +1,4 @@
-import { CategoryAudience } from '@prisma/client';
+import { CategoryAudience, Status } from '@prisma/client';
 
 import prisma from '../config/db';
 import AppError from '../utils/AppError';
@@ -6,7 +6,7 @@ import AppError from '../utils/AppError';
 export const createCategory = async (data: {
   name: string;
   slug: string;
-  status: boolean;
+  status: Status;
   audience: CategoryAudience;
   sort_order: number;
 }) => {
@@ -74,7 +74,7 @@ export const getActiveCategories = async () => {
   try {
     return await prisma.category.findMany({
       where: {
-        status: true, // Only get active categories
+        status: Status.ACTIVE, // Only get active categories
       },
       select: {
         id: true,
@@ -89,6 +89,79 @@ export const getActiveCategories = async () => {
     });
   } catch (error) {
     throw new AppError('Failed to fetch active categories', 500, { originalError: error });
+  }
+};
+
+export const getCategoriesWithBusinessCount = async () => {
+  try {
+    return await prisma.category.findMany({
+      where: {
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        createdAt: true,
+        _count: {
+          select: {
+            users: {
+              where: {
+                user_type: 'BUSINESS',
+                user: {
+                  status: 'ACTIVE',
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+  } catch (error) {
+    throw new AppError('Failed to fetch categories with business count', 500, {
+      originalError: error,
+    });
+  }
+};
+
+export const getTopCategories = async (limit: number = 10) => {
+  try {
+    return await prisma.category.findMany({
+      where: {
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        createdAt: true,
+        _count: {
+          select: {
+            users: {
+              where: {
+                user_type: 'BUSINESS',
+                user: {
+                  status: 'ACTIVE',
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        users: {
+          _count: 'desc',
+        },
+      },
+      take: limit,
+    });
+  } catch (error) {
+    throw new AppError('Failed to fetch top categories', 500, { originalError: error });
   }
 };
 
