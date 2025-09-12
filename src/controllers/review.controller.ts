@@ -128,6 +128,7 @@ export default class ReviewController {
       const responseData = {
         id: review.id,
         video_url: review.video_url,
+        status: review.status,
       };
 
       return res.created(responseData, 'Review created successfully');
