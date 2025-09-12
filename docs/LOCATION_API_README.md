@@ -61,23 +61,24 @@ Creates a new location for the authenticated user.
 **Response:**
 ```json
 {
-  "status": "success",
-  "message": "Location created successfully",
-  "data": {
-    "id": "uuid",
-    "userId": "user_uuid",
-    "address": "123 Main Street",
-    "zip_code": "12345",
-    "latitude": 40.7128,
-    "longitude": -74.0060,
-    "location": "Downtown Office Building",
-    "location_type": "WORK",
-    "city": "New York",
-    "state": "NY",
-    "country": "USA",
-    "createdAt": "2024-01-01T00:00:00.000Z",
-    "updatedAt": "2024-01-01T00:00:00.000Z"
-  }
+    "status": "success",
+    "message": "Location created successfully",
+    "data": {
+        "id": "4455abac-d39d-4e46-a600-c4dbda3999c6",
+        "userId": "5b1870a7-5b63-4081-9916-e202ea268e4a",
+        "address": null,
+        "zip_code": null,
+        "latitude": 28.6139,
+        "longitude": 77.209,
+        "location": "123 Main Street",
+        "location_type": null,
+        "city": "New Delhi",
+        "state": "Delhi",
+        "country": "India",
+        "createdAt": "2025-09-12T16:58:51.554Z",
+        "updatedAt": "2025-09-12T16:58:51.554Z",
+        "onboardingStep": "COMPLETED"
+    }
 }
 ```
 

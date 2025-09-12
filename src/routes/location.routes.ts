@@ -148,6 +148,10 @@ const router = Router();
  * /api/locations:
  *   post:
  *     summary: Create a new location for the authenticated user
+ *     description: |
+ *       Creates a new location for the authenticated user.
+ *       The userId is taken from the bearer token, not from the request body.
+ *       After the first location is created, the user's onboarding_step is updated to **COMPLETED** (for INDIVIDUAL users).
  *     tags: [Locations]
  *     security:
  *       - bearerAuth: []
@@ -157,7 +161,7 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [location, latitude, longitude]
+ *             required: [latitude, longitude, location]
  *             properties:
  *               address:
  *                 type: string
@@ -208,31 +212,62 @@ const router = Router();
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Location created successfully
+ *                 data:
+ *                   type: object
  *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Location'
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           example: "location-uuid"
+ *                         userId:
+ *                           type: string
+ *                           example: "user-uuid"
+ *                         latitude:
+ *                           type: number
+ *                           example: 40.7128
+ *                         longitude:
+ *                           type: number
+ *                           example: -74.0060
+ *                         location:
+ *                           type: string
+ *                           example: "Downtown Office Building"
+ *                         location_type:
+ *                           type: string
+ *                           example: "WORK"
+ *                         city:
+ *                           type: string
+ *                           example: "New York"
+ *                         state:
+ *                           type: string
+ *                           example: "NY"
+ *                         country:
+ *                           type: string
+ *                           example: "USA"
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                           example: "2025-09-09T10:15:30.000Z"
+ *                         onboardingStep:
+ *                          type: string
+ *                          enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *                          example: "COMPLETED"
  *       400:
  *         description: Bad request - validation error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  *       401:
  *         description: Unauthorized - invalid or missing token
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
  *         description: Internal server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  */
+
 router.post('/', requireAuth(), locationController.createLocation);
 
 /**

@@ -224,7 +224,7 @@ const router = Router();
  *                 subcategories: ["Web Development", "Mobile Apps"]
  *     responses:
  *       201:
- *         description: User registered successfully, OTP sent for verification
+ *         description: OTP sent for verification
  *         content:
  *           application/json:
  *             schema:
@@ -235,10 +235,24 @@ const router = Router();
  *                   example: "OTP_SENT"
  *                 message:
  *                   type: string
- *                   example: "Registration successful. Please check your SMS/email for OTP verification."
+ *                   example: "Please check your SMS for OTP verification."
  *                 verification_method:
  *                   type: string
  *                   enum: [EMAIL, MOBILE]
+ *                 id:
+ *                   type: string
+ *                   description: User ID
+ *                 username:
+ *                   type: string
+ *                   description: Username
+ *                 user_type:
+ *                   type: string
+ *                   enum: [INDIVIDUAL, BUSINESS]
+ *                 onboarding_step:
+ *                   type: string
+ *                   enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *                   description: Current onboarding step (for INDIVIDUAL users only)
+ *                   nullable: true
  *       400:
  *         description: Missing required fields or validation errors
  *       409:
@@ -309,6 +323,11 @@ router.post(
  *                     verification_method:
  *                       type: string
  *                       enum: [EMAIL, MOBILE]
+ *                     onboarding_step:
+ *                       type: string
+ *                       enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *                       description: Current onboarding step (for INDIVIDUAL users only)
+ *                       nullable: true
  *       400:
  *         description: Missing required fields
  *       404:
@@ -386,17 +405,9 @@ router.get('/:id', UserController.getById);
  *                 example: "Software developer"
  *               logo_url:
  *                 type: string
- *                 description: Logo URL (direct update)
- *                 example: "https://example.com/logo.png"
- *               video_url:
- *                 type: string
- *                 description: Video URL (direct update)
- *                 example: "https://youtube.com/watch?v=123"
- *               logo:
- *                 type: string
  *                 format: binary
  *                 description: Logo file upload (will replace logo_url)
- *               video:
+ *               video_url:
  *                 type: string
  *                 format: binary
  *                 description: Video file upload (will replace video_url)
@@ -421,19 +432,11 @@ router.get('/:id', UserController.getById);
  *               summary: Update about
  *               value:
  *                 about: "Full-stack developer with 5 years experience"
- *             logo_url_update:
- *               summary: Update logo URL
- *               value:
- *                 logo_url: "https://example.com/new-logo.png"
- *             video_url_update:
- *               summary: Update video URL
- *               value:
- *                 video_url: "https://youtube.com/watch?v=abc123"
- *             logo_upload:
+ *             logo_url:
  *               summary: Upload logo file
  *               value:
  *                 logo: "[FILE]"
- *             video_upload:
+ *             video_url:
  *               summary: Upload video file
  *               value:
  *                 video: "[FILE]"
@@ -487,17 +490,9 @@ router.get('/:id', UserController.getById);
  *                 example: "Software developer"
  *               logo_url:
  *                 type: string
- *                 description: Logo URL (direct update)
- *                 example: "https://example.com/logo.png"
- *               video_url:
- *                 type: string
- *                 description: Video URL (direct update)
- *                 example: "https://youtube.com/watch?v=123"
- *               logo:
- *                 type: string
  *                 format: binary
  *                 description: Logo file upload (will replace logo_url)
- *               video:
+ *               video_url:
  *                 type: string
  *                 format: binary
  *                 description: Video file upload (will replace video_url)
@@ -526,22 +521,14 @@ router.get('/:id', UserController.getById);
  *               summary: Update about
  *               value:
  *                 about: "Full-stack developer with 5 years experience"
- *             logo_url_update:
- *               summary: Update logo URL
- *               value:
- *                 logo_url: "https://example.com/new-logo.png"
- *             video_url_update:
- *               summary: Update video URL
- *               value:
- *                 video_url: "https://youtube.com/watch?v=abc123"
- *             logo_upload:
+ *             logo_url:
  *               summary: Upload logo file
  *               value:
- *                 logo: "[FILE]"
- *             video_upload:
+ *                 logo_url: "[FILE]"
+ *             video_url:
  *               summary: Upload video file
  *               value:
- *                 video: "[FILE]"
+ *                 video_url: "[FILE]"
  *     responses:
  *       200:
  *         description: User updated successfully
@@ -771,6 +758,11 @@ router.post('/send-otp', UserController.sendOtp);
  *                     video_url:
  *                       type: string
  *                       nullable: true
+ *                     onboarding_step:
+ *                       type: string
+ *                       enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *                       description: Current onboarding step (for INDIVIDUAL users only)
+ *                       nullable: true
  *                     access_token:
  *                       type: string
  *                       description: JWT access token
@@ -785,13 +777,124 @@ router.post('/send-otp', UserController.sendOtp);
 router.post('/verify-otp', UserController.verifyOtp);
 /**
  * @swagger
+ * components:
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ *
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+ *         username:
+ *           type: string
+ *           example: "john_doe"
+ *         name:
+ *           type: string
+ *           example: "John Doe"
+ *         email:
+ *           type: string
+ *           example: "john@example.com"
+ *         mobile_number:
+ *           type: string
+ *           example: "+1234567890"
+ *         user_type:
+ *           type: string
+ *           enum: [INDIVIDUAL, BUSINESS, ADMIN]
+ *           example: "INDIVIDUAL"
+ *         status:
+ *           type: string
+ *           enum: [PENDING, ACTIVE, INACTIVE]
+ *           example: "ACTIVE"
+ *         onboarding_step:
+ *           type: string
+ *           enum: [REGISTERED, CATEGORY, LOCATION, COMPLETED]
+ *           description: Current onboarding step (for INDIVIDUAL users only)
+ *           nullable: true
+ *           example: "COMPLETED"
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2025-09-09T12:34:56.000Z"
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2025-09-09T12:34:56.000Z"
+ *
  * /api/users:
  *   get:
- *     summary: Get all users
+ *     summary: Get all users (paginated)
+ *     description: Retrieve a paginated list of users. **Only accessible by admins**.
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Number of users per page
  *     responses:
  *       200:
  *         description: Users fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Users fetched successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     users:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/User'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                           example: 1
+ *                         limit:
+ *                           type: integer
+ *                           example: 20
+ *                         total:
+ *                           type: integer
+ *                           example: 105
+ *                         total_pages:
+ *                           type: integer
+ *                           example: 6
+ *                         has_next_page:
+ *                           type: boolean
+ *                           example: true
+ *                         has_prev_page:
+ *                           type: boolean
+ *                           example: false
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Admin access required
  *       404:
  *         description: No users found
  */
@@ -1173,12 +1276,5 @@ router.post('/check-username', UserController.checkUsername);
  *                   example: "Failed to fetch business"
  */
 router.get('/business/:id', UserController.getBusinessById);
-// /**
-//  * @swagger
-//  * /api/users/verify-update-otp:
-//  *   post:
-//  *     summary: Verify update OTP
-//  *     description: Verify the OTP sent to user's email or mobile number for updating contact information.
-//  */
-// router.post('/verify-update-otp', requireAuth(), UserController.verifyUpdateOtp);
+
 export default router;

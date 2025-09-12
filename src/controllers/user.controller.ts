@@ -123,7 +123,10 @@ export default class UserController {
         message: user.message,
       };
 
-      return res.created(simplifiedResponse, 'User registered successfully');
+      return res.created(
+        simplifiedResponse,
+        'OTP sent successfully. Please verify to complete registration.',
+      );
     } catch (error) {
       next(error);
     }

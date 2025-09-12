@@ -25,7 +25,7 @@ export const createLocation = async (req: AuthRequest, res: Response, next: Next
       return res.fail('Invalid longitude. Must be between -180 and 180', 400);
     }
 
-    const newLocation = await locationService.createLocationForUser(userId, {
+    const result = await locationService.createLocationForUser(userId, {
       location,
       latitude,
       longitude,
@@ -35,7 +35,7 @@ export const createLocation = async (req: AuthRequest, res: Response, next: Next
       country,
     });
 
-    return res.created(newLocation, 'Location created successfully');
+    return res.created(result, 'Location created successfully');
   } catch (error) {
     next(error);
   }

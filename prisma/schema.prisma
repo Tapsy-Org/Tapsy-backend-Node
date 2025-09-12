@@ -121,16 +121,16 @@ model User {
   verification_method VerificationMethod
   otp                 String?
   refresh_token       String?
-  logo_url            String?
   otp_expiry          DateTime?
   about               String?
+  logo_url            String?
+  video_url           String?
   onboarding_step     OnboardingStep?    @default(REGISTERED)
 
   // User Only
 
   // Business Only
   email               String?            @unique 
-  video_url           String?
   website             String?
   rating_sum   Int    @default(0)
   review_count Int    @default(0)

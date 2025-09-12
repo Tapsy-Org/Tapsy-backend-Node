@@ -31,14 +31,26 @@ export const addCategoriesAndSubcategories = async (
     }
 
     // 2. Call service
-    const user = await userCategoryService.addUserCategoriesAndSubcategories(
+    const result = await userCategoryService.addUserCategoriesAndSubcategories(
       userId,
       categoryIds,
       subcategories,
     );
 
-    // 3. Respond
-    return res.success({ user }, 'Categories and subcategories added successfully');
+    // 3. Respond with structured data
+    return res.success(
+      {
+        id: result.categories[0]?.id || 'user-category-uuid',
+        userId: result.user.id,
+        categoryId: result.categories[0]?.categoryId || 'category-uuid',
+        categoriesName: result.categories[0]?.categoriesName || [],
+        subcategories: result.categories[0]?.subcategories || [],
+        user_type: result.user.user_type,
+        createdAt: result.categories[0]?.createdAt || new Date().toISOString(),
+        onboarding_step: result.user.onboarding_step,
+      },
+      'Categories and subcategories added successfully',
+    );
   } catch (error) {
     next(error);
   }
