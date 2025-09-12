@@ -116,6 +116,16 @@ const router = express.Router();
  *         logo_url:
  *           type: string
  *           nullable: true
+ *         rating:
+ *           type: number
+ *           nullable: true
+ *           description: Business average rating (only present for BUSINESS user_type)
+ *           example: 4.2
+ *         ratingCount:
+ *           type: integer
+ *           nullable: true
+ *           description: Total number of reviews for the business (only present for BUSINESS user_type)
+ *           example: 25
  *     Like:
  *       type: object
  *       properties:
@@ -234,6 +244,36 @@ const router = express.Router();
  *           type: string
  *           nullable: true
  *           description: S3 URL of the uploaded video (null if no video was uploaded)
+ *     UpdateReviewRequest:
+ *       type: object
+ *       properties:
+ *         rating:
+ *           $ref: '#/components/schemas/ReviewRating'
+ *           description: Updated rating for the review
+ *         badges:
+ *           type: string
+ *           nullable: true
+ *           description: Updated badges string
+ *         caption:
+ *           type: string
+ *           nullable: true
+ *           description: Updated review caption/description
+ *         hashtags:
+ *           oneOf:
+ *             - type: array
+ *               items:
+ *                 type: string
+ *               description: Array of hashtags
+ *             - type: string
+ *               description: Comma-separated hashtags (e.g., "tag1,tag2,tag3") or JSON array string (e.g., '["tag1","tag2"]')
+ *         title:
+ *           type: string
+ *           nullable: true
+ *           description: Updated review title
+ *         feedbackText:
+ *           type: string
+ *           nullable: true
+ *           description: Updated feedback text for bad reviews (when rating is ONE or TWO)
  *     ErrorResponse:
  *       type: object
  *       properties:
@@ -664,6 +704,16 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *                               logo_url:
  *                                 type: string
  *                                 nullable: true
+ *                               rating:
+ *                                 type: number
+ *                                 nullable: true
+ *                                 description: Business average rating
+ *                                 example: 4.2
+ *                               ratingCount:
+ *                                 type: integer
+ *                                 nullable: true
+ *                                 description: Total number of reviews for the business
+ *                                 example: 25
  *                           _count:
  *                             type: object
  *                             properties:
@@ -735,6 +785,8 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *                           name: "Downtown Coffee Co."
  *                           user_type: "BUSINESS"
  *                           logo_url: "https://s3.amazonaws.com/bucket/business1.jpg"
+ *                           rating: 4.2
+ *                           ratingCount: 25
  *                         _count:
  *                           likes: 45
  *                           comments: 12
@@ -763,6 +815,8 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *                           name: "Family Restaurant"
  *                           user_type: "BUSINESS"
  *                           logo_url: "https://s3.amazonaws.com/bucket/business2.jpg"
+ *                           rating: 3.8
+ *                           ratingCount: 18
  *                         _count:
  *                           likes: 23
  *                           comments: 8
@@ -922,7 +976,7 @@ router.post('/', requireAuth(), upload.single('video'), ReviewController.createR
  *                   statusCode: 500
  *                   message: "Failed to fetch review feed"
  */
-router.post('/feed', requireAuth(), ReviewController.getReviewFeed);
+router.post('/feed', dataFetchLimiter, requireAuth(), ReviewController.getReviewFeed);
 
 /**
  * @swagger
@@ -1107,7 +1161,7 @@ router.get('/seen', requireAuth(), ReviewController.getSeenReviews);
  *       500:
  *         description: Internal server error
  */
-router.delete('/seen', requireAuth(), ReviewController.clearSeenReviews);
+router.delete('/seen', dataFetchLimiter, requireAuth(), ReviewController.clearSeenReviews);
 
 /**
  * @swagger
@@ -1155,6 +1209,189 @@ router.delete('/seen', requireAuth(), ReviewController.clearSeenReviews);
  *         description: Internal server error
  */
 router.get('/:reviewId', dataFetchLimiter, requireAuth(), ReviewController.getReviewById);
+
+/**
+ * @swagger
+ * /api/reviews/{reviewId}:
+ *   put:
+ *     summary: Update a review
+ *     description: |
+ *       Updates an existing review. Users can only update their own reviews.
+ *       All fields are optional - only provided fields will be updated.
+ *       **Important Notes:**
+ *       - Users can only update their own reviews
+ *       - Changing rating from 3-5 to 1-2 will set status to PENDING (requires approval)
+ *       - Changing rating from 1-2 to 3-5 will set status to ACTIVE (immediately visible)
+ *       - Business rating aggregates are automatically recalculated when rating changes
+ *       - Video updates are not supported through this endpoint (use separate video upload)
+ *       **Status Behavior:**
+ *       - Rating 3-5: Review becomes ACTIVE (immediately visible)
+ *       - Rating 1-2: Review becomes PENDING (awaits approval)
+ *       - If rating changes to 1-2, feedback text can be provided
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: reviewId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: The review ID to update
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateReviewRequest'
+ *           examples:
+ *             update_rating:
+ *               summary: Update only the rating
+ *               value:
+ *                 rating: "FOUR"
+ *             update_content:
+ *               summary: Update caption and hashtags
+ *               value:
+ *                 caption: "Updated review - still great experience!"
+ *                 hashtags: ["#updated", "#great", "#experience"]
+ *             complete_update:
+ *               summary: Update multiple fields
+ *               value:
+ *                 rating: "FIVE"
+ *                 caption: "Amazing experience, highly recommend!"
+ *                 hashtags: ["#amazing", "#recommend", "#excellent"]
+ *                 title: "Outstanding Service"
+ *                 badges: "Verified Customer, Frequent Visitor"
+ *             bad_review_update:
+ *               summary: Update to bad review with feedback
+ *               value:
+ *                 rating: "ONE"
+ *                 caption: "Very disappointed with the service"
+ *                 hashtags: ["#disappointed", "#poor", "#service"]
+ *                 title: "Poor Experience"
+ *                 feedbackText: "Service was extremely slow and staff was unhelpful. Food was cold when it arrived."
+ *     responses:
+ *       200:
+ *         description: Review updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Review updated successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/Review'
+ *             examples:
+ *               review_updated:
+ *                 summary: Review successfully updated
+ *                 value:
+ *                   status: "success"
+ *                   message: "Review updated successfully"
+ *                   data:
+ *                     id: "60cc2365-74ae-4b50-b7f7-a356c4a417ea"
+ *                     userId: "user-123"
+ *                     rating: "FOUR"
+ *                     caption: "Updated review - still great experience!"
+ *                     hashtags: ["#updated", "#great", "#experience"]
+ *                     title: "Good Experience"
+ *                     badges: "Verified Customer"
+ *                     video_url: "https://s3.amazonaws.com/bucket/video.mp4"
+ *                     businessId: "business-456"
+ *                     views: 150
+ *                     status: "ACTIVE"
+ *                     createdAt: "2024-01-15T10:30:00Z"
+ *                     updatedAt: "2024-01-16T14:45:00Z"
+ *                     user:
+ *                       id: "user-123"
+ *                       username: "john_doe"
+ *                       name: "John Doe"
+ *                       user_type: "INDIVIDUAL"
+ *                       logo_url: "https://example.com/avatar.jpg"
+ *                     business:
+ *                       id: "business-456"
+ *                       username: "restaurant_name"
+ *                       name: "Restaurant Name"
+ *                       user_type: "BUSINESS"
+ *                       logo_url: "https://example.com/logo.jpg"
+ *                       rating: 4.3
+ *                       ratingCount: 28
+ *               bad_review_updated:
+ *                 summary: Review updated to bad review (status becomes PENDING)
+ *                 value:
+ *                   status: "success"
+ *                   message: "Review updated successfully"
+ *                   data:
+ *                     id: "60cc2365-74ae-4b50-b7f7-a356c4a417ea"
+ *                     userId: "user-123"
+ *                     rating: "ONE"
+ *                     caption: "Very disappointed with the service"
+ *                     hashtags: ["#disappointed", "#poor", "#service"]
+ *                     title: "Poor Experience"
+ *                     status: "PENDING"
+ *                     business:
+ *                       rating: 3.8
+ *                       ratingCount: 28
+ *       400:
+ *         description: Bad request - validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalid_rating:
+ *                 summary: Invalid rating value
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Invalid rating value. Must be ONE, TWO, THREE, FOUR, or FIVE"
+ *                   details: null
+ *               invalid_hashtags:
+ *                 summary: Invalid hashtags format
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 400
+ *                   message: "Hashtags must be an array"
+ *                   details: null
+ *       401:
+ *         description: Unauthorized - missing or invalid access token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - user can only update their own reviews
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               not_owner:
+ *                 summary: User trying to update someone else's review
+ *                 value:
+ *                   status: "fail"
+ *                   statusCode: 403
+ *                   message: "You can only update your own reviews"
+ *                   details: null
+ *       404:
+ *         description: Review not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.put('/:reviewId', requireAuth(), dataFetchLimiter, ReviewController.updateReview);
 
 /**
  * @swagger
@@ -1291,6 +1528,15 @@ router.get('/my/reviews', requireAuth(), ReviewController.getMyReviews);
  *                       id: "user-123"
  *                       username: "john_doe"
  *                       user_type: "INDIVIDUAL"
+ *                       logo_url: "https://example.com/avatar.jpg"
+ *                     business:
+ *                       id: "business-456"
+ *                       username: "restaurant_name"
+ *                       name: "Restaurant Name"
+ *                       user_type: "BUSINESS"
+ *                       logo_url: "https://example.com/logo.jpg"
+ *                       rating: 3.2
+ *                       ratingCount: 15
  *       400:
  *         description: Bad request - invalid status value or missing review ID
  *         content:
@@ -1338,7 +1584,12 @@ router.get('/my/reviews', requireAuth(), ReviewController.getMyReviews);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewStatus);
+router.patch(
+  '/:reviewId/status',
+  requireAuth(),
+  dataFetchLimiter,
+  ReviewController.updateReviewStatus,
+);
 
 /**
  * @swagger
@@ -1427,6 +1678,8 @@ router.patch('/:reviewId/status', requireAuth(), ReviewController.updateReviewSt
  *                           username: "restaurant_name"
  *                           user_type: "BUSINESS"
  *                           logo_url: "https://example.com/logo.jpg"
+ *                           rating: 4.5
+ *                           ratingCount: 32
  *                         likes:
  *                           - id: "like-1"
  *                             userId: "user-789"
@@ -1640,7 +1893,7 @@ router.delete('/:reviewId', requireAuth(), ReviewController.deleteReview);
  *       500:
  *         description: Internal server error
  */
-router.post('/:reviewId/seen', requireAuth(), ReviewController.markReviewAsSeen);
+router.post('/:reviewId/seen', requireAuth(), dataFetchLimiter, ReviewController.markReviewAsSeen);
 
 /**
  * @swagger
@@ -1770,6 +2023,6 @@ router.post('/:reviewId/seen', requireAuth(), ReviewController.markReviewAsSeen)
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/seen', requireAuth(), ReviewController.markReviewsAsSeen);
+router.post('/seen', dataFetchLimiter, requireAuth(), ReviewController.markReviewsAsSeen);
 
 export default router;

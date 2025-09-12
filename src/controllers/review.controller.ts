@@ -1,10 +1,10 @@
 import { ReviewRating, Status } from '@prisma/client';
 import { NextFunction, Response } from 'express';
 
-import { RedisService } from '../services/redis.service';
 import { ReviewService } from '../services/review.service';
 import { AuthRequest } from '../types/express';
 import AppError from '../utils/AppError';
+import { RedisService } from '../utils/redis';
 import { uploadFileToS3 } from '../utils/s3';
 
 const reviewService = new ReviewService();
@@ -241,6 +241,102 @@ export default class ReviewController {
       const result = await reviewService.getReviews(filters);
 
       return res.success(result, 'Your reviews fetched successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateReview(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { reviewId } = req.params;
+      const { rating, badges, caption, hashtags, title, feedbackText } = req.body;
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        throw new AppError('User not authenticated', 401);
+      }
+
+      if (!reviewId) {
+        throw new AppError('Review ID is required', 400);
+      }
+
+      // Validate rating if provided
+      if (rating) {
+        const validRatings = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE'];
+        if (!validRatings.includes(rating)) {
+          throw new AppError('Invalid rating value. Must be ONE, TWO, THREE, FOUR, or FIVE', 400);
+        }
+      }
+
+      // Parse and validate hashtags if provided
+      let parsedHashtags: string[] | undefined;
+      if (hashtags !== undefined) {
+        try {
+          if (typeof hashtags === 'string') {
+            // Check if it's a JSON array string first
+            if (hashtags.trim().startsWith('[') && hashtags.trim().endsWith(']')) {
+              parsedHashtags = JSON.parse(hashtags);
+            } else if (hashtags.includes(',')) {
+              // Handle comma-separated hashtags
+              parsedHashtags = hashtags
+                .split(',')
+                .map((tag) => tag.trim())
+                .filter((tag) => tag.length > 0);
+            } else {
+              // Single hashtag
+              parsedHashtags = [hashtags.trim()];
+            }
+          } else if (Array.isArray(hashtags)) {
+            parsedHashtags = hashtags;
+          } else {
+            throw new AppError(
+              'Hashtags must be a valid JSON array, comma-separated string, or array',
+              400,
+            );
+          }
+          // Validate that parsed result is an array
+          if (!Array.isArray(parsedHashtags)) {
+            throw new AppError('Hashtags must be an array', 400);
+          }
+          // Validate each hashtag is a string and not empty
+          if (!parsedHashtags.every((tag) => typeof tag === 'string' && tag.trim().length > 0)) {
+            throw new AppError('All hashtags must be non-empty strings', 400);
+          }
+          // Clean hashtags (ensure they start with # if not already)
+          parsedHashtags = parsedHashtags.map((tag) => {
+            const cleanTag = tag.trim();
+            return cleanTag.startsWith('#') ? cleanTag : `#${cleanTag}`;
+          });
+        } catch (parseError) {
+          if (parseError instanceof AppError) {
+            throw parseError;
+          }
+          throw new AppError(
+            'Invalid hashtags format. Must be a valid JSON array, comma-separated string, or array',
+            400,
+          );
+        }
+      }
+
+      // Prepare update data
+      const updateData: {
+        rating?: ReviewRating;
+        badges?: string;
+        caption?: string;
+        hashtags?: string[];
+        title?: string;
+        feedbackText?: string;
+      } = {};
+      if (rating !== undefined) updateData.rating = rating;
+      if (badges !== undefined) updateData.badges = badges;
+      if (caption !== undefined) updateData.caption = caption;
+      if (parsedHashtags !== undefined) updateData.hashtags = parsedHashtags;
+      if (title !== undefined) updateData.title = title;
+      if (feedbackText !== undefined) updateData.feedbackText = feedbackText;
+
+      const updatedReview = await reviewService.updateReview(reviewId, userId, updateData);
+
+      return res.success(updatedReview, 'Review updated successfully');
     } catch (error) {
       next(error);
     }

@@ -64,11 +64,12 @@ jobs:
       - name: Prepare new task definition for DEV
         if: github.ref == 'refs/heads/main'
         id: render-dev-task
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: aws/task-defination-dev.json
-          container-name: backend-dev-container
-          image: ${{ steps.build-image.outputs.image }}
+        run: |
+          # Use sed to replace the placeholder in the task definition file
+          sed -i 's|IMAGE_PLACEHOLDER|${{ steps.build-image.outputs.image }}|g' aws/task-defination-dev.json
+          # Output the path to the modified file so the next step can use it
+          echo "task_definition_path=aws/task-defination-dev.json" >> $GITHUB_OUTPUT
+
 
       - name: Deploy to DEV service
         if: github.ref == 'refs/heads/main'
@@ -83,11 +84,12 @@ jobs:
       - name: Prepare new task definition for PROD
         if: github.ref == 'refs/heads/production'
         id: render-prod-task
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: aws/task-defination-prod.json
-          container-name: backend-prod-container
-          image: ${{ steps.build-image.outputs.image }}
+        run: |
+          # Use sed to replace the placeholder in the task definition file
+          sed -i 's|IMAGE_PLACEHOLDER|${{ steps.build-image.outputs.image }}|g' aws/task-defination-prod.json
+          # Output the path to the modified file so the next step can use it
+          echo "task_definition_path=aws/task-defination-prod.json" >> $GITHUB_OUTPUT
+
 
       - name: Deploy to PROD service
         if: github.ref == 'refs/heads/production'

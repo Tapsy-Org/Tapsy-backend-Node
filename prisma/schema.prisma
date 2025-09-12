@@ -106,10 +106,10 @@ enum SupportStatus {
 
 // ---------- Core ----------
 model User {
+  // Both
   id                  String             @id @default(uuid()) @db.Uuid
   user_type           UserType
   mobile_number       String?            @unique
-  email               String?            @unique 
   username            String             @unique
   name                String?
   status              Status
@@ -121,13 +121,22 @@ model User {
   verification_method VerificationMethod
   otp                 String?
   refresh_token       String?
-  otp_expiry          DateTime?
-  password            String?            // For admin users
-  website             String?
-  about               String?
   logo_url            String?
-  video_url          String?
+  otp_expiry          DateTime?
+  about               String?
   onboarding_step     OnboardingStep?    @default(REGISTERED)
+
+  // User Only
+
+  // Business Only
+  email               String?            @unique 
+  video_url           String?
+  website             String?
+  rating_sum   Int    @default(0)
+  review_count Int    @default(0)
+
+  // Admin Only
+  password            String?            // For admin users
   
   // Relations
   categories       UserCategory[]
